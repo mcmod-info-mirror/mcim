@@ -73,29 +73,36 @@ class Database:
                 cursor.execute("DROP TABLE %s", table)
                 self.db.commit()
                 return True
-            except :
+            except Exception as e:
+                print('Exception in Database.delete_table:', type(e), str(e))
                 return False
     
-    def insert(self, table: str, name: str, value: str) -> str :
+    def insert(self, table: str, **kwargs) -> str :
         '''
-        用法: db.insert(table, name, value)
+        用法: db.insert(table, key1=value1, key2=value2, ...)
         '''
+        assert len(kwargs) > 0, "No value to insert"
+        keys = []
+        values = []
+        for k, v in kwargs.items():
+            keys.append(k)
+            values.append(v)
         self.db.begin()
-        sql = "INSERT INTO " + table + "(" + name + ") VALUES \
-         (" + value + ")"
+        sql = "INSERT INTO %s ({0}) VALUES ({0})".format(','.join(['%s'] * len(keys)))
         with self.db.cursor() as cursor:
-            cursor.execute(sql)
+            cursor.execute(sql, table, *keys, *values)
         self.db.commit()
 
-    def create_table(self, table: str ,something: str):
+    def create_table(self, table: str, *args: str):
         '''
         创造一个新表。
         
-        用法: db.create_table(table, something)
+        用法: db.create_table(table, arg1, arg2, ...)
         '''
+        sql = "CREATE TABLE %s ({0}) ENGINE=InnoDB DEFAULT CHARSET=utf8".format(','.join(['%s'] * len(args)))
         with self.db.cursor() as cursor:
-            cursor.execute("CREATE TABLE " + table + "(" + something +") ENGINE=InnoDB DEFAULT CHARSET=utf8")
-            self.db.commit()
+            cursor.execute(sql, table, *args)
+        self.db.commit()
 
     def disconnect(self):
         '''
@@ -121,7 +128,6 @@ class Database:
         with self.db.cursor() as cursor:
             cursor.execute("SHOW TABLES")
             return cursor.fetchone()
-
 
 # pwd = emjYT6NcSi8RKNFc
 # host = 10.0.0.20
