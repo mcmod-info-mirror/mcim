@@ -1,9 +1,9 @@
 import os
-import json,toml
-import zipfile
-import curseforge_api
-import modrinth_api
 import json
+import toml
+import zipfile
+from . import curseforge_api
+from . import modrinth_api
 
 api = modrinth_api
 
