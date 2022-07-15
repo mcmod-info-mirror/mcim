@@ -3,7 +3,8 @@ import os
 import json
 import toml
 import zipfile
-from .apis import *
+from apis import *
+from api_config import Config
 
 def check_jar(mods_path):
     jar_info_list = []
@@ -60,11 +61,11 @@ def check_jar(mods_path):
 #             pass
 
 def main():
-    cf_api = CurseForgeApi(api_config.curseforge_base_api_url, api_config.api_key, proxies=api_config.proxies)
+    cf_api = CurseForgeApi(Config.curseforge_base_api_url, Config.api_key, proxies=Config.proxies)
     with open("cf_cache.json","w") as f:
         json.dump(cf_api.end_point(), f)
 
-    mod_api = ModrinthApi(api_config.modrinth_base_api_url, proxies=api_config.proxies)
+    mod_api = ModrinthApi(Config.modrinth_base_api_url, proxies=Config.proxies)
     with open("cache.json","w") as f:
         #json.dump(api.Mod().search("Sodium",limit=5,facets={"categories":"fabric","versions":"1.18.1","project_type":"mod"}),f)
         json.dump(mod_api.get_mod_version_download_info("Yp8wLY1P"), f)

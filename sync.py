@@ -5,7 +5,7 @@ import time
 import os
 import logging
 import requests
-from . import api_config
+from .api_config import Config
 from .apis import *
 from .async_httpclient import *
 # import yarl 暂时不需要...你想整的话，去改curseforgeapi那些
@@ -29,14 +29,14 @@ class Cache:
     
     class CurseforgeCache:
         def __init__(self) -> None:
-            self.key = api_config.api_key
-            self.base_api_url = api_config.base_api_url
-            self.proxies = api_config.proxies
+            self.key = Config.api_key
+            self.base_api_url = Config.base_api_url
+            self.proxies = Config.proxies
 
 if __name__ == "__main__":
     cache = Cache()
     while True:
         # sync
         cache
-        # time.sleep(api_config.sync_interval * 60)
+        # time.sleep(Config.sync_interval * 60)
         break
