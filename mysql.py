@@ -1,0 +1,130 @@
+# 此库正摆烂，拒绝接受请求。
+
+import pymysql
+
+class Database:
+    def __init__(self, host: str, port: int, user: str, password: str, database: str):
+        '''
+        创建并连接数据库。
+
+        需提供 `host` `port` `user` `password` `database` 。
+
+        `host` : 主机名。
+
+        `port` : 端口。
+
+        `user` : 用户名。
+
+        `password`: 密码。
+
+        `database`: 需操作的数据库。
+
+        用法: db = Database(host, port, user, password, database)
+        '''
+        self.db = None
+        self.connect(host=host, port=port, user=user, password=password, database=database)
+
+    def connect(self, host: str, port: int, user: str, password: str, database: str):
+        '''
+        重新连接数据库。
+
+        需提供 `host` `port` `user` `password` `database` 。
+
+        `host` : 主机名。
+
+        `port` : 端口。
+
+        `user` : 用户名。
+
+        `password`: 密码。
+
+        `database`: 需操作的数据库。
+
+        用法: db.connect(host, port, user, password, database)
+        '''
+        if self.db is not None:
+            self.disconnect()
+        self.db = pymysql.connect(host=host, port=port, user=user, password=password, database=database)
+
+    def mysql_version(self) -> str:
+        '''
+        获取数据库版本。
+
+        用法: version = db.mysql_version()
+        '''
+        with self.db.cursor() as cursor:
+            cursor.execute("SELECT VERSION()")
+            return cursor.fetchone()
+
+    def delete_table(self, table: str) -> bool :
+        '''
+        删除整个表。
+
+        需提供可操作数据库的 `table` 。
+
+        `table` : 表。
+
+        如果成功则返回 `True` , 否则返回 `False` 。
+
+        用法: ok = db.delete_table('table_name')
+        '''
+        with self.db.cursor() as cursor:
+            try:
+                cursor.execute("DROP TABLE %s", table)
+                self.db.commit()
+                return True
+            except :
+                return False
+    
+    def insert(self, table: str, name: str, value: str) -> str :
+        '''
+        用法: db.insert(table, name, value)
+        '''
+        self.db.begin()
+        sql = "INSERT INTO " + table + "(" + name + ") VALUES \
+         (" + value + ")"
+        with self.db.cursor() as cursor:
+            cursor.execute(sql)
+        self.db.commit()
+
+    def create_table(self, table: str ,something: str):
+        '''
+        创造一个新表。
+        
+        用法: db.create_table(table, something)
+        '''
+        with self.db.cursor() as cursor:
+            cursor.execute("CREATE TABLE " + table + "(" + something +") ENGINE=InnoDB DEFAULT CHARSET=utf8")
+            self.db.commit()
+
+    def disconnect(self):
+        '''
+        断开数据库连接。
+        
+        用法: db.disconnect()
+        '''
+        assert self.db is not None, "Database not connected"
+        self.db.disconnect()
+        self.db = None
+
+    def select(self, table: str):
+        with self.db.cursor() as cursor:
+            cursor.execute("SELECT * FROM " + table)
+            return cursor.fetchone()
+    
+    def show_tables(self):
+        '''
+        展示所有的表。
+
+        用法: ok = db.show_tables()
+        '''
+        with self.db.cursor() as cursor:
+            cursor.execute("SHOW TABLES")
+            return cursor.fetchone()
+
+
+# pwd = emjYT6NcSi8RKNFc
+# host = 10.0.0.20
+# port = 3306
+# user = mod_api_test
+# dbname = mod_api_test
