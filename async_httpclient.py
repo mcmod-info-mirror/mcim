@@ -1,6 +1,7 @@
 
 import asyncio
 import aiohttp
+import functools
 
 __all__ = [
 	'AsyncHTTPClient'
@@ -10,7 +11,8 @@ def _request_cb_wrapper(url, callback):
 	@functools.wraps(callback)
 	def wrap(task):
 		nonlocal url, callback
-		return callback(url, task.result())
+		res, content = task.result()
+		return callback(url, res, content)
 	return wrap
 
 class AsyncHTTPClient:
@@ -70,6 +72,11 @@ class Tester:
 			url = self.target[i]
 			print('Response for "{}": {} ;Content: {} Byte'.format(url, res.status, len(content)))
 
+	async def test_get_all_with_callback(self):
+		def callback(url, res, content):
+			print('Response for "{}": {} ;Content: {} Byte'.format(url, res.status, len(content)))
+		await self.cli.get_all(self.target, callback=callback)
+
 	def test_get_all_sync(self):
 		responses = self.cli.get_all_sync(self.target)
 		for i, (res, content) in enumerate(responses):
@@ -82,6 +89,8 @@ class Tester:
 		tester = cls()
 		print('=> Testing AsyncHTTPClient.get_all')
 		asyncio.run(tester.test_get_all())
+		print('=> Testing AsyncHTTPClient.get_all with callback')
+		asyncio.run(tester.test_get_all_with_callback())
 		print('=> Testing AsyncHTTPClient.get_all_sync')
 		tester.test_get_all_sync()
 
