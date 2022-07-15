@@ -1,11 +1,9 @@
+
 import os
 import json
 import toml
 import zipfile
-from . import curseforge_api
-from . import modrinth_api
-
-api = modrinth_api
+from .apis import *
 
 def check_jar(mods_path):
     jar_info_list = []
@@ -46,29 +44,30 @@ def check_jar(mods_path):
     return jar_info_list
 
 
-'''
-gameId = 432
-mods_path = "D:/Minecraft/.minecraft/versions/1.18.2 PCLS/mods"
-mods = api.Parse().check_jar(mods_path)
-for mod in mods:
-    for path in mod:
-        try:
-            if "www.curseforge.com" in mod[path]["url"]:
-                url = mod[path]["url"]
-                mod_slug = url.split("/")[-1]
-                with open("cache.json","w+") as f:
-                    json.dump(api.Mod().search(slug=mod_slug),f)
-                    f.write("\n")
-        except KeyError:
-            pass
-'''
-cf_api = curseforge_api
-with open("cf_cache.json","w") as f:
-    json.dump(cf_api.end_point(),f)
+# gameId = 432
+# mods_path = "D:/Minecraft/.minecraft/versions/1.18.2 PCLS/mods"
+# mods = api.Parse().check_jar(mods_path)
+# for mod in mods:
+#     for path in mod:
+#         try:
+#             if "www.curseforge.com" in mod[path]["url"]:
+#                 url = mod[path]["url"]
+#                 mod_slug = url.split("/")[-1]
+#                 with open("cache.json","w+") as f:
+#                     json.dump(api.Mod().search(slug=mod_slug),f)
+#                     f.write("\n")
+#         except KeyError:
+#             pass
 
+def main():
+    cf_api = CurseForgeApi(api_config.curseforge_base_api_url, api_config.api_key, proxies=api_config.proxies)
+    with open("cf_cache.json","w") as f:
+        json.dump(cf_api.end_point(), f)
 
-with open("cache.json","w") as f:
-    #json.dump(api.Mod().search("Sodium",limit=5,facets={"categories":"fabric","versions":"1.18.1","project_type":"mod"}),f)
-    #json.dump(api.Mod().get_mod_version_download_info("Yp8wLY1P"),f)
-    json.dump(api.Mod().get_mod_version_download_info("Yp8wLY1P"),f)
+    mod_api = ModrinthApi(api_config.modrinth_base_api_url, proxies=api_config.proxies)
+    with open("cache.json","w") as f:
+        #json.dump(api.Mod().search("Sodium",limit=5,facets={"categories":"fabric","versions":"1.18.1","project_type":"mod"}),f)
+        json.dump(mod_api.get_mod_version_download_info("Yp8wLY1P"), f)
 
+if __name__ == '__main__':
+    main()
