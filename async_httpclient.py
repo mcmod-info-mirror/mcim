@@ -7,14 +7,6 @@ __all__ = [
 	'AsyncHTTPClient'
 ]
 
-def _request_cb_wrapper(url, callback):
-	@functools.wraps(callback)
-	def wrap(task):
-		nonlocal url, callback
-		res, content = task.result()
-		return callback(url, res, content)
-	return wrap
-
 class AsyncHTTPClient:
 	'''
 	Usage: cli = AsyncHTTPClient()
@@ -22,7 +14,7 @@ class AsyncHTTPClient:
 	def __init__(self): # limit: int = 64 TODO
 		pass
 
-	def new_session(self):
+	async def new_session(self):
 		'''
 		Usage:
 			async with cli.new_session() as session:
@@ -30,16 +22,27 @@ class AsyncHTTPClient:
 		'''
 		return aiohttp.ClientSession()
 
-	async def get(self, url: str):
+	async def get_session(self):
+		'''
+		Usage:
+			async with cli.get_session() as session:
+				pass
+		'''
+		return await self.new_session()
+
+	async def get(self, url: str, *, callback=None):
 		'''
 		Usage: res, content = await cli.get('http://example.com')
 		'''
-		async with self.new_session() as session:
+		async with await self.get_session() as session:
 			async with session.get(url) as res:
-				content = await res.text()
+				if callback is not None:
+					return await callback(url, res)
+				reader = res.content
+				content = await reader.read()
 				return res, content
 
-	async def get_all(self, urls: list[str], callback=None):
+	async def get_all(self, urls: list[str], *, callback=None):
 		'''
 		Usage:
 			urls = ['http://example.com', 'http://example2.com']
@@ -47,12 +50,7 @@ class AsyncHTTPClient:
 			for i, (res, content) in enumerate(responses):
 				print('Response for "{}": {} ;Content: {} Byte'.format(urls[i], res.status, len(content)))
 		'''
-		tasks = []
-		for url in urls:
-			task = asyncio.create_task(self.get(url))
-			if callback is not None:
-				task.add_done_callback(_request_cb_wrapper(url, callback))
-			tasks.append(task)
+		tasks = [asyncio.create_task(self.get(url, callback=callback)) for url in urls]
 		return await asyncio.gather(*tasks)
 
 	def get_all_sync(self, *args, **kwargs):
@@ -73,7 +71,8 @@ class Tester:
 			print('Response for "{}": {} ;Content: {} Byte'.format(url, res.status, len(content)))
 
 	async def test_get_all_with_callback(self):
-		def callback(url, res, content):
+		async def callback(url, res):
+			content = await res.content.read()
 			print('Response for "{}": {} ;Content: {} Byte'.format(url, res.status, len(content)))
 		await self.cli.get_all(self.target, callback=callback)
 
