@@ -115,6 +115,11 @@ class Database:
         self.db = None
 
     def select(self, table: str):
+        '''
+        展示表中的数据。
+
+        用法: callback = db.select(table)
+        '''
         with self.db.cursor() as cursor:
             cursor.execute("SELECT * FROM " + table)
             return cursor.fetchone()
