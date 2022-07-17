@@ -4,3 +4,9 @@
 
 # Python
 __pycache__
+
+# Logs
+logs
+
+# Test Files
+test

@@ -133,6 +133,27 @@ class Database:
         with self.db.cursor() as cursor:
             cursor.execute("SHOW TABLES")
             return cursor.fetchone()
+    
+    def delete_database(self, database: str):
+        '''
+        删库跑路。
+
+        用法: db.delete_database(database)
+        '''
+        with self.db.cursor() as cursor:
+            cursor.execute("DROP DATABASE " + database)
+        self.db.commit()
+    
+    def create_database(self, database: str):
+        '''
+        开库开搞。
+
+        用法: db.create_database(database)
+        '''
+        with self.db.cursor() as cursor:
+            cursor.execute("CREATE DATABASE " + database)
+        self.db.commit()
+
 
 # pwd = emjYT6NcSi8RKNFc
 # host = 10.0.0.20

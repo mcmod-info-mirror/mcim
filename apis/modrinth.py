@@ -17,8 +17,7 @@ class ModrinthApi:
 
     def end_point(self):
         headers = {
-            'Accept': 'application/json',
-            'x-api-key': api_key
+            'Accept': 'application/json'
         }
 
         res = requests.get(url=self.baseurl, proxies=self.proxies, headers=headers)        

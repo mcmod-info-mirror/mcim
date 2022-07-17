@@ -11,17 +11,18 @@ __all__ = [
 def retry(url,headers=None,params=None,proxies=None,timeout=60):
     b = 0
     while b < 3:
-        pass
         try:
+            pass
             retry_res = requests.get(url, headers=headers, params=params, proxies=proxies,timeout=timeout)
+            a = retry_res.ok
             if retry_res.ok:
                 return retry_res
             else:
                 b += 1
         except Exception:
             b += 1
-    else:
-        pass
+    pass
+    return retry_res
 
 
 class CurseForgeApi:
@@ -118,7 +119,6 @@ class CurseForgeApi:
             'x-api-key': self.api_key
         }
         res = retry(url=url, headers=headers, params={'gameId': gameid, "sortField": sortField, "categoryId": categoryid, "sortOrder": "desc", "index": index, "pageSize": pageSize, "classId": classid, "slug": slug, "modLoaderType": modLoaderType, "gameVersion": gameversion, "searchFilter": text}, proxies=self.proxies)
-        print(res.url)
         if res.status_code != 200:
             raise StatusCodeException(res.status_code,res.url)
         return res.json()
@@ -131,8 +131,10 @@ class CurseForgeApi:
         }
         res = retry(url=url, proxies=self.proxies, headers=headers)
         if res.status_code != 200:
-            raise StatusCodeException(res.status_code,res.url)
-        return res.json()
+            # raise StatusCodeException(res.status_code,res.url)
+            return res.status_code
+        else:
+            return res.json()
     
     def get_mods(self, modids) -> list:
         url = self.baseurl + "v1/mods"
