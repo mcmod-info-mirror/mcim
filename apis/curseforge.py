@@ -7,6 +7,23 @@ __all__ = [
     'CurseForgeApi'
 ]
 
+
+def retry(url,headers=None,params=None,proxies=None,timeout=60):
+    b = 0
+    while b < 3:
+        pass
+        try:
+            retry_res = requests.get(url, headers=headers, params=params, proxies=proxies,timeout=timeout)
+            if retry_res.ok:
+                return retry_res
+            else:
+                b += 1
+        except Exception:
+            b += 1
+    else:
+        pass
+
+
 class CurseForgeApi:
     def __init__(self, baseurl: str, api_key: str, proxies: dict=None):
         self.baseurl = baseurl
@@ -15,14 +32,14 @@ class CurseForgeApi:
 
     def end_point(self):
         headers = {
-            'Accept': 'application/json',
-            'x-api-key': self.api_key
+            'Accept': 'application/json'
+            # 'x-api-key': self.api_key 
         }
 
-        res = requests.get(url=self.baseurl, proxies=self.proxies, headers=headers)        
+        res = retry(url=self.baseurl, proxies=self.proxies, headers=headers)        
         if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
-        return res.json()
+            raise StatusCodeException(res.status_code,res.url)
+        return res.status_code #这不是json
 
     def get_all_games(self,index=1, pageSize=50):
         url = self.baseurl + "v1/games?index={index}&pageSize={pageSize}".format(index=index, pageSize=pageSize)
@@ -30,9 +47,9 @@ class CurseForgeApi:
             'Accept': 'application/json',
             'x-api-key': self.api_key
         }
-        res = requests.get(url=url, proxies=self.proxies, headers=headers)
+        res = retry(url=url, proxies=self.proxies, headers=headers)
         if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
+            raise StatusCodeException(res.status_code,res.url)
         return res.json()
 
     def get_game(self,gameid,index=1, pageSize=50):
@@ -41,9 +58,9 @@ class CurseForgeApi:
             'Accept': 'application/json',
             'x-api-key': self.api_key
         }
-        res = requests.get(url=url, proxies=self.proxies, headers=headers)
+        res = retry(url=url, proxies=self.proxies, headers=headers)
         if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
+            raise StatusCodeException(res.status_code,res.url)
         return res.json()
 
     def get_game_version(self,gameid,index=1, pageSize=50):
@@ -52,33 +69,58 @@ class CurseForgeApi:
             'Accept': 'application/json',
             'x-api-key': self.api_key
         }
-        res = requests.get(url=url, proxies=self.proxies, headers=headers)
+        res = retry(url=url, proxies=self.proxies, headers=headers)
         if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
+            raise StatusCodeException(res.status_code,res.url)
         return res.json()
 
-    def get_all_categories(self, gameid=432): #id is class = [17,5,4546,4471,12,4559,6(Mods)]
+    def get_categories(self, gameid=432,classid=None): # classid 为主分类的有 main class [17,5,4546,4471,12,4559,6(Mods)]
+        '''
+        classid不是必须参数，无此参则为查询全部类别(Categories)
+        '''
         headers = {
             'Accept': 'application/json',
             'x-api-key': self.api_key
         }
         url = self.baseurl + "v1/categories"
-        res = requests.get(url=url, headers=headers, params={'gameId': gameid}, proxies=self.proxies)
+        
+        res = retry(url=url, headers=headers, params={'gameId': gameid, "classId": classid}, proxies=self.proxies)
+        # print(res.url)
         if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
+            raise StatusCodeException(res.status_code,res.url)
         return res.json()
 
-    def search(self, text=None, slug=None, gameid=432, classid=6, ModLoaderType=0, gameversion=None, index=1, pageSize=50):
-        #{"0":"Any","1":"Forge","2":"Cauldron","3":"LiteLoader","4":"Fabric","5":"Quilt"}
-        #url = self.baseurl + "v1/mods/search?#gameId={gameid}&sortField=Featured&sortOrder=desc&pageSize={pageSize}&categoryId=0&classId={classid}&modLoaderType={modloadertype}&gameVersion={gameversion}&searchFilter={text}".format(classid=classid,text=text,gameid=gameid, pageSize=pageSize,modloadertype=ModLoaderType,gameversion=)
+    def search(self, text=None, slug=None, gameid=432, classid=6, modLoaderType=None, sortField="Featured", categoryid=None, gameversion=None, index=None, pageSize=None):
+        # ModLoaderType
+        # {
+        #   "0":"Any",
+        #   "1":"Forge",
+        #   "2":"Cauldron",
+        #   "3":"LiteLoader",
+        #   "4":"Fabric",
+        #   "5":"Quilt"
+        # }
+        
+        # sortField
+        # 1=Featured
+        # 2=Popularity
+        # 3=LastUpdated
+        # 4=Name
+        # 5=Author
+        # 6=TotalDownloads
+        # 7=Category
+        # 8=GameVersion
+        
+        #url = self.baseurl + "v1/mods/search?#gameId={gameid}&sortField=Featured&sortOrder=desc&pageSize={pageSize}&categoryId=0&classId={classid}&modLoaderType={modloadertype}&gameVersion={gameversion}&searchFilter={text}".format(classid=classid,text=text,gameid=gameid, pageSize=pageSize,modloadertype=ModLoaderType,gameversion=gameversion)
         url = self.baseurl + "v1/mods/search"
         headers = {
             'Accept': 'application/json',
             'x-api-key': self.api_key
         }
-        res = requests.get(url=url, headers=headers, params={'gameId': gameid, "sortField": "Featured", "sortOrder": "desc", "pageSize": pageSize, "categoryId": "0", "classId": classid, "slug": slug, "modLoaderType": ModLoaderType, "gameVersion": gameversion, "searchFilter": text}, proxies=self.proxies)
+        res = retry(url=url, headers=headers, params={'gameId': gameid, "sortField": sortField, "categoryId": categoryid, "sortOrder": "desc", "index": index, "pageSize": pageSize, "classId": classid, "slug": slug, "modLoaderType": modLoaderType, "gameVersion": gameversion, "searchFilter": text}, proxies=self.proxies)
+        print(res.url)
         if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
+            raise StatusCodeException(res.status_code,res.url)
         return res.json()
 
     def get_mod(self, modid):
@@ -87,9 +129,9 @@ class CurseForgeApi:
             'Accept': 'application/json',
             'x-api-key': self.api_key
         }
-        res = requests.get(url=url, proxies=self.proxies, headers=headers)
+        res = retry(url=url, proxies=self.proxies, headers=headers)
         if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
+            raise StatusCodeException(res.status_code,res.url)
         return res.json()
     
     def get_mods(self, modids) -> list:
@@ -104,7 +146,7 @@ class CurseForgeApi:
         }
         res = requests.post(url=url, proxies=self.proxies, headers=headers, json=body)
         if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
+            raise StatusCodeException(res.status_code,res.url)
         return res.json()
 
     def get_mod_description(self, modid):
@@ -113,9 +155,9 @@ class CurseForgeApi:
             'Accept': 'application/json',
             'x-api-key': self.api_key
         }
-        res = requests.get(url=url, proxies=self.proxies, headers=headers)
+        res = retry(url=url, proxies=self.proxies, headers=headers)
         if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
+            raise StatusCodeException(res.status_code,res.url)
         return res.json()["data"]
 
     def get_file(self, modid, fileid):
@@ -124,9 +166,9 @@ class CurseForgeApi:
             'Accept': 'application/json',
             'x-api-key': self.api_key
         }
-        res = requests.get(url=url, proxies=self.proxies, headers=headers)
+        res = retry(url=url, proxies=self.proxies, headers=headers)
         if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
+            raise StatusCodeException(res.status_code,res.url)
         return res.json()
 
     def get_files(self, fileids, modid):
@@ -141,7 +183,7 @@ class CurseForgeApi:
         }
         res = requests.post(url=url, proxies=self.proxies, headers=headers, json=body)
         if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
+            raise StatusCodeException(res.status_code,res.url)
         return res.json()
 
     HASHES_TYPE_ID = {
@@ -177,7 +219,7 @@ class CurseForgeApi:
             'Accept': 'application/json',
             'x-api-key': self.api_key
         }
-        res = requests.get(url=url, proxies=self.proxies, headers=headers)
+        res = retry(url=url, proxies=self.proxies, headers=headers)
         if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
+            raise StatusCodeException(res.status_code,res.url)
         return res.json()["data"]
