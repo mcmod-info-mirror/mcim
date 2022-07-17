@@ -1,7 +1,6 @@
 
 import asyncio
 import aiohttp
-import functools
 
 __all__ = [
 	'AsyncHTTPClient'
@@ -14,27 +13,19 @@ class AsyncHTTPClient:
 	def __init__(self): # limit: int = 64 TODO
 		pass
 
-	async def new_session(self):
+	async def new_session(self, *args, **kwargs):
 		'''
 		Usage:
 			async with cli.new_session() as session:
 				pass
 		'''
-		return aiohttp.ClientSession()
-
-	async def get_session(self):
-		'''
-		Usage:
-			async with cli.get_session() as session:
-				pass
-		'''
-		return await self.new_session()
+		return aiohttp.ClientSession(*args, **kwargs)
 
 	async def get(self, url: str, *, callback=None):
 		'''
 		Usage: res, content = await cli.get('http://example.com')
 		'''
-		async with await self.get_session() as session:
+		async with await self.new_session() as session:
 			async with session.get(url) as res:
 				if callback is not None:
 					return await callback(url, res)

@@ -21,9 +21,7 @@ class ModrinthApi:
             'x-api-key': api_key
         }
 
-        res = requests.get(url=self.baseurl, proxies=self.proxies, headers=headers)        
-        if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
+        res = retry_req_get_mustok(3, url=self.baseurl, proxies=self.proxies, headers=headers)
         return res.json()
 
     def get_mod(self, slug=None, modid=None):
@@ -47,9 +45,7 @@ class ModrinthApi:
             'Accept': 'application/json'
         }
 
-        res = requests.get(url=url, proxies=self.proxies, headers=headers)
-        if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
+        res = retry_req_get_mustok(3, url=url, proxies=self.proxies, headers=headers)
         return res.json()
 
     def get_mod_versions(self, slug=None, modid=None, game_versions=None, loaders=None, featured=None):
@@ -83,10 +79,8 @@ class ModrinthApi:
             'Accept': 'application/json'
         }
 
-        res = requests.get(url=url, proxies=self.proxies, headers=headers, params={
+        res = retry_req_get_mustok(3, url=url, proxies=self.proxies, headers=headers, params={
             "game_versions": game_versions, "loaders": loaders, "featured": featured})
-        if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
         return res.json()
 
     def get_mod_version(self, id: str):
@@ -103,9 +97,7 @@ class ModrinthApi:
             'Accept': 'application/json'
         }
 
-        res = requests.get(url=url, proxies=self.proxies, headers=headers)
-        if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
+        res = retry_req_get_mustok(3, url=url, proxies=self.proxies, headers=headers)
         return res.json()
 
     def search(self, query, limit=20, offset=None, index="relevance", facets=None):
@@ -129,11 +121,9 @@ class ModrinthApi:
             'Accept': 'application/json'
         }
 
-        res = requests.get(url=url, proxies=self.proxies, headers=headers, params={
+        res = retry_req_get_mustok(3, url=url, proxies=self.proxies, headers=headers, params={
             "query": query, "limit": limit, "offset": offset, "index": index, "facets": facets
         })
-        if res.status_code != 200:
-            raise StatusCodeException(res.status_code)
         return res.json()
 
     def get_mod_version_download_info(self, id):
