@@ -27,7 +27,7 @@ class Database:
     def connect(self, host: str, port: int, user: str, password: str, database: str):
         '''
         重新连接数据库。
-
+        
         需提供 `host` `port` `user` `password` `database` 。
 
         `host` : 主机名。

@@ -5,8 +5,8 @@ __all__ = [
 
 
 class Config:
-	api_key = "$2a$10$2DOXBr1x82Acn1A6GGw5b.psdLVOo29u5gEahTQSiGYmDOp2QXFSu"
-	curseforge_base_api_url = "https://api.curseforge.com/"
+	api_key = "<api key>"
+	curseforge_base_api_url = "https://api.curseforge.com/v1"
 	modrinth_base_api_url = "https://api.modrinth.com/"
 	proxies = {
 		"http": "http://127.0.0.1:7890",
