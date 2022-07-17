@@ -10,4 +10,5 @@ dbname = "mod_api_test"
 db = mysql.Database(host, port, user, pwd, dbname)
 print(db.mysql_version())
 print(db.show_tables())
+
 # db.disconnect()
