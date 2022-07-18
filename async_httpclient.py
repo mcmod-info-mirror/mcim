@@ -16,7 +16,17 @@ class AsyncHTTPClient:
 
 	@property
 	def session(self):
+		assert self._session is not None, "You are not in a context"
 		return self._session
+
+	async def __aenter__(self):
+		await self.get_session()
+		return self
+
+	async def __aexit__(self, *args):
+		await self._session.close()
+		self._session = None
+		return False
 
 	async def new_session(self, **kwargs):
 		'''
@@ -39,13 +49,12 @@ class AsyncHTTPClient:
 		'''
 		Usage: res, content = await cli.get('http://example.com')
 		'''
-		async with await self.get_session() as session:
-			async with session.get(url, **kwargs) as res:
-				if callback is not None:
-					return await callback(res)
-				reader = res.content
-				content = await reader.read()
-				return res, content
+		async with self.session.get(url, **kwargs) as res:
+			if callback is not None:
+				return await callback(url, res)
+			reader = res.content
+			content = await reader.read()
+			return res, content
 
 	async def get_all(self, urls: list[str], *, limit: int=-1, callback=None, **kwargs):
 		if limit > 0:
@@ -64,15 +73,25 @@ class AsyncHTTPClient:
 		'''
 		Usage: responses = cli.get_all_sync(['http://example.com', 'http://www.example2.com'])
 		'''
-		return asyncio.run(self.get_all(*args, **kwargs))
+		async def runner():
+			async with self:
+				return await self.get_all(*args, **kwargs)
+		return asyncio.run(runner())
 
 class Tester:
 	def __init__(self):
 		self.cli = AsyncHTTPClient()
 		self.target = ['https://google.com', 'https://github.com']
 
+	async def test_get(self):
+		url = self.target[0]
+		async with self.cli:
+			res, content = await self.cli.get(url)
+		print('Response for "{}": {} ;Content: {} Byte'.format(url, res.status, len(content)))
+
 	async def test_get_all(self):
-		responses = await self.cli.get_all(self.target)
+		async with self.cli:
+			responses = await self.cli.get_all(self.target)
 		for i, (res, content) in enumerate(responses):
 			url = self.target[i]
 			print('Response for "{}": {} ;Content: {} Byte'.format(url, res.status, len(content)))
@@ -81,7 +100,8 @@ class Tester:
 		async def callback(url, res):
 			content = await res.content.read()
 			print('Response for "{}": {} ;Content: {} Byte'.format(url, res.status, len(content)))
-		await self.cli.get_all(self.target, callback=callback)
+		async with self.cli:
+			await self.cli.get_all(self.target, callback=callback)
 
 	def test_get_all_sync(self):
 		responses = self.cli.get_all_sync(self.target)
@@ -93,6 +113,8 @@ class Tester:
 	def main(cls):
 		print('==> Testing AsyncHTTPClient')
 		tester = cls()
+		print('=> Testing AsyncHTTPClient.get')
+		asyncio.run(tester.test_get())
 		print('=> Testing AsyncHTTPClient.get_all')
 		asyncio.run(tester.test_get_all())
 		print('=> Testing AsyncHTTPClient.get_all with callback')
