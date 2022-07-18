@@ -45,16 +45,22 @@ class AsyncHTTPClient:
 			self._session = await self.new_session(**kwargs)
 		return self._session
 
-	async def get(self, url: str, /, *, callback=None, **kwargs):
-		'''
-		Usage: res, content = await cli.get('http://example.com')
-		'''
+	async def _get(self, url: str, /, *, callback=None, sem=None, **kwargs):
 		async with self.session.get(url, **kwargs) as res:
 			if callback is not None:
-				return await callback(url, res)
+				return await callback(res)
 			reader = res.content
 			content = await reader.read()
 			return res, content
+
+	async def get(self, url: str, /, *, callback=None, sem=None, **kwargs):
+		'''
+		Usage: res, content = await cli.get('http://example.com')
+		'''
+		if sem is None:
+			return await self._get(url, callback=callback, **kwargs)
+		async with sem:
+			return await self._get(url, callback=callback, **kwargs)
 
 	async def get_all(self, urls: list[str], *, limit: int=-1, callback=None, **kwargs):
 		if limit > 0:

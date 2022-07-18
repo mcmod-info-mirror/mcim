@@ -24,8 +24,7 @@ logging.debug("Logging started")
 # for url in a_req.request(["https://qq.com", "https://baidu.com"]):
 #     print(url.status)
 
-cli = AsyncHTTPClient()
-    
+
 class CurseforgeCache:
     '''
     缓存 curseforge 的信息
@@ -40,21 +39,23 @@ class CurseforgeCache:
             'Accept': 'application/json',
             'x-api-key': self.key
         }
+        self.cli = AsyncHTTPClient(headers=self.headers, timeout=aiohttp.ClientTimeout(total=self.timeout))
 
         if not os.path.exists("cache/cursefroge"):
-            os.makedirs("cache/cursefroge",exist_ok=True)
+            os.makedirs("cache/cursefroge", exist_ok=True)
 
-        with open(os.path.join("cache/cursefroge","error_mod.json"),"w") as f:
-            json.dump({"error_mod":{}},f)
+        with open(os.path.join("cache/cursefroge","error_mod.json"), "w") as f:
+            json.dump({"error_mod":{}}, f)
 
-    def save_json_to_file(self,filename,data):
-        with open(filename,"w") as f:
-            json.dump(data,f)
+    def save_json_to_file(self, filename, data):
+        with open(filename, "w") as f:
+            json.dump(data, f)
     
-    async def callback(self,res):
+    async def callback(self, res):
+        print(url, res.url)
         modid = res.url.path.split("/")[-1]
         if res.status == 200:
-            self.save_json_to_file(os.path.join("cache/cursefroge","mod" + modid + ".json"),await res.json())
+            self.save_json_to_file(os.path.join("cache/cursefroge", "mod" + modid + ".json"),await res.json())
             print("=========get modid "+str(modid)+"==========")
         else:
             with open(os.path.join("cache/cursefroge","error_mod.json"),"r") as f:
@@ -94,22 +95,20 @@ class CurseforgeCache:
         #     json.dump(null_modids,f)
 
         # async
-        sem = 100
+        limit = 100
         urls = []
 
-        for modid in range(10000,100000):
+        for modid in range(10000, 100000):
             url = self.base_api_url + "v1/mods/{modid}".format(modid=modid)
             urls.append(url)
         print("get urls")
-        async with aiohttp.ClientSession(headers=self.headers, timeout=aiohttp.ClientTimeout(total=self.timeout)) as session:
-            await cli.get_all(urls=urls, session=session,sem=sem,callback=self.callback) #试图只用一个session
+        aiohttp.ClientSession()
+        async with self.cli:
+            await self.cli.get_all(urls=urls, limit=limit, callback=self.callback) #试图只用一个session
             # await cli.get_all(urls=urls,headers=self.headers,timeout=self.timeout,sem=sem,callback=self.callback)
             print("Finish")
         pass
 
 if __name__ == "__main__":
-    try:
-        cache = CurseforgeCache()
-        asyncio.run(cache.sync())
-    except RuntimeError:
-        pass
+    cache = CurseforgeCache()
+    asyncio.run(cache.sync())
