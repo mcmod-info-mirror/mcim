@@ -153,10 +153,3 @@ class Database:
         with self.db.cursor() as cursor:
             cursor.execute("CREATE DATABASE " + database)
         self.db.commit()
-
-
-# pwd = emjYT6NcSi8RKNFc
-# host = 10.0.0.20
-# port = 3306
-# user = mod_api_test
-# dbname = mod_api_test
