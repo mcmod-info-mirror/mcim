@@ -70,7 +70,7 @@ class Database:
         '''
         with self.db.cursor() as cursor:
             try:
-                cursor.execute("DROP TABLE %s", table)
+                cursor.execute("DROP TABLE %s", (table, ))
                 self.db.commit()
                 return True
             except Exception as e:
@@ -90,7 +90,7 @@ class Database:
         self.db.begin()
         sql = "INSERT INTO %s ({0}) VALUES ({0})".format(','.join(['%s'] * len(keys)))
         with self.db.cursor() as cursor:
-            cursor.execute(sql, table, *keys, *values)
+            cursor.execute(sql, (table, *keys, *values))
         self.db.commit()
 
     def create_table(self, table: str, *args: str):
@@ -101,7 +101,7 @@ class Database:
         '''
         sql = "CREATE TABLE %s ({0}) ENGINE=InnoDB DEFAULT CHARSET=utf8".format(','.join(['%s'] * len(args)))
         with self.db.cursor() as cursor:
-            cursor.execute(sql, table, *args)
+            cursor.execute(sql, (table, *args))
         self.db.commit()
 
     def disconnect(self):
