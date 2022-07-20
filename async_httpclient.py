@@ -10,9 +10,10 @@ class AsyncHTTPClient:
 	'''
 	Usage: cli = AsyncHTTPClient()
 	'''
-	def __init__(self, **kwargs): # limit: int = 64 TODO
+	def __init__(self, timeout=None, **kwargs): # limit: int = 64 TODO
 		self._session = None
 		self._session_kwargs = kwargs
+		self.timeout = timeout
 
 	@property
 	def session(self):
@@ -57,10 +58,13 @@ class AsyncHTTPClient:
 		'''
 		Usage: res, content = await cli.get('http://example.com')
 		'''
-		if sem is None:
-			return await self._get(url, callback=callback, **kwargs)
-		async with sem:
-			return await self._get(url, callback=callback, **kwargs)
+		try:
+			if sem is None:
+				return await self._get(url, callback=callback, **kwargs)
+			async with sem:
+				return await self._get(url, callback=callback, **kwargs)
+		except (asyncio.TimeoutError, aiohttp.client_exceptions, aiohttp.client_exceptions.ServerDisconnectedErro, aiohttp.client_exceptions.InvalidURL, aiohttp.client_exceptions.ClientConnectorError):
+			print("", url + ' timeout', "")
 
 	async def get_all(self, urls: list[str], *, limit: int=-1, callback=None, **kwargs):
 		if limit > 0:
