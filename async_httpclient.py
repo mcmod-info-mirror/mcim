@@ -13,6 +13,7 @@ class AsyncHTTPClient:
 	def __init__(self, **kwargs): # limit: int = 64 TODO
 		self._session = None
 		self._session_kwargs = kwargs
+		self._context_count = 0
 
 	@property
 	def session(self):
@@ -20,12 +21,17 @@ class AsyncHTTPClient:
 		return self._session
 
 	async def __aenter__(self):
-		await self.get_session()
+		if self._session is None:
+			self._session = await self.new_session()
+		self._context_count += 1
 		return self
 
-	async def __aexit__(self, *args):
-		await self._session.close()
-		self._session = None
+	async def __aexit__(self, etyp, eval, traceback):
+		self._context_count -= 1
+		if self._context_count == 0:
+			await self._session.close()
+			self._session = None
+			await asyncio.sleep(0)
 		return False
 
 	async def new_session(self, **kwargs):
@@ -35,15 +41,6 @@ class AsyncHTTPClient:
 				pass
 		'''
 		return aiohttp.ClientSession(**{**self._session_kwargs, **kwargs})
-
-	async def get_session(self, **kwargs):
-		'''
-		Usage:
-			session = await cli.get_session()
-		'''
-		if self._session is None:
-			self._session = await self.new_session(**kwargs)
-		return self._session
 
 	async def _get(self, url: str, /, *, callback=None, sem=None, **kwargs):
 		async with self.session.get(url, **kwargs) as res:

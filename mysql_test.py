@@ -9,9 +9,9 @@ dbname = "mod_info"
 db = mysql.DataBase(host, port, user, pwd, dbname)
 
 def save_json_to_mysql(table, **kwargs):
-    db.insert(table=table, **kwargs)
+    db.insert(table, **kwargs)
 
-save_json_to_mysql(table="mod_status",modid=1,status=404)
+save_json_to_mysql("mod_status", modid=1, status=404)
 
 # print(db.mysql_version())
 # # print(db.create_table("mod_info", "`modid` INT", "`data` json"))
