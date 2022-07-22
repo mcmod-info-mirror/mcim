@@ -88,14 +88,17 @@ class DataBase:
             cursor.execute(sql)
             return cursor.fetchone()
 
-    def select(self, table: str, keys: list[str]):
+    def select(self, table: str, names: list[str] = ["*"], rules: list[str] = None):
         '''
-        展示表中的数据。
+        查询表中的数据。
 
         用法: callback = db.select(table)
         '''
-        sql = "SELECT {keys} FROM {table}".\
-            format(table=table, keys=','.join(f'`{k}`' for k in keys))
+        if not rules is None:
+            sql = "SELECT {name} FROM {table} WHERE {keys}".\
+                format(table=table,name=",".join(n for n in names), keys=','.join(f'`{k}`' for k in rules))
+        else:
+            sql = "SELECT * FROM {table}".format(table=table) # select all
         with self.db.cursor() as cursor:
             cursor.execute(sql)
             return cursor.fetchone()
@@ -115,6 +118,7 @@ class DataBase:
             format(table=table, keys=','.join(f'`{k}`' for k in keys), values=','.join(['%s'] * len(values)))
         with self.db.cursor() as cursor:
             cursor.execute(sql, values)
+            self.db.commit()
 
     @with_wrapper
     def create_table(self, table: str, *args: str):
