@@ -103,9 +103,11 @@ class DataBase:
             cursor.execute(sql)
             return cursor.fetchone()
 
-    # @with_wrapper
+    @with_wrapper
     def insert(self, table: str, **kwargs) -> str :
         '''
+        插入数据。
+
         用法: db.insert(table, key1=value1, key2=value2, ...)
         '''
         assert len(kwargs) > 0, "No value to insert"
@@ -116,11 +118,46 @@ class DataBase:
             values.append(v)
         sql = "INSERT INTO {table} ({keys}) VALUES ({values})".\
             format(table=table, keys=','.join(f'`{k}`' for k in keys), values=','.join(['%s'] * len(values)))
+        pass
         with self.db.cursor() as cursor:
             cursor.execute(sql, values)
             self.db.commit()
+    
+    @with_wrapper
+    def update(self, table :str, updates: dict, where_keys: dict = {},mode="and"):
+        '''
+        更新表中的数据。
 
-    # @with_wrapper
+        用法: db.update(table, updates={"data": "'{\"sth\":sth}'"}, where_keys={"sth": "sth"})
+        '''
+
+        if len(where_keys) != 0:
+            sql = "UPDATE {table} SET {updates} WHERE {where_keys}".format(table=table,updates=",".join(f"`{k}`={v}" for k,v in updates.items()),where_keys=mode.join(f"`{k}`={v}" for k,v in where_keys.items()))
+            print(sql)
+        else:
+            sql = "UPDATE {table} SET {updates}".format(table=table,updates=",".join(f"`{k}`={v}" for k,v in updates.items()))
+        with self.db.cursor() as cursor:
+            cursor.execute(sql)
+            self.db.commit()
+
+    def delete(self,table,mode="and",**kwargs):
+        '''
+        删除表中的数据。
+
+        用法: db.delete(table, mode, key1=value1, key2=value2, ...)
+        '''
+        assert len(kwargs) > 0, "No value to delete"
+        keys = []
+        values = []
+        for k, v in kwargs.items():
+            keys.append(k)
+            values.append(v)
+        sql = "DELETE FROM {table} WHERE {keys}".format(table=table,keys=mode.join(f"`{k}`={v}" for k,v in kwargs.items()))
+        with self.db.cursor() as cursor:
+            cursor.execute(sql, values)
+            self.db.commit()
+    
+    @with_wrapper
     def create_table(self, table: str, *args: str):
         '''
         创造一个新表。

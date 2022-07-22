@@ -7,11 +7,13 @@ import time
 import logging
 import asyncio
 import aiohttp
-from wsproto import Headers
+from apis import mysql
 from api_config import Config
 from async_httpclient import *
 from apis import *
 
+mod_info_db = mysql.DataBase(host=Config.mysql["host"], port=Config.mysql["port"], user=Config.mysql["user"], pwd=Config.mysql["pwd"], dbname="mod_info")
+mod_status_db = mysql.DataBase(host=Config.mysql["host"], port=Config.mysql["port"], user=Config.mysql["user"], pwd=Config.mysql["pwd"], dbname="mod_status")
 
 if not os.path.exists("logs"):
     os.makedirs("logs")
@@ -22,9 +24,6 @@ logging.basicConfig(level=logging.INFO,
 
 logging.debug("Logging started")
 
-# a_req = async_request.Async_request()
-# for url in a_req.request(["https://qq.com", "https://baidu.com"]):
-#     print(url.status)
 
 def log(text,level="info"):
     if level == "info":
@@ -65,22 +64,24 @@ class CurseforgeCache:
         with open(filename, "w") as f:
             json.dump(data, f)
     
+    # def save_json_to_mysql(self, table, **kwargs):
+    #     mod_info_db.insert(table=table, **kwargs)
+
     async def callback(self, res):
         modid = res.url.path.split("/")[-1]
-        log(res.url,type(res.status))
-        if res.status == 200:
-            self.save_json_to_file(os.path.join("cache/cursefroge", "mod" + modid + ".json"),await res.json())
+        status = res.status
+        log(res.url)
+        if status == 200:
+            # self.save_json_to_file(os.path.join("cache/cursefroge", "mod" + modid + ".json"),await res.json())
+            mod_status_db.insert(table="mod_status", modid=modid, status=status)
+            mod_info_db.insert(table="mod_info", modid=modid, data=json.dumps(await res.json())
             log("=========get modid "+str(modid)+"==========")
         # if res.status == 403:
         #     print("QOS limit")
         #     time.sleep(60)
         else:
-            with open(os.path.join("cache/cursefroge","error_mod.json"),"r") as f:
-                data = json.load(f)
-                data["error_mod"][modid] = res.status
-            with open(os.path.join("cache/cursefroge","error_mod.json"),"w") as wf:
-                json.dump(data,wf)
-            log("--------get modid "+str(modid)+" error: "+str(res.status)+"--------")
+            mod_status_db.insert(table="mod_status", modid=modid, status=status)
+            log("--------get modid "+str(modid)+" Error: "+str(status)+"--------")
         # time.sleep(0.1) # 避免 QOS 限制
         time.sleep(0.1)
 
