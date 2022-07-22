@@ -103,7 +103,7 @@ class DataBase:
             cursor.execute(sql)
             return cursor.fetchone()
 
-    @with_wrapper
+    # @with_wrapper
     def insert(self, table: str, **kwargs) -> str :
         '''
         用法: db.insert(table, key1=value1, key2=value2, ...)
@@ -120,7 +120,7 @@ class DataBase:
             cursor.execute(sql, values)
             self.db.commit()
 
-    @with_wrapper
+    # @with_wrapper
     def create_table(self, table: str, *args: str):
         '''
         创造一个新表。
