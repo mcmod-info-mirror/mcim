@@ -42,7 +42,7 @@ class DataBase:
         @functools.wraps(callback)
         def w(self, *args, **kwargs):
             with self:
-                return callback(*args, **kwargs)
+                return callback(self, *args, **kwargs)
         return w
 
     def connect(self, host: str, port: int, user: str, password: str, database: str):
