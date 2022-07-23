@@ -98,8 +98,9 @@ class CurseforgeCache:
         }
         for modid in range(10000, 100000):
             task = self.api.get_mod(modid)
+            tasks.append(task)
         logging.info("get urls")
-        await asyncio.gather(tasks)
+        await asyncio.gather(*tasks)
         logging.info("Finish")
 
 async def main():

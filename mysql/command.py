@@ -14,6 +14,7 @@ class CommandBuilder:
 	def __init__(self, cmd: str, /):
 		self.command = cmd
 		self.values = []
+		self._where_exists = False
 
 	def __str__(self):
 		return self.command
@@ -47,8 +48,9 @@ class CommandBuilder:
 	v = val
 
 	def where(self, name: str, value, oper: str = '=', *, binary: bool = False) -> WhereBuilder:
-		self._where = whereCommand(self, name, value, oper)
-		return self._where
+		assert not self._where_exists
+		self._where_exists = True
+		return WhereBuilder(self, name, value, oper)
 
 	w = where
 
@@ -118,7 +120,7 @@ def insert(table: str, /, obj: dict, *, replace: bool = False, ignore: bool = Fa
 		cmd = CommandBuilder('INSERT')
 		if ignore:
 			cmd.append('IGNORE')
-	cmd.append('INTO')
+	cmd.append('INTO').name(table)
 	keys = []
 	values = []
 	for k, v in obj.items():

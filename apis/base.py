@@ -42,7 +42,7 @@ def retry(callback, count: int, excepts: tuple, /, *args, **kwargs):
 def retry_req_get_mustok(limit: int, /, *args, **kwargs):
     return retry(res_mustok(requests.get), limit, (StatusCodeException,), *args, **kwargs)
 
-async def res_mustok_async(callback):
+def res_mustok_async(callback):
     @functools.wraps(callback)
     async def w(*args, **kwargs):
         res = await callback(*args, **kwargs)
