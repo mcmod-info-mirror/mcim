@@ -4,9 +4,11 @@ import functools
 
 __all__ = [
     'StatusCodeException',
-    'response_mustok',
+    'res_mustok',
     'retry',
-    'retry_req_get_mustok'
+    'retry_req_get_mustok',
+    'res_mustok_async',
+    'retry_async'
 ]
 
 class StatusCodeException(Exception):
@@ -14,7 +16,7 @@ class StatusCodeException(Exception):
         super().__init__('Unexcept status code: {}'.format(code))
         self.code = code
 
-def response_mustok(callback):
+def res_mustok(callback):
     @functools.wraps(callback)
     def w(*args, **kwargs):
         res = callback(*args, **kwargs)
@@ -37,7 +39,28 @@ def retry(callback, count: int, excepts: tuple, /, *args, **kwargs):
         i += 1
     raise err
 
-req_get_mustok = response_mustok(requests.get)
-
 def retry_req_get_mustok(limit: int, /, *args, **kwargs):
-    return retry(req_get_mustok, limit, (StatusCodeException,), *args, **kwargs)
+    return retry(res_mustok(requests.get), limit, (StatusCodeException,), *args, **kwargs)
+
+async def res_mustok_async(callback):
+    @functools.wraps(callback)
+    async def w(*args, **kwargs):
+        res = await callback(*args, **kwargs)
+        if not res.ok:
+            raise StatusCodeException(res.status_code)
+        return res
+    return w
+
+async def retry_async(callback, count: int, excepts: tuple, /, *args, **kwargs):
+    assert hasattr(callback, '__call__'), 'Callback must be callable'
+    assert count > 0, 'Try count must greater than zero'
+    assert isinstance(excepts, tuple), 'Exceptions must be tuple'
+    err = None
+    i = 0
+    while i < count:
+        try:
+            return await callback(*args, **kwargs)
+        except excepts as e:
+            err = e
+        i += 1
+    raise err

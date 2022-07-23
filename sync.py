@@ -21,18 +21,18 @@ class CurseforgeCache:
         self.api_url = MCIMConfig.curseforge_api
         self.proxies = MCIMConfig.proxies
         self.timeout = MCIMConfig.async_timeout
-        self.api = CurseForgeApi(self.api_url, self.key, self.proxies)
         self.headers = {
             'Accept': 'application/json',
             'x-api-key': "$2a$10$2DOXBr1x82Acn1A6GGw5b.psdLVOo29u5gEahTQSiGYmDOp2QXFSu"
         }
         self.cli = AsyncHTTPClient(headers=self.headers, timeout=aiohttp.ClientTimeout(total=self.timeout))
+        self.api = CurseForgeApi(self.api_url, self.key, self.proxies, acli=self.cli)
         self.database = database
 
         if not os.path.exists("cache/cursefroge"):
             os.makedirs("cache/cursefroge", exist_ok=True)
 
-        with open(os.path.join("cache/cursefroge","error_mod.json"), "w") as f:
+        with open(os.path.join("cache/cursefroge", "error_mod.json"), "w") as f:
             json.dump({"error_mod":{}}, f)
 
     def save_json_to_file(self, filename, data):
@@ -91,21 +91,18 @@ class CurseforgeCache:
 
         # async
         limit = 50
-        urls = []
-        headers={
+        tasks = []
+        headers = {
             'Accept': 'application/json',
             'x-api-key': self.key
         }
         for modid in range(10000, 100000):
-            url = self.api_url + "/mods/{modid}".format(modid=modid)
-            urls.append(url)
+            task = self.api.get_mod(modid)
         logging.info("get urls")
-        async with self.cli:
-            await self.cli.get_all(urls=urls, limit=limit, callback=self.callback)
-            # await cli.get_all(urls=urls,headers=self.headers,timeout=self.timeout,sem=sem,callback=self.callback)
-            logging.info("Finish")
+        await asyncio.gather(tasks)
+        logging.info("Finish")
 
-def main():
+async def main():
     database = DataBase(**MysqlConfig.to_dict())
 
     if not os.path.exists("logs"):
@@ -118,8 +115,8 @@ def main():
     logging.debug("Logging started")
 
     cache = CurseforgeCache(database)
-    asyncio.run(cache.sync())
+    await cache.sync()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
