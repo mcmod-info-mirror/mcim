@@ -38,9 +38,6 @@ class CurseforgeCache:
     def save_json_to_file(self, filename, data):
         with open(filename, "w") as f:
             json.dump(data, f)
-    
-    # def save_json_to_mysql(self, table, **kwargs):
-    #     self.database.insert(table=table, **kwargs)
 
     async def callback(self, res):
         modid = res.url.path.split("/")[-1]
@@ -50,14 +47,10 @@ class CurseforgeCache:
             # self.save_json_to_file(os.path.join("cache/cursefroge", "mod" + modid + ".json"),await res.json())
             self.database.exe(insert("mod_status", dict(modid=modid, status=status)))
             self.database.exe(insert("mod_info", dict(modid=modid, data=json.dumps(await res.json()))))
-            logging.info(f"=========get modid {modid}==========")
-        # if res.status == 403:
-        #     print("QOS limit")
-        #     time.sleep(60)
+            logging.info(f"=========Get modid {modid}==========")
         else:
             self.database.exe(insert("mod_status", dict(modid=modid, status=status)))
-            logging.info(f"--------get modid {modid} Error: {status}--------")
-        # time.sleep(0.1) # 避免 QOS 限制
+            logging.info(f"--------Error modid {modid}: {status}--------")
         await asyncio.sleep(0.1)
 
     async def sync(self):
@@ -90,12 +83,7 @@ class CurseforgeCache:
         #     json.dump(null_modids,f)
 
         # async
-        limit = 50
         tasks = []
-        headers = {
-            'Accept': 'application/json',
-            'x-api-key': self.key
-        }
         for modid in range(10000, 100000):
             task = self.api.get_mod(modid)
             tasks.append(task)
