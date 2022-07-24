@@ -14,7 +14,7 @@ __all__ = [
 class StatusCodeException(Exception):
     def __init__(self, code: int):
         super().__init__('Unexcept status code: {}'.format(code))
-        self.code = code
+        self.status_code = code
 
 def res_mustok(callback):
     @functools.wraps(callback)

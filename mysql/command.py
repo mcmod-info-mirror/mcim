@@ -14,7 +14,7 @@ class CommandBuilder:
 	'''
 	Sql command builder, direct instantiation is not recommended
 
-	Fields:
+	Attributes:
 		command: The command to execute
 		values: The format values to execute
 
@@ -208,9 +208,10 @@ def create(table: str, /, fields: FieldBuilder = None) -> CommandBuilder:
 		CommandBuilder: the command builder to use next
 
 	Usage:
-		create('example_table') # Create empty table
-		create('example_table').\
-			append('ENGINE=InnoDB').append('DEFAULT').append('CHARSET=utf8') # Create table with ENGINE and CHARSET
+		# Create empty table
+		create('example_table')
+		# Create table with ENGINE and CHARSET
+		create('example_table').append('ENGINE=InnoDB').append('DEFAULT').append('CHARSET=utf8')
 	'''
 	cmd = CommandBuilder('CREATE').append('TABLE').name(table)
 	if fields is not None:

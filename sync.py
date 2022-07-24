@@ -16,7 +16,7 @@ class CurseforgeCache:
     '''
     缓存 curseforge 的信息
     '''
-    def __init__(self, database: DataBase) -> None:
+    def __init__(self, database: DataBase, *, limit: int = 64) -> None:
         self.key = MCIMConfig.curseforge_api_key
         self.api_url = MCIMConfig.curseforge_api
         self.proxies = MCIMConfig.proxies
@@ -28,68 +28,21 @@ class CurseforgeCache:
         self.cli = AsyncHTTPClient(headers=self.headers, timeout=aiohttp.ClientTimeout(total=self.timeout))
         self.api = CurseForgeApi(self.api_url, self.key, self.proxies, acli=self.cli)
         self.database = database
+        self.sem = asyncio.Semaphore(limit)
 
-        if not os.path.exists("cache/cursefroge"):
-            os.makedirs("cache/cursefroge", exist_ok=True)
-
-        with open(os.path.join("cache/cursefroge", "error_mod.json"), "w") as f:
-            json.dump({"error_mod":{}}, f)
-
-    def save_json_to_file(self, filename, data):
-        with open(filename, "w") as f:
-            json.dump(data, f)
-    
-    # def save_json_to_mysql(self, table, **kwargs):
-    #     self.database.insert(table=table, **kwargs)
-
-    async def callback(self, res):
-        modid = res.url.path.split("/")[-1]
-        status = res.status
-        logging.info(res.url)
-        if status == 200:
-            # self.save_json_to_file(os.path.join("cache/cursefroge", "mod" + modid + ".json"),await res.json())
-            self.database.exe(insert("mod_status", dict(modid=modid, status=status)))
-            self.database.exe(insert("mod_info", dict(modid=modid, data=json.dumps(await res.json()))))
-            logging.info(f"=========get modid {modid}==========")
-        # if res.status == 403:
-        #     print("QOS limit")
-        #     time.sleep(60)
-        else:
-            self.database.exe(insert("mod_status", dict(modid=modid, status=status)))
-            logging.info(f"--------get modid {modid} Error: {status}--------")
-        # time.sleep(0.1) # 避免 QOS 限制
-        await asyncio.sleep(0.1)
+    async def try_mod(self, modid):
+        with self.sem:
+            try:
+                data = await self.api.get_mod(modid)
+                self.database.exe(insert("mod_status", dict(modid=modid, status=status), replace=True))
+                self.database.exe(insert("mod_info", dict(modid=modid, data=json.dumps(data), replace=True)))
+                logging.info(f"Get mod: {modid}")
+            except StatusCodeException as e:
+                self.database.exe(insert("mod_status", dict(modid=modid, status=e.status_code), replace=True))
+                logging.info(f"Get mod: {modid} Error: {status}")
+            await asyncio.sleep(1)
 
     async def sync(self):
-        # categories = self.api.get_categories(gameid=432,classid=6)["data"]
-        # total = 0
-        # for category in categories:
-
-        #     if category["parentCategoryId"] != 6 and category["url"] != "https://www.curseforge.com":
-        #         search = self.api.search(gameid=432,classid=6,categoryid=category["id"])
-        #         total = total + search["pagination"]["totalCount"]
-        #         self.save_json_to_file("category"+str(category["id"])+".json",search)
-        # print(total) #21211 mod不全 未知原因
-
-        # search = self.api.search(gameid=432,classid=6,categoryid=6)
-
-
-        # null_modids = {}
-        # for modid in range(10000,100000):
-        #     try:
-        #         mod = self.api.get_mod(modid)
-        #         if type(mod) == dict:
-        #             self.save_json_to_file("mod"+str(modid)+".json",mod)
-        #             print("get modid "+str(modid))
-        #         else:
-        #             null_modids[str(modid)] = mod
-        #             print("get modid "+str(modid)+" error: "+str(mod))
-        #     except Exception as e:
-        #         print(e)
-        # with open("error_modid.json","w") as f:
-        #     json.dump(null_modids,f)
-
-        # async
         limit = 50
         tasks = []
         headers = {
@@ -97,7 +50,7 @@ class CurseforgeCache:
             'x-api-key': self.key
         }
         for modid in range(10000, 100000):
-            task = self.api.get_mod(modid)
+            task = self.try_mod(modid)
             tasks.append(task)
         logging.info("get urls")
         await asyncio.gather(*tasks)
