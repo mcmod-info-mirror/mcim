@@ -74,7 +74,7 @@ class CurseForgeApi:
 			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url=url, headers=headers, params=params, proxies=self.proxies)
 			return await res.json()
 
-	def search(self, text=None, slug=None, gameid=432, classid=6, modLoaderType=None, sortField="Featured", categoryid=None, gameversion=None, index=None, pageSize=None):
+	async def search(self, text=None, slug=None, gameid=432, classid=6, modLoaderType=None, sortField="Featured", categoryid=None, gameversion=None, index=None, pageSize=None):
 		# ModLoaderType
 		# {
 		#   "0":"Any",
@@ -112,7 +112,7 @@ class CurseForgeApi:
 			'x-api-key': self.api_key
 		}
 		async with self.acli:
-			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url=url, proxies=self.proxies, headers=headers)
+			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
 			return res.json()
 
 	async def get_mods(self, modids) -> list:
@@ -136,7 +136,7 @@ class CurseForgeApi:
 			'x-api-key': self.api_key
 		}
 		async with self.acli:
-			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url=url, proxies=self.proxies, headers=headers)
+			res = await retry_async(self.acli.get, 3, (StatusCodeException,), url=url, proxies=self.proxies, headers=headers)
 			return await res.json()["data"]
 
 	async def get_file(self, modid, fileid):
@@ -146,7 +146,7 @@ class CurseForgeApi:
 			'x-api-key': self.api_key
 		}
 		async with self.acli:
-			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url=url, proxies=self.proxies, headers=headers)
+			res = await retry_async(self.acli.get, 3, (StatusCodeException,), url=url, proxies=self.proxies, headers=headers)
 			return await res.json()
 
 	async def get_files(self, fileids, modid):
@@ -194,5 +194,5 @@ class CurseForgeApi:
 			'x-api-key': self.api_key
 		}
 		async with self.acli:
-			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url=url, proxies=self.proxies, headers=headers)
+			res = await retry_async(self.acli.get, 3, (StatusCodeException,), url=url, proxies=self.proxies, headers=headers)
 			return await res.json()["data"]

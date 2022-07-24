@@ -43,12 +43,7 @@ class CurseforgeCache:
             await asyncio.sleep(1)
 
     async def sync(self):
-        limit = 50
         tasks = []
-        headers = {
-            'Accept': 'application/json',
-            'x-api-key': self.key
-        }
         for modid in range(10000, 100000):
             task = self.try_mod(modid)
             tasks.append(task)
