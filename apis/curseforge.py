@@ -136,7 +136,7 @@ class CurseForgeApi:
 			'x-api-key': self.api_key
 		}
 		async with self.acli:
-			res = await retry_async(self.acli.get, 3, (StatusCodeException,), url=url, proxies=self.proxies, headers=headers)
+			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url=url, proxies=self.proxies, headers=headers)
 			return await res.json()["data"]
 
 	async def get_file(self, modid, fileid):
@@ -146,7 +146,7 @@ class CurseForgeApi:
 			'x-api-key': self.api_key
 		}
 		async with self.acli:
-			res = await retry_async(self.acli.get, 3, (StatusCodeException,), url=url, proxies=self.proxies, headers=headers)
+			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url=url, proxies=self.proxies, headers=headers)
 			return await res.json()
 
 	async def get_files(self, fileids, modid):
@@ -160,9 +160,7 @@ class CurseForgeApi:
 			"fileIds": fileids
 		}
 		async with self.acli:
-			res = await self.acli.post(url=url, proxies=self.proxies, headers=headers, json=body)
-			if not res.ok:
-				raise StatusCodeException(res.status_code,res.url)
+			res = await res_mustok_async(self.acli.post)(url=url, proxies=self.proxies, headers=headers, json=body)
 			return await res.json()
 
 	async def get_file_download_info(self, modid, fileid):
