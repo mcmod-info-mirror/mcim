@@ -26,7 +26,7 @@ class CurseforgeCache:
         self.timeout = MCIMConfig.async_timeout
         self.headers = {
             'Accept': 'application/json',
-            'x-api-key': "$2a$10$2DOXBr1x82Acn1A6GGw5b.psdLVOo29u5gEahTQSiGYmDOp2QXFSu"
+            'x-api-key': self.key
         }
         self.cli = AsyncHTTPClient(headers=self.headers, timeout=aiohttp.ClientTimeout(total=self.timeout))
         self.api = CurseForgeApi(self.api_url, self.key, self.proxies, acli=self.cli)
@@ -38,11 +38,10 @@ class CurseforgeCache:
             with self.database:
                 try:
                     data = await self.api.get_mod(modid)
-                    self.database.exe(insert("mod_status", dict(modid=modid, status=200), replace=True))
-                    self.database.exe(insert("mod_info", dict(modid=modid, data=json.dumps(data), replace=True)))
+                    self.database.exe(insert("mod_info", dict(modid=modid, status=200, data=json.dumps(data), replace=True)))
                     log(f"Get mod: {modid}")
                 except StatusCodeException as e:
-                    self.database.exe(insert("mod_status", dict(modid=modid, status=e.status_code), replace=True))
+                    self.database.exe(insert("mod_info", dict(modid=modid, status=e.status_code), replace=True))
                     log(f"Get mod: {modid} Error: {e.status_code}")
             await asyncio.sleep(1)
 
@@ -55,17 +54,27 @@ class CurseforgeCache:
         await asyncio.gather(*tasks)
         log("Finish")
 
+def getLogFile(basedir='logs'):
+    if not os.path.exists(basedir):
+        os.makedirs(basedir)
+    date = datetime.datetime.now().strftime('%Y-%m-%d')
+    path = os.path.join(basedir, f'{date}.log')
+    if os.path.exists(path):
+        i = 1
+        while os.path.exists(path):
+            path = os.path.join(basedir, f'{date}-{i}.log')
+            i += 1
+    return path
+
 async def main():
     MCIMConfig.load()
     MysqlConfig.load()
     database = DataBase(**MysqlConfig.to_dict())
 
-    if not os.path.exists("logs"):
-        os.makedirs("logs")
-
     logging.basicConfig(level=logging.INFO,
-        filename="logs/log-{datetime}.txt".format(datetime=datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")),
-        format='[' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + '] [%(levelname)s]: %(message)s')
+        filename=getLogFile(), filemode='w',
+        format='[%(asctime)s] [%(levelname)s]: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S')
 
     logging.debug("Logging started")
 
