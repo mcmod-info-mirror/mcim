@@ -31,15 +31,15 @@ class CurseforgeCache:
         self.sem = asyncio.Semaphore(limit)
 
     async def try_mod(self, modid):
-        with self.sem:
+        async with self.sem:
             try:
                 data = await self.api.get_mod(modid)
-                self.database.exe(insert("mod_status", dict(modid=modid, status=status), replace=True))
+                self.database.exe(insert("mod_status", dict(modid=modid, status=200), replace=True))
                 self.database.exe(insert("mod_info", dict(modid=modid, data=json.dumps(data), replace=True)))
                 logging.info(f"Get mod: {modid}")
             except StatusCodeException as e:
                 self.database.exe(insert("mod_status", dict(modid=modid, status=e.status_code), replace=True))
-                logging.info(f"Get mod: {modid} Error: {status}")
+                logging.info(f"Get mod: {modid} Error: {e.status_code}")
             await asyncio.sleep(1)
 
     async def sync(self):
@@ -52,6 +52,8 @@ class CurseforgeCache:
         logging.info("Finish")
 
 async def main():
+    MCIMConfig.load()
+    MysqlConfig.load()
     database = DataBase(**MysqlConfig.to_dict())
 
     if not os.path.exists("logs"):
