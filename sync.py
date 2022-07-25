@@ -38,11 +38,10 @@ class CurseforgeCache:
             with self.database:
                 try:
                     data = await self.api.get_mod(modid)
-                    self.database.exe(insert("mod_status", dict(modid=modid, status=200), replace=True))
-                    self.database.exe(insert("mod_info", dict(modid=modid, data=json.dumps(data), replace=True)))
+                    self.database.exe(insert("mod_info", dict(modid=modid, status=200, data=json.dumps(data)), replace=True)) # TODO time=time.time()
                     log(f"Get mod: {modid}")
                 except StatusCodeException as e:
-                    self.database.exe(insert("mod_status", dict(modid=modid, status=e.status_code), replace=True))
+                    self.database.exe(insert("mod_info", dict(modid=modid, status=e.status_code), replace=True))
                     log(f"Get mod: {modid} Error: {e.status_code}")
             await asyncio.sleep(1)
 
