@@ -36,6 +36,13 @@ class CommandBuilder:
 	def __repr__(self):
 		return f'<CommandBuilder {self.command}>'
 
+	def join_text(self, arg, text="`",prev=' ') -> CommandBuilder:
+		'''
+		join("text") = "`" + text + "`"
+		'''
+		self.command += prev + f"{text}{arg}{text}"
+		return self
+			
 	def append(self, arg, *, prev=' ') -> CommandBuilder:
 		'''
 		Append a value to command
@@ -71,7 +78,7 @@ class CommandBuilder:
 		Usage:
 			<CommandBuilder>.name('key1', 'key2').name('key3')
 		'''
-		self.command += prev + sep.join(f'`{k}`' for k in args)
+		self.command += prev + "(" + sep.join(f'`{k}`' for k in args) + ")"
 		return self
 
 	k = name
@@ -99,11 +106,11 @@ class CommandBuilder:
 			if isinstance(v, (str)):
 				fmts.append('%s')
 			elif isinstance(v, (int, float)):
-				fmts.append('%d')
+				fmts.append('%s') # %d format: a real number is required, not str, idk why
 			else:
 				fmts.append('%s')
 		self.values.extend(args)
-		self.command += prev + sep.join(fmts)
+		self.command += prev + "(" + sep.join(fmts) + ")"
 		return self
 
 	v = val
@@ -213,7 +220,7 @@ def create(table: str, /, fields: FieldBuilder = None) -> CommandBuilder:
 		# Create table with ENGINE and CHARSET
 		create('example_table').append('ENGINE=InnoDB').append('DEFAULT').append('CHARSET=utf8')
 	'''
-	cmd = CommandBuilder('CREATE').append('TABLE').name(table)
+	cmd = CommandBuilder('CREATE').append('TABLE').join_text(table)
 	if fields is not None:
 		cmd.append(str(fields))
 	return cmd
@@ -231,7 +238,7 @@ def drop(table: str, /) -> CommandBuilder:
 	Usage:
 		drop('example_table')
 	'''
-	return CommandBuilder('DROP').append('TABLE').name(table)
+	return CommandBuilder('DROP').append('TABLE').join_text(table)
 
 def delete(table: str, /) -> CommandBuilder:
 	'''
@@ -246,7 +253,7 @@ def delete(table: str, /) -> CommandBuilder:
 	Usage:
 		delete('example_table')
 	'''
-	return CommandBuilder('DELETE').append('FROM').name(table)
+	return CommandBuilder('DELETE').append('FROM').join_text(table)
 
 def insert(table: str, /, obj: dict, *, replace: bool = False, ignore: bool = False) -> CommandBuilder:
 	'''
@@ -273,7 +280,7 @@ def insert(table: str, /, obj: dict, *, replace: bool = False, ignore: bool = Fa
 		cmd = CommandBuilder('INSERT')
 		if ignore:
 			cmd.append('IGNORE')
-	cmd.append('INTO').name(table)
+	cmd.append('INTO').join_text(table)
 	keys = []
 	values = []
 	for k, v in obj.items():
@@ -304,7 +311,7 @@ def select(table: str, /, names: list[str] = None) -> CommandBuilder:
 		cmd.append('*')
 	else:
 		cmd.name(*names)
-	cmd.append('FROM').name(table)
+	cmd.append('FROM').join_text(table)
 	return cmd
 
 def update(table: str, /, obj: dict) -> CommandBuilder:
@@ -320,7 +327,7 @@ def update(table: str, /, obj: dict) -> CommandBuilder:
 
 	Usage: update('example_table', dict(key1=value1, key2=value2))
 	'''
-	cmd = CommandBuilder('UPDATE').name(table)
+	cmd = CommandBuilder('UPDATE').join_text(table)
 	first = True
 	for k, v in obj.items():
 		if first:

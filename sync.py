@@ -11,6 +11,10 @@ from async_httpclient import *
 from apis import *
 from mysql import *
 
+def log(text,logging=logging.info):
+    print(text)
+    logging(text)
+
 class CurseforgeCache:
     '''
     缓存 curseforge 的信息
@@ -35,10 +39,10 @@ class CurseforgeCache:
                 data = await self.api.get_mod(modid)
                 self.database.exe(insert("mod_status", dict(modid=modid, status=200), replace=True))
                 self.database.exe(insert("mod_info", dict(modid=modid, data=json.dumps(data), replace=True)))
-                logging.info(f"Get mod: {modid}")
+                log(f"Get mod: {modid}")
             except StatusCodeException as e:
                 self.database.exe(insert("mod_status", dict(modid=modid, status=e.status_code), replace=True))
-                logging.info(f"Get mod: {modid} Error: {e.status_code}")
+                log(f"Get mod: {modid} Error: {e.status_code}")
             await asyncio.sleep(1)
 
     async def sync(self):
@@ -46,9 +50,9 @@ class CurseforgeCache:
         for modid in range(10000, 100000):
             task = self.try_mod(modid)
             tasks.append(task)
-        logging.info("get urls")
+        log("get urls")
         await asyncio.gather(*tasks)
-        logging.info("Finish")
+        log("Finish")
 
 async def main():
     MCIMConfig.load()

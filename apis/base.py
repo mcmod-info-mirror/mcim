@@ -45,9 +45,9 @@ def retry_req_get_mustok(limit: int, /, *args, **kwargs):
 def res_mustok_async(callback):
     @functools.wraps(callback)
     async def w(*args, **kwargs):
-        res = await callback(*args, **kwargs)
+        res = (await callback(*args, **kwargs))[0] # return res, content when callback is NONE
         if not res.ok:
-            raise StatusCodeException(res.status_code)
+            raise StatusCodeException(res.status) # aiohttp.ClientResponse.status not status_code
         return res
     return w
 
