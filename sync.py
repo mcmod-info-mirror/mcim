@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import datetime
+import time
 import json
 import os
 import logging
@@ -19,29 +20,29 @@ class CurseforgeCache:
     '''
     缓存 curseforge 的信息
     '''
-    def __init__(self, database: DataBase, *, limit: int = 64) -> None:
+    def __init__(self, database: DataBase, *, limit: int = 16) -> None:
         self.key = MCIMConfig.curseforge_api_key
         self.api_url = MCIMConfig.curseforge_api
         self.proxies = MCIMConfig.proxies
         self.timeout = MCIMConfig.async_timeout
         self.headers = {
             'Accept': 'application/json',
-            'x-api-key': "$2a$10$2DOXBr1x82Acn1A6GGw5b.psdLVOo29u5gEahTQSiGYmDOp2QXFSu"
+            'x-api-key': MCIMConfig.curseforge_api_key
         }
         self.cli = AsyncHTTPClient(headers=self.headers, timeout=aiohttp.ClientTimeout(total=self.timeout))
-        self.api = CurseForgeApi(self.api_url, self.key, self.proxies, acli=self.cli)
         self.database = database
         self.sem = asyncio.Semaphore(limit)
+        self.api = CurseForgeApi(self.api_url, self.key, self.proxies, acli=self.cli, sem=self.sem)
 
     async def try_mod(self, modid):
         async with self.sem:
             with self.database:
                 try:
                     data = await self.api.get_mod(modid)
-                    self.database.exe(insert("mod_info", dict(modid=modid, status=200, data=json.dumps(data)), replace=True)) # TODO time=time.time()
+                    self.database.exe(insert("mod_info", dict(modid=modid, status=200, data=json.dumps(data), time=int(time.time())), replace=True)) # TODO time=time.time()
                     log(f"Get mod: {modid}")
                 except StatusCodeException as e:
-                    self.database.exe(insert("mod_info", dict(modid=modid, status=e.status_code), replace=True))
+                    self.database.exe(insert("mod_info", dict(modid=modid, status=e.status_code, time=int(time.time())), replace=True))
                     log(f"Get mod: {modid} Error: {e.status_code}")
             await asyncio.sleep(1)
 
