@@ -27,7 +27,7 @@ class CurseforgeCache:
         self.timeout = MCIMConfig.async_timeout
         self.headers = {
             'Accept': 'application/json',
-            'x-api-key': MCIMConfig.curseforge_api_key
+            'x-api-key': self.key
         }
         self.cli = AsyncHTTPClient(headers=self.headers, timeout=aiohttp.ClientTimeout(total=self.timeout))
         self.database = database
@@ -55,17 +55,27 @@ class CurseforgeCache:
         await asyncio.gather(*tasks)
         log("Finish")
 
+def getLogFile(basedir='logs'):
+    if not os.path.exists(basedir):
+        os.makedirs(basedir)
+    date = datetime.datetime.now().strftime('%Y-%m-%d')
+    path = os.path.join(basedir, f'{date}.log')
+    if os.path.exists(path):
+        i = 1
+        while os.path.exists(path):
+            path = os.path.join(basedir, f'{date}-{i}.log')
+            i += 1
+    return path
+
 async def main():
     MCIMConfig.load()
     MysqlConfig.load()
     database = DataBase(**MysqlConfig.to_dict())
 
-    if not os.path.exists("logs"):
-        os.makedirs("logs")
-
     logging.basicConfig(level=logging.INFO,
-        filename="logs/log-{datetime}.txt".format(datetime=datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")),
-        format='[' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + '] [%(levelname)s]: %(message)s')
+        filename=getLogFile(), filemode='w',
+        format='[%(asctime)s] [%(levelname)s]: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S')
 
     logging.debug("Logging started")
 
