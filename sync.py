@@ -3,7 +3,6 @@
 import datetime
 import json
 import os
-import time
 import logging
 import asyncio
 import aiohttp
@@ -33,7 +32,7 @@ class CurseforgeCache:
     async def try_mod(self, modid):
         with self.sem:
             try:
-                data = await self.api.get_mod(modid)
+                data,status = await self.api.get_mod(modid)
                 self.database.exe(insert("mod_status", dict(modid=modid, status=status), replace=True))
                 self.database.exe(insert("mod_info", dict(modid=modid, data=json.dumps(data), replace=True)))
                 logging.info(f"Get mod: {modid}")

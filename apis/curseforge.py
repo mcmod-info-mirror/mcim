@@ -113,7 +113,7 @@ class CurseForgeApi:
 		}
 		async with self.acli:
 			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
-			return res.json()
+			return res.json(), res.status
 
 	async def get_mods(self, modids) -> list:
 		url = self.baseurl + "mods"
