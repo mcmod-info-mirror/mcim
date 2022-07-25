@@ -34,6 +34,9 @@ class MysqlConfig:
 
 	@classmethod
 	def load(cls, target='./mysql.config.json'):
+		if not os.path.exists(target):
+			cls.save(target=target)
+			return
 		data: dict
 		with open(target, 'w') as fd:
 			data = json.load(fd)
@@ -69,6 +72,9 @@ class MCIMConfig:
 
 	@classmethod
 	def load(cls, target='./config.json'):
+		if not os.path.exists(target):
+			cls.save(target=target)
+			return
 		data: dict
 		with open(target, 'w') as fd:
 			data = json.load(fd)
