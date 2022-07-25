@@ -34,7 +34,7 @@ class CommandBuilder:
 		return self.command
 
 	def __repr__(self):
-		return f'<CommandBuilder {self.command}>'
+		return f'<CommandBuilder "{self.command}">'
 
 	def append(self, arg, *, prev=' ') -> CommandBuilder:
 		'''
@@ -94,16 +94,8 @@ class CommandBuilder:
 		Usage:
 			<CommandBuilder>.val('value1', 'value2').name('value3')
 		'''
-		fmts = []
-		for v in args:
-			if isinstance(v, (str)):
-				fmts.append('%s')
-			elif isinstance(v, (int, float)):
-				fmts.append('%d') # %d format: a real number is required, not str
-			else:
-				fmts.append('%s')
+		self.command += prev + sep.join(['%s'] * len(args))
 		self.values.extend(args)
-		self.command += prev + sep.join(fmts)
 		return self
 
 	v = val
