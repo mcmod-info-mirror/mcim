@@ -1,14 +1,18 @@
+from apis import mysql
 
-import mysql
-
-pwd = "emjYT6NcSi8RKNFc"
-host = "10.0.0.20"
+pwd = "z0z0r4admin"
+host = "127.0.0.1"
 port = 3306
-user = "mod_api_test"
-dbname = "mod_api_test"
+user = "root"
+dbname = "mod_info"
 
-db = mysql.Database(host, port, user, pwd, dbname)
-print(db.mysql_version())
-print(db.show_tables())
+db = mysql.DataBase(host, port, user, pwd, dbname)
 
-# db.disconnect()
+def save_json_to_mysql(table, **kwargs):
+    db.insert(table, **kwargs)
+
+save_json_to_mysql("mod_status", modid=1, status=404)
+
+# print(db.mysql_version())
+# # print(db.create_table("mod_info", "`modid` INT", "`data` json"))
+# print(db.update("mod_info",updates={"data": "'{\"a\":1}'"},where_keys={"modid": "3"}))
