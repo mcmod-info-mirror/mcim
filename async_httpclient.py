@@ -11,6 +11,7 @@ class AsyncHTTPClient:
 	Usage: cli = AsyncHTTPClient()
 	'''
 	def __init__(self, **kwargs): # limit: int = 64 TODO
+		self._lock = asyncio.Lock()
 		self._session = None
 		self._session_kwargs = kwargs
 		self._context_count = 0
@@ -21,17 +22,19 @@ class AsyncHTTPClient:
 		return self._session
 
 	async def __aenter__(self):
-		if self._session is None:
-			self._session = await self.new_session()
-		self._context_count += 1
+		async with self._lock:
+			if self._session is None:
+				self._session = await self.new_session()
+			self._context_count += 1
 		return self
 
 	async def __aexit__(self, etyp, eval, traceback):
-		self._context_count -= 1
-		if self._context_count == 0:
-			await self._session.close()
-			self._session = None
-			await asyncio.sleep(0)
+		async with self._lock:
+			self._context_count -= 1
+			if self._context_count == 0:
+				await self._session.close()
+				self._session = None
+				await asyncio.sleep(0)
 		return False
 
 	async def new_session(self, **kwargs):
@@ -89,8 +92,9 @@ class Tester:
 	async def test_get(self):
 		url = self.target[0]
 		async with self.cli:
-			res, content = await self.cli.get(url)
-		print('Response for "{}": {} ;Content: {} Byte'.format(url, res.status, len(content)))
+			for url in self.target:
+				res, content = await self.cli.get(url)
+				print('Response for "{}": {} ;Content: {} Byte'.format(url, res.status, len(content)))
 
 	async def test_get_all(self):
 		async with self.cli:
@@ -100,9 +104,9 @@ class Tester:
 			print('Response for "{}": {} ;Content: {} Byte'.format(url, res.status, len(content)))
 
 	async def test_get_all_with_callback(self):
-		async def callback(url, res):
+		async def callback(res):
 			content = await res.content.read()
-			print('Response for "{}": {} ;Content: {} Byte'.format(url, res.status, len(content)))
+			print('Response for "{}": {} ;Content: {} Byte'.format(res.url, res.status, len(content)))
 		async with self.cli:
 			await self.cli.get_all(self.target, callback=callback)
 
