@@ -52,9 +52,8 @@ class CurseforgeCache:
                     self.database.exe(insert("mod_info", dict(modid=modid, status=000, time=int(time.time())), replace=True))
                 except KeyboardInterrupt:
                     log("BYE")
-                # except Exception as e:
-                #     log(f"Get mod: {modid} NULL", logging=logging.error)
-                #     log(e)
+                except Exception as e:
+                    log(f"Get mod: {modid} {e}", logging=logging.error)
                 await asyncio.sleep(1)
 
     async def sync(self):
