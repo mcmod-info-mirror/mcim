@@ -51,7 +51,7 @@ class MCIMConfig:
 	curseforge_api_key: str = '<api key>'
 	curseforge_api: str = "https://api.curseforge.com/v1/" # 不然和api的拼接对不上
 	modrinth_api: str = "https://api.modrinth.com/"
-	proxies: dict = None
+	proxies: str | dict = None
 	sync_interval: int = 3600 # seconds
 	async_timeout: int = 60 # seconds
 

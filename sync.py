@@ -20,7 +20,7 @@ class CurseforgeCache:
     '''
     缓存 curseforge 的信息
     '''
-    def __init__(self, database: DataBase, *, limit: int = 16) -> None:
+    def __init__(self, database: DataBase, *, limit: int = 2) -> None:
         self.key = MCIMConfig.curseforge_api_key
         self.api_url = MCIMConfig.curseforge_api
         self.proxies = MCIMConfig.proxies
@@ -32,28 +32,39 @@ class CurseforgeCache:
         self.cli = AsyncHTTPClient(headers=self.headers, timeout=aiohttp.ClientTimeout(total=self.timeout))
         self.database = database
         self.sem = asyncio.Semaphore(limit)
-        self.api = CurseForgeApi(self.api_url, self.key, self.proxies, acli=self.cli, sem=self.sem)
+        self.api = CurseForgeApi(self.api_url, self.key, self.proxies, acli=self.cli)
 
     async def try_mod(self, modid):
         async with self.sem:
             with self.database:
                 try:
                     data = await self.api.get_mod(modid)
-                    self.database.exe(insert("mod_info", dict(modid=modid, status=200, data=json.dumps(data), time=int(time.time())), replace=True)) # TODO time=time.time()
+                    self.database.exe(insert("mod_info", dict(modid=modid, status=200, data=data, time=int(time.time())), replace=True)) # TODO time=time.time()
                     log(f"Get mod: {modid}")
                 except StatusCodeException as e:
-                    self.database.exe(insert("mod_info", dict(modid=modid, status=e.status_code, time=int(time.time())), replace=True))
-                    log(f"Get mod: {modid} Error: {e.status_code}")
-            await asyncio.sleep(1)
+                    self.database.exe(insert("mod_info", dict(modid=modid, status=e.status, time=int(time.time())), replace=True))
+                    log(f"Get mod: {modid} Error: {e.status}", logging=logging.error)
+                except asyncio.TimeoutError:
+                    log(f"Get mod: {modid} Timeout", logging=logging.error)
+                    self.database.exe(insert("mod_info", dict(modid=modid, status=000, time=int(time.time())), replace=True))
+                except TypeError:
+                    log(f"Get mod: {modid} {data} JSON Error", logging=logging.error)
+                    self.database.exe(insert("mod_info", dict(modid=modid, status=000, time=int(time.time())), replace=True))
+                except KeyboardInterrupt:
+                    log("BYE")
+                # except Exception as e:
+                #     log(f"Get mod: {modid} NULL", logging=logging.error)
+                #     log(e)
+                await asyncio.sleep(1)
 
     async def sync(self):
         tasks = []
-        for modid in range(10000, 100000):
+        for modid in range(14000, 100000):
             task = self.try_mod(modid)
             tasks.append(task)
-        log("get urls")
+        log("Get curseforge mods")
         await asyncio.gather(*tasks)
-        log("Finish")
+        log("Finish curseforge mods")
 
 def getLogFile(basedir='logs'):
     if not os.path.exists(basedir):
@@ -79,7 +90,7 @@ async def main():
 
     logging.debug("Logging started")
 
-    cache = CurseforgeCache(database)
+    cache = CurseforgeCache(database,limit=16)
     await cache.sync()
 
 

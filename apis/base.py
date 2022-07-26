@@ -14,14 +14,14 @@ __all__ = [
 class StatusCodeException(Exception):
     def __init__(self, code: int):
         super().__init__('Unexcept status code: {}'.format(code))
-        self.status_code = code
+        self.status = code
 
 def res_mustok(callback):
     @functools.wraps(callback)
     def w(*args, **kwargs):
-        res = callback(*args, **kwargs)
+        res = callback(*args, **kwargs)[0]
         if not res.ok:
-            raise StatusCodeException(res.status_code)
+            raise StatusCodeException(res.status)
         return res
     return w
 
@@ -45,8 +45,8 @@ def retry_req_get_mustok(limit: int, /, *args, **kwargs):
 def res_mustok_async(callback):
     @functools.wraps(callback)
     async def w(*args, **kwargs):
-        res = (await callback(*args, **kwargs))[0] # return res, content when callback is NONE
-        if not res.ok:
+        res = (await callback(*args, **kwargs))
+        if not res[0].ok:
             raise StatusCodeException(res.status) # aiohttp.ClientResponse.status not status_code
         return res
     return w

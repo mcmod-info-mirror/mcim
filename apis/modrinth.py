@@ -9,21 +9,27 @@ __all__ = [
 
 class ModrinthApi:
     '''
+	Curseforge api 的包装，基于 asyncio 和 aiohttp
+
+	函数只返回 api 原生数据，未处理 
+
     用法: modapi = ModrinthApi("https://api.modrinth.com/")
     '''
-    def __init__(self, baseurl: str, proxies: dict=None):
+
+    def __init__(self, baseurl: str, proxies: dict = None, acli = None):
         self.baseurl = baseurl
         self.proxies = proxies
-
-    def end_point(self):
-        headers = {
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.71",
             'Accept': 'application/json'
         }
+        self.acli = acli
 
-        res = retry_req_get_mustok(3, url=self.baseurl, proxies=self.proxies, headers=headers)
+    async def end_point(self):
+        res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), self.baseurl, proxy=self.proxies, headers=self.headers)
         return res.json()
 
-    def get_mod(self, slug=None, modid=None):
+    async def get_mod(self, slug=None, modid=None):
         '''
         获取 Mod 信息。
 
@@ -40,14 +46,10 @@ class ModrinthApi:
         else:
             raise AssertionError("Neither slug and modid is not None")
 
-        headers = {
-            'Accept': 'application/json'
-        }
-
-        res = retry_req_get_mustok(3, url=url, proxies=self.proxies, headers=headers)
+        res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=self.headers)
         return res.json()
 
-    def get_mod_versions(self, slug=None, modid=None, game_versions=None, loaders=None, featured=None):
+    async def get_mod_versions(self, slug=None, modid=None, game_versions=None, loaders=None, featured=None):
         '''
         获取 Mod 所有支持版本及相关信息。
 
@@ -74,15 +76,11 @@ class ModrinthApi:
         else:
             raise AssertionError("Neither slug and modid is not None")
 
-        headers = {
-            'Accept': 'application/json'
-        }
-
-        res = retry_req_get_mustok(3, url=url, proxies=self.proxies, headers=headers, params={
+        res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=self.headers, params={
             "game_versions": game_versions, "loaders": loaders, "featured": featured})
         return res.json()
 
-    def get_mod_version(self, id: str):
+    async def get_mod_version(self, id: str):
         '''
         跟据提供的版本号获取信息。
 
@@ -92,14 +90,11 @@ class ModrinthApi:
 
         '''
         url = self.baseurl + "version/{version_id}".format(version_id=id)
-        headers = {
-            'Accept': 'application/json'
-        }
 
-        res = retry_req_get_mustok(3, url=url, proxies=self.proxies, headers=headers)
+        res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=self.headers)
         return res.json()
 
-    def search(self, query, limit=20, offset=None, index="relevance", facets=None):
+    async def search(self, query, limit=20, offset=None, index="relevance", facets=None):
         '''
         搜索 Mod 。
 
@@ -116,11 +111,8 @@ class ModrinthApi:
             facets = facets_text[:-1] + "]"
 
         url = self.baseurl + "search"
-        headers = {
-            'Accept': 'application/json'
-        }
 
-        res = retry_req_get_mustok(3, url=url, proxies=self.proxies, headers=headers, params={
+        res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=self.headers, params={
             "query": query, "limit": limit, "offset": offset, "index": index, "facets": facets
         })
         return res.json()
