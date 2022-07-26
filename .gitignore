@@ -4,3 +4,5 @@
 
 # Python
 __pycache__
+config.json
+mysql.config.json
