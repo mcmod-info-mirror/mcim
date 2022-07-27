@@ -6,3 +6,4 @@
 __pycache__
 config.json
 mysql.config.json
+clash.config.json

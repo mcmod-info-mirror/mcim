@@ -33,37 +33,44 @@ class CurseforgeCache:
         self.database = database
         self.sem = asyncio.Semaphore(limit)
         self.api = CurseForgeApi(self.api_url, self.key, self.proxies, acli=self.cli)
+        self.clash = clash.Clash(api_url=ClashConfig.api_url,port=ClashConfig.api_port,secret=ClashConfig.api_secret)
 
     async def try_mod(self, modid):
         async with self.sem:
             with self.database:
                 try:
-                    data = await self.api.get_mod(modid)
+                    res, data = await self.api.get_mod(modid)
                     self.database.exe(insert("mod_info", dict(modid=modid, status=200, data=data, time=int(time.time())), replace=True)) # TODO time=time.time()
                     log(f"Get mod: {modid}")
                 except StatusCodeException as e:
                     self.database.exe(insert("mod_info", dict(modid=modid, status=e.status, time=int(time.time())), replace=True))
-                    log(f"Get mod: {modid} Error: {e.status}", logging=logging.error)
+                    log(f"Get mod: {modid} Status: {e.status}", logging=logging.error)
+                    if e.status == 403:
+                        time.sleep(60*20)
+                        log("=================OQS limit====================")
                 except asyncio.TimeoutError:
                     log(f"Get mod: {modid} Timeout", logging=logging.error)
-                    self.database.exe(insert("mod_info", dict(modid=modid, status=000, time=int(time.time())), replace=True))
+                    self.database.exe(insert("mod_info", dict(modid=modid, status=0, time=int(time.time())), replace=True))
                 except TypeError:
-                    log(f"Get mod: {modid} {data} JSON Error", logging=logging.error)
-                    self.database.exe(insert("mod_info", dict(modid=modid, status=000, time=int(time.time())), replace=True))
+                    log(f"Get mod: {modid} Type Error", logging=logging.error)
+                    self.database.exe(insert("mod_info", dict(modid=modid, status=0, time=int(time.time())), replace=True))
                 except KeyboardInterrupt:
-                    log("BYE")
-                except Exception as e:
-                    log(f"Get mod: {modid} {e}", logging=logging.error)
-                await asyncio.sleep(1)
+                    log("~~ BYE ~~")
+                    
+            await asyncio.sleep(1)
 
     async def sync(self):
-        tasks = []
-        for modid in range(14000, 100000):
-            task = self.try_mod(modid)
-            tasks.append(task)
-        log("Get curseforge mods")
-        await asyncio.gather(*tasks)
-        log("Finish curseforge mods")
+        modid = 10800
+        for part in range(0,100):
+            tasks = []
+            for a in range(0, 900):
+                task = self.try_mod(modid)
+                tasks.append(task)
+                modid += 1
+            log(f"Get {part}/100 curseforge mods")
+            await asyncio.gather(*tasks)
+            log(f"Finish {part}/100 curseforge mods")
+            time.sleep(60*10)
 
 def getLogFile(basedir='logs'):
     if not os.path.exists(basedir):
@@ -80,6 +87,7 @@ def getLogFile(basedir='logs'):
 async def main():
     MCIMConfig.load()
     MysqlConfig.load()
+    ClashConfig.load()
     database = DataBase(**MysqlConfig.to_dict())
 
     logging.basicConfig(level=logging.INFO,

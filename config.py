@@ -5,6 +5,7 @@ import os
 __all__ = [
 	'MysqlConfig',
 	'MCIMConfig'
+	'ClashConfig'
 ]
 
 def checktyp(obj: object, typ: type):
@@ -83,6 +84,35 @@ class MCIMConfig:
 		cls.curseforge_api = checktyp(data.get('curseforge_api'), str)
 		cls.modrinth_api = checktyp(data.get('modrinth_api'), str)
 		cls.proxies = data.get('proxies')
-		# cls.proxies = checktyp(data.get('proxies'), str) proxies: None/dict
 		cls.sync_interval = checktyp(data.get('sync_interval'), int)
 		cls.async_timeout = checktyp(data.get('async_timeout'), int)
+
+class ClashConfig:
+	api_url: str = "127.0.0.1"
+	api_port: int = 9090
+	api_secret: str = ""
+	
+	@classmethod
+	def to_dict(cls):
+		return {
+			'clash_api_url': cls.api_url,
+			'clash_api_port': cls.api_port,
+			"clash_api_secret": cls.api_secret
+		}
+
+	@classmethod
+	def save(cls, target='./clash.config.json'):
+		with open(target, 'w') as fd:
+			json.dump(cls.to_dict(), fd)
+
+	@classmethod
+	def load(cls, target='./clash.config.json'):
+		if not os.path.exists(target):
+			cls.save(target=target)
+			return
+		data: dict
+		with open(target, 'r') as fd:
+			data = json.load(fd)
+		cls.api_url = checktyp(data.get('clash_api_url'), str)
+		cls.api_port = checktyp(data.get('clash_api_port'), int)
+		cls.api_secret =checktyp(data.get('clash_api_secret'), str)

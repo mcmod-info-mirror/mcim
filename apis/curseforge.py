@@ -30,7 +30,7 @@ class CurseForgeApi:
 			# 'x-api-key': self.api_key 
 		}
 		async with self.acli:
-			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url=self.baseurl, proxy=self.proxies, headers=headers)
+			res, _ = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url=self.baseurl, proxy=self.proxies, headers=headers)
 			return res.status_code # 这不是json
 
 	async def get_all_games(self, index=1, pageSize=50):
@@ -40,8 +40,8 @@ class CurseForgeApi:
 			'x-api-key': self.api_key
 		}
 		async with self.acli:
-			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
-			return res[1].decode('utf-8')
+			res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
+			return content.decode('utf-8')
 
 	async def get_game(self, gameid, index=1, pageSize=50):
 		url = self.baseurl + "games/{gameid}?index={index}&pageSize={pageSize}".format(gameid=gameid,index=index, pageSize=pageSize)
@@ -50,8 +50,8 @@ class CurseForgeApi:
 			'x-api-key': self.api_key
 		}
 		async with self.acli:
-			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
-			return res[1].decode('utf-8')
+			res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
+			return content.decode('utf-8')
 
 	async def get_game_version(self, gameid, index=1, pageSize=50):
 		url = self.baseurl + "games/{gameid}/versions?index={index}&pageSize={pageSize}".format(gameid=gameid,index=index, pageSize=pageSize)
@@ -60,8 +60,8 @@ class CurseForgeApi:
 			'x-api-key': self.api_key
 		}
 		async with self.acli:
-			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
-			return res[1].decode('utf-8')
+			res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
+			return content.decode('utf-8')
 
 	async def get_categories(self, gameid=432, classid=None): # classid 为主分类的有 main class [17,5,4546,4471,12,4559,6(Mods)]
 		'''
@@ -78,8 +78,8 @@ class CurseForgeApi:
 		if classid is not None:
 			params['classId'] = classid
 		async with self.acli:
-			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, headers=headers, params=params, proxy=self.proxies)
-			return res[1].decode('utf-8')
+			res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, headers=headers, params=params, proxy=self.proxies)
+			return content.decode('utf-8')
 
 	async def search(self, text=None, slug=None, gameid=432, classid=6, modLoaderType=None, sortField="Featured", categoryid=None, gameversion=None, index=None, pageSize=None):
 		# ModLoaderType
@@ -109,8 +109,8 @@ class CurseForgeApi:
 			'x-api-key': self.api_key
 		}
 		async with self.acli:
-			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, headers=headers, params={'gameId': gameid, "sortField": sortField, "categoryId": categoryid, "sortOrder": "desc", "index": index, "pageSize": pageSize, "classId": classid, "slug": slug, "modLoaderType": modLoaderType, "gameVersion": gameversion, "searchFilter": text}, proxy=self.proxies)
-			return res[1].decode('utf-8')
+			res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, headers=headers, params={'gameId': gameid, "sortField": sortField, "categoryId": categoryid, "sortOrder": "desc", "index": index, "pageSize": pageSize, "classId": classid, "slug": slug, "modLoaderType": modLoaderType, "gameVersion": gameversion, "searchFilter": text}, proxy=self.proxies)
+			return content.decode('utf-8')
 
 	async def get_mod(self, modid):
 		url = self.baseurl + "mods/{modid}".format(modid=modid)
@@ -119,8 +119,8 @@ class CurseForgeApi:
 			'x-api-key': self.api_key
 		}
 		async with self.acli:
-			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, headers=headers)
-			return res[1].decode('utf-8')
+			res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, headers=headers, proxy=self.proxies)
+			return res, content.decode('utf-8')
 			# 没有callback，返回数据只能在 content，不知道要不要传 callback for self.acli.get
 			# 没想好怎么处理，作为 api 应该返回 dict 类型，对于 sync 来说就得再load一次; 先替换了
 
@@ -135,8 +135,8 @@ class CurseForgeApi:
 			'x-api-key': self.api_key
 		}
 		async with self.acli:
-			res = await self.acli.post(url, proxy=self.proxies, headers=headers, json=body)
-			return res[1].decode('utf-8')
+			res, content = await self.acli.post(url, proxy=self.proxies, headers=headers, json=body)
+			return content.decode('utf-8')
 
 	async def get_mod_description(self, modid):
 		url = self.baseurl + "mods/{modid}/description".format(modid=modid)
@@ -145,8 +145,8 @@ class CurseForgeApi:
 			'x-api-key': self.api_key
 		}
 		async with self.acli:
-			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
-			return res[1].decode('utf-8')
+			res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
+			return content.decode('utf-8')
 
 	async def get_file(self, modid, fileid):
 		url = self.baseurl + "mods/{modid}/files/{fileid}".format(modid=modid, fileid=fileid)
@@ -155,8 +155,8 @@ class CurseForgeApi:
 			'x-api-key': self.api_key
 		}
 		async with self.acli:
-			res = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
-			return res[1].decode('utf-8')
+			res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
+			return content.decode('utf-8')
 
 	async def get_files(self, fileids, modid):
 		url = self.baseurl + "mods/{modid}/files".format(modid=modid)
@@ -169,8 +169,8 @@ class CurseForgeApi:
 			"fileIds": fileids
 		}
 		async with self.acli:
-			res = await res_mustok_async(self.acli.post)(url, proxy=self.proxies, headers=headers, json=body)
-			return res[1].decode('utf-8')
+			res, content = await res_mustok_async(self.acli.post)(url, proxy=self.proxies, headers=headers, json=body)
+			return content.decode('utf-8')
 
 	async def get_file_download_info(self, modid, fileid):
 		'''
@@ -201,5 +201,5 @@ class CurseForgeApi:
 			'x-api-key': self.api_key
 		}
 		async with self.acli:
-			res = await retry_async(self.acli.get, 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
-			return res[1].decode('utf-8')
+			res, content = await retry_async(self.acli.get, 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
+			return content.decode('utf-8')
