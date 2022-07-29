@@ -4,7 +4,7 @@ import os
 
 __all__ = [
 	'MysqlConfig',
-	'MCIMConfig'
+	'MCIMConfig',
 	'ClashConfig'
 ]
 
@@ -55,6 +55,8 @@ class MCIMConfig:
 	proxies: str = None
 	sync_interval: int = 3600 # seconds
 	async_timeout: int = 60 # seconds
+	cqhttp_baseurl: str = "http://localhost:7777/"
+	cqhttp_userid: int = 3531890582
 
 	@classmethod
 	def to_dict(cls):
@@ -65,6 +67,8 @@ class MCIMConfig:
 			'proxies': cls.proxies,
 			'sync_interval': cls.sync_interval,
 			'async_timeout': cls.async_timeout
+			'cqhttp_baseurl': cls.cqhttp_baseurl,
+			'cqhttp_userid': cls.cqhttp_userid,
 		}
 
 	@classmethod
@@ -86,6 +90,8 @@ class MCIMConfig:
 		cls.proxies = data.get('proxies')
 		cls.sync_interval = checktyp(data.get('sync_interval'), int)
 		cls.async_timeout = checktyp(data.get('async_timeout'), int)
+		cls.cqhttp_baseurl = checktyp(data.get('cqhttp_baseurl'), str)
+		cls.cqhttp_userid = checktyp(data.get('cqhttp_userid'), int)
 
 class ClashConfig:
 	api_url: str = "127.0.0.1"
