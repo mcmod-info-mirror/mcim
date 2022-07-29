@@ -66,7 +66,7 @@ class MCIMConfig:
 			'modrinth_api': cls.modrinth_api,
 			'proxies': cls.proxies,
 			'sync_interval': cls.sync_interval,
-			'async_timeout': cls.async_timeout
+			'async_timeout': cls.async_timeout,
 			'cqhttp_baseurl': cls.cqhttp_baseurl,
 			'cqhttp_userid': cls.cqhttp_userid,
 		}
