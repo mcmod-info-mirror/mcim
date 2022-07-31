@@ -89,6 +89,7 @@ class DataBase:
 			cursor = self.cursor()
 			return cursor.execute(cmd.command, cmd.values)
 		with self.cursor() as cursor:
-			return cursor.execute(cmd.command, cmd.values)
+			cursor.execute(cmd.command, cmd.values)
+			return cursor.fetchall()
 
 	exe = execute

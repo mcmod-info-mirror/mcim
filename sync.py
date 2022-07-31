@@ -2,6 +2,7 @@
 
 import datetime
 import time
+import json
 import os
 import logging
 import asyncio
@@ -20,8 +21,15 @@ def log(text, logging=logging.info, to_qq=False, to_file=True):
     
     # 把必要 log 转发到我 QQ
     if to_qq == True: 
-        url = f"{MCIMConfig.cqhttp_baseurl}send_private_msg"
-        res = requests.get(url=url, params={"user_id": 3068342155, "message": text})
+        if MCIMConfig.cqhttp_type == "user":
+            url = f"{MCIMConfig.cqhttp_baseurl}send_private_msg"
+            res = requests.get(url=url, params={"user_id": MCIMConfig.cqhttp_userid, "message": text})
+        elif MCIMConfig.cqhttp_type == "group":
+            url = f"{MCIMConfig.cqhttp_baseurl}send_group_msg"
+            res = requests.get(url=url, params={"group_id": MCIMConfig.cqhttp_groupid, "message": text})
+        elif MCIMConfig.cqhttp_type == "guild":
+            url = f"{MCIMConfig.cqhttp_baseurl}send_guild_channel_msg"
+            res = requests.get(url=url, params={"guild_id": MCIMConfig.cqhttp_guild_id, "channel_id": MCIMConfig.cqhttp_channel_id, "message": text})
         if res.status_code == 200:
             if res.json()["status"] in ["ok","async"]:
                 pass
@@ -35,6 +43,7 @@ class CurseforgeCache:
     '''
     缓存 curseforge 的信息
     '''
+
     def __init__(self, database: DataBase, *, limit: int = 2) -> None:
         self.key = MCIMConfig.curseforge_api_key
         self.api_url = MCIMConfig.curseforge_api
@@ -48,8 +57,7 @@ class CurseforgeCache:
             headers=self.headers, timeout=aiohttp.ClientTimeout(total=self.timeout))
         self.database = database
         self.sem = asyncio.Semaphore(limit)
-        self.api = CurseForgeApi(
-        self.api_url, self.key, self.proxies, acli=self.cli)
+        self.api = CurseForgeApi(self.api_url, self.key, self.proxies, acli=self.cli)
         # self.clash = clash.Clash(api_url=ClashConfig.api_url, port=ClashConfig.api_port, secret=ClashConfig.api_secret)
 
     async def try_mod(self, modid):
@@ -57,7 +65,7 @@ class CurseforgeCache:
             with self.database:
                 try:
                     res, data = await self.api.get_mod(modid)
-                    self.database.exe(insert("mod_info", dict(modid=modid, status=200, data=data, time=int(
+                    self.database.exe(insert("mod_info", dict(modid=modid, status=200, data=json.dumps(data), time=int(
                         time.time())), replace=True))  # TODO time=time.time()
                     log(f"Get mod: {modid}")
                 except StatusCodeException as e:
@@ -79,16 +87,21 @@ class CurseforgeCache:
                         modid=modid, status=0, time=int(time.time())), replace=True))
                 except KeyboardInterrupt:
                     log("~~ BYE ~~", to_qq=True)
+                except Exception as e:
+                    log("Error: " + str(e), logging=logging.error, to_qq=True)
 
             await asyncio.sleep(1)
 
+
+
     async def sync(self):
-        log("Start ALL", to_qq=True)
+        # MOD
+        log("Start ALL MODS", to_qq=True)
         modid = 10000
         part = 0
         while True:
             if modid >= 105000:
-                log("Finish ALL", to_qq=True)
+                log("Finish ALL MODS", to_qq=True)
                 break
             else:
                 part += 1
@@ -118,7 +131,6 @@ def getLogFile(basedir='logs'):
 
 async def main():
     MCIMConfig.load()
-    mc = MCIMConfig
     MysqlConfig.load()
     ClashConfig.load()
     database = DataBase(**MysqlConfig.to_dict())

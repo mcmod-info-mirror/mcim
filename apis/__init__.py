@@ -7,6 +7,6 @@ from .clash import *
 __all__ = [
 	'StatusCodeException',
 	'CurseForgeApi',
-	'ModrinthApi'
-	'Clash'
+	'ModrinthApi',
+	'clash'
 ]

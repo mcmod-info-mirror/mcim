@@ -295,7 +295,7 @@ def select(table: str, /, names: list[str] = None) -> CommandBuilder:
 	if names is None:
 		cmd.append('*')
 	else:
-		cmd.name(*names)
+		cmd.name(*names,sep=',')
 	cmd.append('FROM').name(table)
 	return cmd
 
