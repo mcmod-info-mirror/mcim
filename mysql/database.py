@@ -85,8 +85,7 @@ class DataBase:
 		return self.db.cursor()
 
 	def execute(self, cmd: CommandBuilder, /, cursor=None):
-		if cursor is None:
-			cursor = self.cursor()
+		if cursor is not None:
 			return cursor.execute(cmd.command, cmd.values)
 		with self.cursor() as cursor:
 			cursor.execute(cmd.command, cmd.values)

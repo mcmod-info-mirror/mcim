@@ -1,7 +1,9 @@
-from fastapi import FastAPI
+from operator import mod
+from fastapi import Body, FastAPI
+import uvicorn
+from pydantic import BaseModel
 import time
 import json
-import uvicorn
 import aiohttp
 import asyncio
 from apis import *
@@ -58,7 +60,12 @@ async def curseforge_game(gameid):
 async def curseforge_categories(gameid: int = 432, classid: int = None):
     try:
         return {"time": int(time.time()), "status":"Succeed", "cached": False, "data": await cf_api.get_categories(gameid=gameid, classid=classid)}
-    except (asyncio.TimeoutError, TypeError, StatusCodeException, Exception) as e:
+    except StatusCodeException as e:
+        if e.status == 404:
+            return {"time": int(time.time()), "status":"Failed", "cached": False, "error": "Category not exists"}
+        else:
+            return {"time": int(time.time()), "status":"Failed", "cached": False}
+    except (asyncio.TimeoutError, TypeError, Exception) as e:
         return {"time": int(time.time()), "status":"Failed", "cached": False}
 
 @api.get("/curseforge/mods/{modid}")
@@ -73,8 +80,41 @@ async def get_mod(modid: int, cache: bool = True):
                 return {"time": time_tag, "status":"Succeed", "cached": True, "data": json.loads(data)["data"]}
         else:
             return {"time": int(time.time()), "status":"Succeed", "cached": False, "data": await cf_api.get_mod(modid=modid)}
-    except (asyncio.TimeoutError, TypeError, StatusCodeException, Exception) as e:
-        return {"time": int(time.time()), "status":"Failed", "cached": False}
+    except StatusCodeException as e:
+        if e.status == 404:
+            return {"time": int(time.time()), "status":"Failed", "cached": False, "error": "Mod not exists"}
+        else:
+            return {"time": int(time.time()), "status":"Failed", "cached": False, "error": str(e)}
+    except (asyncio.TimeoutError, TypeError, Exception) as e:
+        return {"time": int(time.time()), "status":"Failed", "cached": False, "error": str(e)}
+
+class get_mods_item(BaseModel):
+    modid: list[int]
+
+@api.post('/curseforge/mods')
+async def test_post(item: get_mods_item, cache: bool = True):
+    modids_data = []
+    for modid in item.modid:
+        try:
+            if cache == True:
+                result = database.exe(select("mod_info",["time","status","data"]).where("modid",modid).done(), cursor=database.cursor())[0]
+                time_tag, status, data = result
+                if status == 404:
+                    modids_data.append({"time": int(time.time()), "status":"Failed", "cached": True, "modid": modid})
+                else:
+                    mod_data = json.loads(data)["data"]
+                    modids_data.append(mod_data)
+            else:
+                modids_data.append(await cf_api.get_mod(modid=modid))
+        except StatusCodeException as e:
+            if e.status == 404:
+                return {"time": int(time.time()), "status":"Failed", "cached": False, "error": "Mod not exists"}
+            else:
+                return {"time": int(time.time()), "status":"Failed", "cached": False, "error": str(e)}
+        except (asyncio.TimeoutError, TypeError, Exception) as e:
+            return {"time": int(time.time()), "status":"Failed", "cached": False, "error": str(e)}
+    
+    return {"time": int(time.time()), "data": modids_data}
 
 if __name__ == "__main__":
     try:
