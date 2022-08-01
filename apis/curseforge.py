@@ -63,7 +63,7 @@ class CurseForgeApi:
 		}
 		async with self.acli:
 			res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
-			return json.loads(json.loads(content))
+			return json.loads(content)
 
 	async def get_categories(self, gameid=432, classid=None): # classid 为主分类的有 main class [17,5,4546,4471,12,4559,6(Mods)]
 		'''
@@ -104,7 +104,7 @@ class CurseForgeApi:
 		# 7=Category
 		# 8=GameVersion
 		
-		#url = self.baseurl + "mods/search?#gameId={gameid}&sortField=Featured&sortOrder=desc&pageSize={pageSize}&categoryId=0&classId={classid}&modLoaderType={modloadertype}&gameVersion={gameversion}&searchFilter={text}".format(classid=classid,text=text,gameid=gameid, pageSize=pageSize,modloadertype=ModLoaderType,gameversion=gameversion)
+		#url = self.baseurl + "mods/search?#gameId={gameid}&sortField=Featured&sortOrder=desc&pageSize={pageSize}&categoryId=0&classId={classid}&modLoaderType={modloadertype}&gameVersion={gameversion}&searchFilter={text}".format(classid=classid,text=text,gameid=gameid, pageSize=pageSize,modloadertype=ModLoaderType,gameversion=gameversion
 		url = self.baseurl + "mods/search"
 		headers = {
 			'Accept': 'application/json',
@@ -122,9 +122,7 @@ class CurseForgeApi:
 		}
 		async with self.acli:
 			res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, headers=headers, proxy=self.proxies)
-			return res, json.loads(content)
-			# 没有callback，返回数据只能在 content，不知道要不要传 callback for self.acli.get
-			# 没想好怎么处理，作为 api 应该返回 dict 类型，对于 sync 来说就得再load一次; 先替换了
+			return json.loads(content)
 
 	async def get_mods(self, modids) -> list:
 		url = self.baseurl + "mods"

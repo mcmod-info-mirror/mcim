@@ -64,9 +64,9 @@ class CurseforgeCache:
         async with self.sem:
             with self.database:
                 try:
-                    res, data = await self.api.get_mod(modid)
+                    data = await self.api.get_mod(modid)
                     self.database.exe(insert("mod_info", dict(modid=modid, status=200, data=json.dumps(data), time=int(
-                        time.time())), replace=True))  # TODO time=time.time()
+                        time.time())), replace=True))
                     log(f"Get mod: {modid}")
                 except StatusCodeException as e:
                     self.database.exe(insert("mod_info", dict(
@@ -75,8 +75,7 @@ class CurseforgeCache:
                         logging=logging.error)
                     if e.status == 403:
                         time.sleep(60*20)
-                        log("=================OQS limit====================",
-                            logging=logging.warning, to_qq=True)
+                        log("=================OQS limit====================",logging=logging.warning, to_qq=True)
                 except asyncio.TimeoutError:
                     log(f"Get mod: {modid} Timeout", logging=logging.error)
                     self.database.exe(insert("mod_info", dict(
@@ -92,9 +91,49 @@ class CurseforgeCache:
 
             await asyncio.sleep(1)
 
+    async def try_games(self,gameid):
+        async with self.sem:
+            with self.database:
+                try:
+                    data = await self.api.get_game(gameid)
+                    self.database.exe(insert("game_info", dict(gameid=gameid, status=200, data=json.dumps(data), time=int(
+                        time.time())), replace=True))
+                    log(f"Get game: {gameid}")
+                except StatusCodeException as e:
+                    self.database.exe(insert("game_info", dict(
+                        gameid=gameid, status=e.status, time=int(time.time())), replace=True))
+                    log(f"Get game: {gameid} Status: {e.status}",
+                        logging=logging.error)
+                    if e.status == 403:
+                        time.sleep(60*20)
+                        log("=================OQS limit====================",logging=logging.warning, to_qq=True)
+                except asyncio.TimeoutError:
+                    log(f"Get game: {gameid} Timeout", logging=logging.error)
+                    self.database.exe(insert("game_info", dict(
+                        gameid=gameid, status=0, time=int(time.time())), replace=True))
+                except TypeError:
+                    log(f"Get game: {gameid} Type Error", logging=logging.error)
+                    self.database.exe(insert("game_info", dict(
+                        gameid=gameid, status=0, time=int(time.time())), replace=True))
+                except KeyboardInterrupt:
+                    log("~~ BYE ~~", to_qq=True)
+                except Exception as e:
+                    log("Error: " + str(e), logging=logging.error, to_qq=True)
 
+            await asyncio.sleep(1)
 
     async def sync(self):
+        # Games
+        log("Start ALL GAMES", to_qq=True)
+        try:
+            all_games = await self.api.get_all_games()
+            for game in all_games["data"]:
+                gameid = game["id"]
+                self.database.exe(insert("game_info", dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(game)), replace=True))
+        except KeyboardInterrupt:
+            log("~~ BYE ~~", to_qq=True)
+        log("Finish ALL GAMES", to_qq=True)
+
         # MOD
         log("Start ALL MODS", to_qq=True)
         modid = 10000

@@ -5,7 +5,6 @@ import functools
 import asyncio
 import aiohttp
 import uvicorn
-from operator import mod
 from fastapi import Body, FastAPI
 from pydantic import BaseModel
 
@@ -44,27 +43,35 @@ def api_json_middleware(callback):
             return {"status": "failed", "error": "StatusCodeException", "errorMessage": str(e)}
         except Exception as e:
             return {"status": "failed", "error": "InternalError", "errorMessage": str(e)}
+    return w
 
 @api.get("/")
 @api_json_middleware
 async def root():
-    return {"status": "ok", "message": "z0z0r4 Mod Info"}
+    return {"status": "success", "message": "z0z0r4 Mod Info"}
 
 @api.get("/curseforge")
 @api_json_middleware
 async def curseforge():
-    await cf_api.end_point()
+    return await cf_api.end_point()
 
 @api.get("/curseforge/games")
 @api_json_middleware
 async def curseforge_games():
     data = await cf_api.get_all_games()
+
+    # cache
+    for game in data["data"]:
+        gameid = game["id"]
+        database.exe(insert("game_info", dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(game)), replace=True))
+    
     return {"status": "success", "data": data}
 
 @api.get("/curseforge/game/{gameid}")
 @api_json_middleware
-async def curseforge_game(gameid):
+async def curseforge_game(gameid: int):
     data = await cf_api.get_game(gameid=gameid)
+    database.exe(insert("game_info", dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(data["data"])), replace=True))
     return {"status": "success", "data": data}
 
 @api.get("/curseforge/categories")
@@ -76,10 +83,14 @@ async def curseforge_categories(gameid: int = 432, classid: int = None):
 async def _get_mod(modid: int, cache: bool = True):
     if not cache:
         data = await cf_api.get_mod(modid=modid)
+        database.exe(insert("mod_info", dict(modid=modid, status=200, data=json.dumps(data), time=int(time.time())), replace=True))
         return {"status": "success", "data": data}
     result = database.query(select("mod_info", ["time", "status", "data"]).where("modid", modid).done())
-    time_tag, status, data = result[0]
-    if status == 404:
+    time_tag, status, data = result
+    if status == 403:
+        data = await cf_api.get_mod(modid=modid)
+        return {"status": "success", "data": data}
+    elif status == 404:
         return {"status": "failed", "error": "ModNotExists", "errorMessage": "Mod not exists"}
     data = json.loads(data)["data"]
     return {"status": "success", "time": time_tag, "data": data}
@@ -101,6 +112,8 @@ async def test_post(item: ModItemModel, cache: bool = True):
         modids_data.append(data)
 
     return {"status": "success", "data": modids_data}
+
+
 
 if __name__ == "__main__":
     host, port = "127.0.0.1", 8000
