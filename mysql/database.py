@@ -88,7 +88,14 @@ class DataBase:
 		if cursor is not None:
 			return cursor.execute(cmd.command, cmd.values)
 		with self.cursor() as cursor:
-			cursor.execute(cmd.command, cmd.values)
-			return cursor.fetchall()
+			return cursor.execute(cmd.command, cmd.values)
 
 	exe = execute
+
+	def query(self, cmd: CommandBuilder, /, cursor=None):
+		if cursor is not None:
+			cursor.execute(cmd.command, cmd.values)
+			return cursor.fetchone()
+		with self.cursor() as cursor:
+			cursor.execute(cmd.command, cmd.values)
+			return cursor.fetchone()

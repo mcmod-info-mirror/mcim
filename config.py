@@ -135,4 +135,4 @@ class ClashConfig:
 			data = json.load(fd)
 		cls.api_url = checktyp(data.get('clash_api_url'), str)
 		cls.api_port = checktyp(data.get('clash_api_port'), int)
-		cls.api_secret =checktyp(data.get('clash_api_secret'), str)
+		cls.api_secret = checktyp(data.get('clash_api_secret'), str)
