@@ -40,6 +40,8 @@ def api_json_middleware(callback):
             res = await callback(*args, **kwargs)
             return res
         except StatusCodeException as e:
+            if e.status == 404:
+                return {"status": "failed", "error": "DataNotExists", "errorMessage": "Data Not exists"}
             return {"status": "failed", "error": "StatusCodeException", "errorMessage": str(e)}
         except Exception as e:
             return {"status": "failed", "error": "InternalError", "errorMessage": str(e)}
@@ -57,45 +59,101 @@ async def curseforge():
 
 @api.get("/curseforge/games")
 @api_json_middleware
-async def curseforge_games():
-    data = await cf_api.get_all_games()
+async def curseforge_games(cache: bool = True):
+    with database:
+        if cache == True:
+            data = []
+            result = database.query(select("game_info", ["data"]), all=True)
+            for res in result:
+                data.append(json.loads(res[0]))
 
-    # cache
-    for game in data["data"]:
-        gameid = game["id"]
-        database.exe(insert("game_info", dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(game)), replace=True))
+        else:
+            notimedata = await cf_api.get_all_games()
+            data = []
+            for game_data in notimedata["data"]:
+                gameid = game_data["id"]
+
+                # add cachetime
+                game_data["cachetime"] = int(time.time())
+                data.append(game_data)
+
+                database.exe(insert("game_info", dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(game_data)), replace=True))
     
     return {"status": "success", "data": data}
 
+async def _get_game(gameid: int):
+    data = await cf_api.get_game(gameid=gameid)
+
+    # add cachetime
+    cache_data = data["data"]
+    cache_data["cachetime"] = int(time.time())
+
+    database.exe(insert("game_info", dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(cache_data)), replace=True))
+    return cache_data
+
 @api.get("/curseforge/game/{gameid}")
 @api_json_middleware
-async def curseforge_game(gameid: int):
-    data = await cf_api.get_game(gameid=gameid)
-    database.exe(insert("game_info", dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(data["data"])), replace=True))
-    return {"status": "success", "data": data}
+async def curseforge_game(gameid: int, cache: bool = True):
+    with database:
+        if cache:
+            result = database.query(select("game_info", ["time", "status", "data"]).where("gameid", gameid).done())
+            if result == None:
+                await _get_game(gameid)
+                return {"status": "failed", "error": "DataNotExists", "errorMessage": "Data Not exists"}
+
+            if result != ():
+                time_tag, status, data = result
+                data = json.loads(data)
+                if not status == 200:
+                    await _get_game(gameid)
+                else:
+                    result_data = data
+            else:
+                await _get_game(gameid)
+        else:
+            await _get_game(gameid)
+
+    return {"status": "success", "data": result_data}
 
 @api.get("/curseforge/categories")
 @api_json_middleware
-async def curseforge_categories(gameid: int = 432, classid: int = None):
-    data = await cf_api.get_categories(gameid=gameid, classid=classid)
-    return {"status": "success", "data": data}
+async def curseforge_categories(gameid: int = 432, classid: int = None): # 无法缓存...
+    with database:
+        data = await cf_api.get_categories(gameid=gameid, classid=classid)
+        return {"status": "success", "data": data}
 
 async def _get_mod(modid: int, cache: bool = True):
-    if not cache:
-        data = await cf_api.get_mod(modid=modid)
-        database.exe(insert("mod_info", dict(modid=modid, status=200, data=json.dumps(data), time=int(time.time())), replace=True))
-        return {"status": "success", "data": data}
-    result = database.query(select("mod_info", ["time", "status", "data"]).where("modid", modid).done())
-    time_tag, status, data = result
-    if status == 403:
-        data = await cf_api.get_mod(modid=modid)
-        return {"status": "success", "data": data}
-    elif status == 404:
-        return {"status": "failed", "error": "ModNotExists", "errorMessage": "Mod not exists"}
-    data = json.loads(data)["data"]
-    return {"status": "success", "time": time_tag, "data": data}
+    with database:
+        if not cache:
+            data = await cf_api.get_mod(modid=modid)
 
-@api.get("/curseforge/mods/{modid}")
+            # add cachetime
+            cache_data = data["data"]
+            cache_data["cachetime"] = int(time.time())
+
+            database.exe(insert("mod_info", dict(modid=modid, status=200, data=json.dumps(cache_data), time=int(time.time())), replace=True))
+        
+        result = database.query(select("mod_info", ["time", "status", "data"]).where("modid", modid).done())
+        
+        if not result is None:
+            time_tag, status, data = result
+
+            if status == 403:
+                data = await cf_api.get_mod(modid=modid)
+                return {"status": "success", "data": data}
+            elif status == 404:
+                return {"status": "failed", "error": "ModNotExists", "errorMessage": "Mod not exists"}
+            data = json.loads(data)["data"]
+        else: # cache not exists
+            data = await cf_api.get_mod(modid=modid)
+            # add cachetime
+            cache_data = data["data"]
+            cache_data["cachetime"] = int(time.time())
+            database.exe(insert("mod_info", dict(modid=modid, status=200, data=json.dumps(cache_data), time=int(time.time())), replace=True))
+    
+    return {"status": "success", "data": data}
+
+@api.get("/curseforge/mod/{modid}")
 @api_json_middleware
 async def get_mod(modid: int, cache: bool = True):
     return await _get_mod(modid, cache=cache)

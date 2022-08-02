@@ -64,7 +64,8 @@ class CurseforgeCache:
         async with self.sem:
             with self.database:
                 try:
-                    data = await self.api.get_mod(modid)
+                    data = (await self.api.get_mod(modid))["data"]
+                    data["cachetime"] = int(time.time())
                     self.database.exe(insert("mod_info", dict(modid=modid, status=200, data=json.dumps(data), time=int(
                         time.time())), replace=True))
                     log(f"Get mod: {modid}")
@@ -95,7 +96,7 @@ class CurseforgeCache:
         async with self.sem:
             with self.database:
                 try:
-                    data = await self.api.get_game(gameid)
+                    data = (await self.api.get_game(gameid))["data"]
                     self.database.exe(insert("game_info", dict(gameid=gameid, status=200, data=json.dumps(data), time=int(
                         time.time())), replace=True))
                     log(f"Get game: {gameid}")
@@ -125,13 +126,12 @@ class CurseforgeCache:
     async def sync(self):
         # Games
         log("Start ALL GAMES", to_qq=True)
-        try:
-            all_games = await self.api.get_all_games()
-            for game in all_games["data"]:
-                gameid = game["id"]
-                self.database.exe(insert("game_info", dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(game)), replace=True))
-        except KeyboardInterrupt:
-            log("~~ BYE ~~", to_qq=True)
+        all_games = await self.api.get_all_games()
+        for game in all_games["data"]:
+            gameid = game["id"]
+            game["cachetime"] = int(time.time())
+            self.database.exe(insert("game_info", dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(game)), replace=True))
+
         log("Finish ALL GAMES", to_qq=True)
 
         # MOD
