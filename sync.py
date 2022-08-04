@@ -192,7 +192,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    opts, agrs = getopt.getopt(sys.argv[1:], '-s:', ['start_modid'])
+    opts, agrs = getopt.getopt(sys.argv[1:], '-s:', ['start_modid='])
     for opt_name, opt_value in opts:
         if opt_name in ("-s", "--start_modid"):
             start_modid = int(opt_value)
