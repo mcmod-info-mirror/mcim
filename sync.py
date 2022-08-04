@@ -4,6 +4,8 @@ import datetime
 import time
 import json
 import os
+import sys
+import getopt
 import logging
 import asyncio
 import aiohttp
@@ -136,22 +138,22 @@ class CurseforgeCache:
 
         # MOD
         log("Start ALL MODS", to_qq=True)
-        modid = 10000
-        part = 0
+        global start_modid
+        end_modid = 105000
+        modid = start_modid
         while True:
-            if modid >= 105000:
+            if modid >= end_modid:
                 log("Finish ALL MODS", to_qq=True)
                 break
             else:
-                part += 1
                 tasks = []
                 for a in range(0, 950):
                     task = self.try_mod(modid)
                     tasks.append(task)
                     modid += 1
-                log(f"Start {part}/100 curseforge mods", to_qq=True)
+                log(f"Start {modid}/{end_modid} curseforge mods", to_qq=True)
                 await asyncio.gather(*tasks)
-                log(f"Finish {part}/100 curseforge mods", to_qq=True)
+                log(f"Finish {modid}/{end_modid} curseforge mods", to_qq=True)
                 time.sleep(60*10)
 
 
@@ -190,4 +192,10 @@ async def main():
 
 
 if __name__ == "__main__":
+    opts, agrs = getopt.getopt(sys.argv[1:], '-s:', ['start_modid'])
+    for opt_name, opt_value in opts:
+        if opt_name in ("-s", "--start_modid"):
+            start_modid = int(opt_value)
+        else:
+            start_modid = 10000
     asyncio.run(main())
