@@ -198,7 +198,18 @@ class CurseForgeApi:
             res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
             return json.loads(content)
 
-    async def get_files(self, fileids, modid):
+    async def get_files(self, modid):
+        url = self.baseurl + \
+            "mods/{modid}/files".format(modid=modid)
+        headers = {
+            'Accept': 'application/json',
+            'x-api-key': self.api_key
+        }
+        async with self.acli:
+            res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
+            return json.loads(content)
+
+    async def post_files(self, fileids, modid):
         url = self.baseurl + "mods/{modid}/files".format(modid=modid)
         headers = {
             'Content-Type': 'application/json',
@@ -210,6 +221,17 @@ class CurseForgeApi:
         }
         async with self.acli:
             res, content = await res_mustok_async(self.acli.post)(url, proxy=self.proxies, headers=headers, json=body)
+            return json.loads(content)
+
+    async def get_mod_file_changelog(self, modid: int, fileid: int):
+        url = self.baseurl + \
+            "mods/{modid}/files/{fileid}/changelog".format(modid=modid, fileid=fileid)
+        headers = {
+            'Accept': 'application/json',
+            'x-api-key': self.api_key
+        }
+        async with self.acli:
+            res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
             return json.loads(content)
 
     async def get_file_download_info(self, modid, fileid):
