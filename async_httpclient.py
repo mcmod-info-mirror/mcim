@@ -57,6 +57,16 @@ class AsyncHTTPClient:
 		'''
 		Usage: res, content = await cli.get('http://example.com')
 		'''
+		
+		# aiohttp 不支持自动忽略 param 为 None 的参数
+		if not kwargs["params"] is None:
+			params = kwargs["params"]
+			final_params = params.copy()
+			for param in params:
+				if params[param] is None:
+					del final_params[param]
+			kwargs["params"] = final_params
+	
 		if sem is None:
 			return await self._get(url, callback=callback, **kwargs)
 		async with sem:
