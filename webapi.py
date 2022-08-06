@@ -5,7 +5,13 @@ import functools
 import asyncio
 import aiohttp
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
+from fastapi.staticfiles import StaticFiles
+from fastapi.openapi.docs import (
+    get_redoc_html,
+    get_swagger_ui_html,
+    get_swagger_ui_oauth2_redirect_html,
+)
 from pydantic import BaseModel
 
 from apis import *
@@ -16,7 +22,9 @@ from mysql import *
 MCIMConfig.load()
 MysqlConfig.load()
 
-api = FastAPI()
+api = FastAPI(docs_url=None, redoc_url=None, title="MCIM")
+api.mount("/static", StaticFiles(directory="static"), name="static")
+
 proxies = MCIMConfig.proxies
 timeout = MCIMConfig.async_timeout
 database = DataBase(**MysqlConfig.to_dict())
@@ -32,6 +40,31 @@ cf_cli = AsyncHTTPClient(
     headers=cf_headers, timeout=aiohttp.ClientTimeout(total=timeout))
 database = database
 cf_api = CurseForgeApi(cf_api_url, cf_key, proxies=proxies, acli=cf_cli)
+
+# docs
+@api.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    return get_swagger_ui_html(
+        openapi_url=api.openapi_url,
+        title=api.title + " - Swagger UI",
+        oauth2_redirect_url=api.swagger_ui_oauth2_redirect_url,
+        swagger_js_url="/static/swagger-ui-bundle.js",
+        swagger_css_url="/static/swagger-ui.css",
+    )
+
+
+@api.get(api.swagger_ui_oauth2_redirect_url, include_in_schema=False)
+async def swagger_ui_redirect():
+    return get_swagger_ui_oauth2_redirect_html()
+
+
+@api.get("/redoc", include_in_schema=False)
+async def redoc_html():
+    return get_redoc_html(
+        openapi_url=api.openapi_url,
+        title=api.title + " - ReDoc",
+        redoc_js_url="/static/redoc.standalone.js",
+    )
 
 
 def api_json_middleware(callback):
@@ -122,11 +155,10 @@ async def curseforge_games():
 
 @api.get("/curseforge/categories")
 @api_json_middleware
-# 无法缓存...
 async def curseforge_categories(gameid: int = 432, classid: int = None):
     with database:
         data = await cf_api.get_categories(gameid=gameid, classid=classid)
-        return {"status": "success", "data": data}
+        return {"status": "success", "data": data["data"]}
 
 
 async def _sync_mod(modid: int):
@@ -139,7 +171,7 @@ async def _sync_mod(modid: int):
     return cache_data
 
 
-async def _get_mod(modid: int):
+async def _get_mod(modid: int, background_tasks=None):
     with database:
         result = database.query(
             select("mod_info", ["time", "status", "data"]).where("modid", modid).done())
@@ -149,13 +181,58 @@ async def _get_mod(modid: int):
             data = json.loads(result[2])
             if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
                 data = await _sync_mod(modid)
+    # to mod_notification
+    if not background_tasks is None:
+        background_tasks.add_task(mod_notification, modid)
     return {"status": "success", "data": data}
+
+# 在有 mod 请求来后拉取 file_info 和 description，以及对应 file 的 changelog
+async def mod_notification(modid: int):
+    with database:
+        # files
+        files_info = await _get_files_info(modid=modid)
+        for file_info in files_info:
+            fileid = file_info["id"]
+
+            # file_info
+            cmd = select("file_info", ["time", "status", "data"]).where(
+                "modid", modid).AND("fileid", fileid).done()
+            query = database.query(cmd)
+            if query is None:
+                await _sync_file_info(modid=modid, fileid=fileid, isinsert=True)
+            else:
+                await _sync_file_info(modid=modid, fileid=fileid)
+            database.exe(cmd)
+
+            # changelog
+            cmd = select("file_changelog", ["time", "status", "changelog"]).where(
+                "modid", modid).AND("fileid", fileid).done()
+            query = database.query(cmd)
+            if query is None:
+                await _sync_mod_file_changelog(modid=modid, fileid=fileid, isinsert=True)
+            else:
+                await _sync_mod_file_changelog(modid=modid, fileid=fileid)
+        pass
+        # description
+        cmd = select("mod_description", ["time", "status", "description"]).where(
+            "modid", modid).done()
+        query = database.query(cmd)
+        if query is None:
+            cachetime = int(time.time())
+            description = (await cf_api.get_mod_description(modid=modid))["data"]
+            database.exe(insert("mod_description", dict(modid=modid, status=200, time=cachetime, description=description), replace=True))
+        else:
+            cachetime = int(time.time())
+            description = (await cf_api.get_mod_description(modid=modid))["data"]
+            database.exe(update("mod_description", dict(status=200, time=cachetime, description=description)).where("modid", modid).done())
+
 
 
 @api.get("/curseforge/mod/{modid}")
 @api_json_middleware
-async def get_mod(modid: int):
-    return await _get_mod(modid)
+async def get_mod(modid: int, background_tasks: BackgroundTasks):
+    # background_tasks.add_task(mod_notification, modid)
+    return await _get_mod(modid, background_tasks=background_tasks)
 
 
 class ModItemModel(BaseModel):
@@ -176,15 +253,20 @@ async def get_mods(item: ModItemModel):
 @api.get("/curseforge/mod/{modid}/description")
 @api_json_middleware
 async def get_mod_description(modid: int):
-    result = database.query(select("mod_description", ["modid", "time", "status", "description"]).where("modid", modid).done(), all=True)
-    if result is None or len(result) == 0 or result[2] != 200 or int(time.time()) - result[2] > 60 * 60 * 4:
-        time = int(time.time())
-        data = (await cf_api.get_mod_description(modid=modid))["data"]
-        database.exe(insert("mod_description", dict(modid=modid, status=200, time=time, description=data["description"]), replace=True))
-    else:
-        description = result[3]
-        time = result[2]
-    data = {"status": "success", "data": {"description": description}, "cachetime": time}
+    with database:
+        result = database.query(select("mod_description", ["modid", "time", "status"]).where("modid", modid).done())
+        if result is None or len(result) == 0:
+            cachetime = int(time.time())
+            description = (await cf_api.get_mod_description(modid=modid))["data"]
+            database.exe(insert("mod_description", dict(modid=modid, status=200, time=cachetime, description=description), replace=True))
+        elif result[2] != 200:
+            cachetime = int(time.time())
+            description = (await cf_api.get_mod_description(modid=modid))["data"]
+            database.exe(insert("mod_description", dict(modid=modid, status=200, time=cachetime, description=description), replace=True))
+        else:
+            description = result[3]
+            cachetime = result[1]
+    return {"status": "success", "data": description, "cachetime": cachetime}
 
 
 
@@ -215,16 +297,21 @@ async def _get_file_info(modid: int, fileid: int):
         query = database.query(cmd)
         if query is None:
             data = await _sync_file_info(modid=modid, fileid=fileid, isinsert=True)
-            return {"status": "success", "data": data}
+            cachetime = data["cachetime"]
         elif len(query) <= 0 or query[1] != 200:
             data = await _sync_file_info(modid=modid, fileid=fileid)
-            return {"status": "success", "data": data}
+            cachetime = data["cachetime"]
         else:
             data = json.loads(query[2])
             if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
                 data = await _sync_file_info(modid=modid, fileid=fileid)
-        return {"status": "success", "data": data}
+                cachetime = data["cachetime"]
+            else:
+                cachetime = query[0]
+        return {"status": "success", "data": data, "cachetime": cachetime}
 
+async def _get_files_info(modid: int):
+    return (await cf_api.get_files(modid=modid))["data"]
 
 @api.get("/curseforge/mod/{modId}/file/{fileId}")
 @api_json_middleware
@@ -234,39 +321,39 @@ async def curseforge_mod_file(modId: int, fileId: int):
 @api.get("/curseforge/mod/{modId}/files")
 @api_json_middleware
 async def curseforge_mod_files(modId: int):
-    return {"status": "success", "data": await cf_api.get_files(modid=modId)}
+    return {"status": "success", "data": await _get_files_info(modid=modId)}
 
 
 async def _sync_mod_file_changelog(modid: int, fileid: int, isinsert: bool = False):
     changelog = (await cf_api.get_mod_file_changelog(modid=modid, fileid=fileid))["data"]
     if isinsert:
-        cmd = insert("file_info", dict(modid=modid, fileid=fileid, status=200, time=int(time.time()), changelog=changelog))
+        cmd = insert("file_changelog", dict(modid=modid, fileid=fileid, status=200, time=int(time.time()), changelog=changelog))
     else:
-        cmd = update("file_info", dict(status=200, time=int(time.time()), changelog=changelog)).where("modid", modid).AND("fileid", fileid).done()
+        cmd = update("file_changelog", dict(status=200, time=int(time.time()), changelog=changelog)).where("modid", modid).AND("fileid", fileid).done()
     database.exe(cmd)
     return changelog
 
 
 async def _get_mod_file_changelog(modid: int, fileid: int):
     with database:
-        cmd = select("file_info", ["time", "status", "changelog"]).where(
+        cmd = select("file_changelog", ["time", "status", "changelog"]).where(
             "modid", modid).AND("fileid", fileid).done()
         query = database.query(cmd)
         if query is None:
             data = await _sync_mod_file_changelog(modid=modid, fileid=fileid, isinsert=True)
-            time = int(time.time())
-            return {"status": "success", "data": data, "cachetime": time}
+            cachetime = int(time.time())
         elif len(query) <= 0 or query[1] != 200:
             data = await _sync_file_info(modid=modid, fileid=fileid)
-            time = int(time.time())
-            return {"status": "success", "data": data, "cachetime": time}
+            cachetime = int(time.time())
         else:
             data = str(query[2])
-            time = int(query[0])
-            if int(time.time()) - time > 60 * 60 * 4:
+            cachetime = int(query[0])
+            if int(time.time()) - cachetime > 60 * 60 * 4:
                 data = await _sync_file_info(modid=modid, fileid=fileid)
-                time = int(time.time())
-        return {"status": "success", "data": data, "cachetime": time}
+                cachetime = int(time.time())
+            else:
+                cachetime = query[0]
+        return {"status": "success", "data": data, "cachetime": cachetime}
 
 
 @api.get("/curseforge/mod/{modId}/file/{fileId}/changelog")
@@ -274,6 +361,27 @@ async def _get_mod_file_changelog(modid: int, fileid: int):
 async def curseforge_mod_file_changelog(modId: int, fileId: int):
     return await _get_mod_file_changelog(modid=modId, fileid=fileId)
 
+@api.get("/curseforge/mod/{modid}/file/{fileid}/download-url")
+@api_json_middleware
+async def get_mod_file_download_url(modid: int, fileid: int):
+    with database:
+        cmd = select("file_info", ["time", "status", "data"]).where(
+            "modid", modid).AND("fileid", fileid).done()
+        query = database.query(cmd)
+        if query is None:
+            data = await _sync_file_info(modid=modid, fileid=fileid, isinsert=True)
+            cachetime = int(time.time())
+        elif len(query) <= 0 or query[1] != 200:
+            data = await _sync_file_info(modid=modid, fileid=fileid)
+            cachetime = int(time.time())
+        else:
+            data = json.loads(query[2])
+            if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
+                data = await _sync_file_info(modid=modid, fileid=fileid)
+                cachetime = int(time.time())
+            else:
+                cachetime = query[0]
+        return {"status": "success", "data": data["downloadUrl"], "cachetime": cachetime}
 
 if __name__ == "__main__":
     host, port = "127.0.0.1", 8000
