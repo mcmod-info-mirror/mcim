@@ -15,20 +15,40 @@ HASHES_TYPE_ID = {
 
 class CurseForgeApi:
     '''
-    Curseforge api 的包装，基于 asyncio 和 aiohttp
+    Curseforge Api 的包装，基于 Asyncio 和 AioHttp
 
-    函数只返回 api 原生数据，未处理 
+    函数只返回 Api 原生数据，未处理 
 
     见 CFCore: https://docs.curseforge.com/
     '''
 
     def __init__(self, baseurl: str, api_key: str, proxies: dict = None, acli=None):
+        '''
+        定义参数。
+        
+        参数:
+        
+        :param baseurl: API 主地址
+        
+        :param api_key: API 密钥
+        
+        :param proxies: 请求代理
+        
+        :param acli: 请求会话
+        
+        用法: `<CurseForgeApi>(baseurl, api_key, proxies, acli)`
+        '''
         self.baseurl = baseurl
         self.api_key = api_key
         self.proxies = proxies
         self.acli = acli
 
     async def end_point(self):
+        '''
+        测试链接可用性。
+        
+        用法: `resp = <CurseForgeApi>.end_point()`
+        '''
         headers = {
             'Accept': 'application/json'
             # 'x-api-key': self.api_key
@@ -38,6 +58,17 @@ class CurseForgeApi:
             return content  # 这不是json
 
     async def get_all_games(self, index=1, pageSize=50):
+        '''
+        获取所有游戏 ID 。
+        
+        参数:
+        
+        :param index: 要包含在响应中的第一项的从零开始的索引
+        
+        :param pageSize: 要包含在响应中的项目数
+        
+        用法: `resp = <CurseForgeApi>.get_all_games(index, pageSize)`
+        '''
         url = self.baseurl + \
             "games?index={index}&pageSize={pageSize}".format(
                 index=index, pageSize=pageSize)
@@ -50,8 +81,17 @@ class CurseForgeApi:
             return json.loads(content)
 
     async def get_game(self, gameid, index=1, pageSize=50):
-        url = self.baseurl + "games/{gameid}?index={index}&pageSize={pageSize}".format(
-            gameid=gameid, index=index, pageSize=pageSize)
+        '''
+        获取游戏信息。
+        
+        参数:
+        
+        :param gameid: 游戏 ID
+        
+        用法: `resp = <CurseForgeApi>.get_game(gameid)`
+        '''
+        url = self.baseurl + "games/{gameid}".format(
+            gameid=gameid)
         headers = {
             'Accept': 'application/json',
             'x-api-key': self.api_key
@@ -61,8 +101,17 @@ class CurseForgeApi:
             return json.loads(content)
 
     async def get_game_version(self, gameid, index=1, pageSize=50):
-        url = self.baseurl + "games/{gameid}/versions?index={index}&pageSize={pageSize}".format(
-            gameid=gameid, index=index, pageSize=pageSize)
+        '''
+        获取游戏版本。
+        
+        参数:
+        
+        :param gameid: 游戏 ID
+        
+        用法: `resp = <CurseForgeApi>.get_game_version(gameid)`
+        '''
+        url = self.baseurl + "games/{gameid}/versions".format(
+            gameid=gameid)
         headers = {
             'Accept': 'application/json',
             'x-api-key': self.api_key
@@ -74,7 +123,17 @@ class CurseForgeApi:
     # classid 为主分类的有 main class [17,5,4546,4471,12,4559,6(Mods)]
     async def get_categories(self, gameid=432, classid=None):
         '''
-        classid不是必须参数，无此参则为查询全部类别(Categories)
+        获取指定游戏的所有可用类和类别。
+        
+        参数:
+        
+        :param gameid: 游戏 ID
+        
+        :param classid: 类 ID
+        
+        注: `classid` 不是必须参数，无此参则为查询全部类别 `(Categories)`
+        
+        用法: `resp = <CurseForgeApi>.get_categories(gameid, classid)
         '''
         url = self.baseurl + "categories"
         headers = {
@@ -92,47 +151,19 @@ class CurseForgeApi:
 
     async def search(self, searchfilter=None, slug=None, gameid=432, classid=6, categoryid=None, modloadertype=None, sortfield="Featured", sortorder=None, gameversion=None, gameversiontypeid=None, index=None, pagesize=None):
         '''
-        index: A zero based index of the first item to include in the response, the limit is: (index + pageSize <= 10,000).
-
-        pageSize: The number of items to include in the response, the default/maximum value is 50.
-
-        ---
-
-        Enumerated Values
-
-        Parameter	Value
-
-        sortField	1
-
-        sortField	2
-
-        sortField	3
-
-        sortField	4
-
-        sortField	5
-
-        sortField	6
-
-        sortField	7
-
-        sortField	8
-
-        sortOrder	asc
-
-        sortOrder	desc
-
-        modLoaderType	0
-
-        modLoaderType	1
-
-        modLoaderType	2
-		
-        modLoaderType	3
-
-        modLoaderType	4
-
-        modLoaderType	5
+        搜索 Mod 。
+        
+        参数:
+        
+        :param searchfilter: 搜索过滤器
+        
+        :param slug: Mod ID
+        
+        :param gameid: 游戏 ID
+        
+        :param classid: 类别 ID
+        
+        :param sortfield: [排序字段](https://docs.curseforge.com/#tocS_ModsSearchSortField)
         '''
         url = self.baseurl + "mods/search"
         headers = {
