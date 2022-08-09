@@ -15,11 +15,11 @@ HASHES_TYPE_ID = {
 
 class CurseForgeApi:
     '''
-    Curseforge Api 的包装，基于 Asyncio 和 AioHttp
+    Curseforge Api 的包装，基于 Asyncio 和 AioHttp。
 
-    函数只返回 api 原生数据，未处理 
+    函数只返回 Api 原生数据，未处理 。
 
-    见 CFCore: https://docs.curseforge.com/
+    见 [CFCore](https://docs.curseforge.com/) 。
     '''
 
     def __init__(self, baseurl: str, api_key: str, proxies: dict = None, acli=None):
