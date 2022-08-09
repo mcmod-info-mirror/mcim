@@ -8,6 +8,7 @@ import sys
 import getopt
 import logging
 import asyncio
+from typing import List
 import aiohttp
 import requests
 from config import *
@@ -68,11 +69,11 @@ class CurseforgeCache:
                 try:
                     data = (await self.api.get_mod(modid))["data"]
                     data["cachetime"] = int(time.time())
-                    self.database.exe(insert("mod_info", dict(modid=modid, status=200, data=json.dumps(data), time=int(
+                    self.database.exe(insert("curseforge_mod_info", dict(modid=modid, status=200, data=json.dumps(data), time=int(
                         time.time())), replace=True))
                     log(f"Get mod: {modid}")
                 except StatusCodeException as e:
-                    self.database.exe(insert("mod_info", dict(
+                    self.database.exe(insert("curseforge_mod_info", dict(
                         modid=modid, status=e.status, time=int(time.time())), replace=True))
                     log(f"Get mod: {modid} Status: {e.status}",
                         logging=logging.error)
@@ -81,11 +82,11 @@ class CurseforgeCache:
                         log("=================OQS limit====================",logging=logging.warning, to_qq=True)
                 except asyncio.TimeoutError:
                     log(f"Get mod: {modid} Timeout", logging=logging.error)
-                    self.database.exe(insert("mod_info", dict(
+                    self.database.exe(insert("curseforge_mod_info", dict(
                         modid=modid, status=0, time=int(time.time())), replace=True))
                 except TypeError:
                     log(f"Get mod: {modid} Type Error", logging=logging.error)
-                    self.database.exe(insert("mod_info", dict(
+                    self.database.exe(insert("curseforge_mod_info", dict(
                         modid=modid, status=0, time=int(time.time())), replace=True))
                 except KeyboardInterrupt:
                     log("~~ BYE ~~", to_qq=True)
@@ -99,11 +100,11 @@ class CurseforgeCache:
             with self.database:
                 try:
                     data = (await self.api.get_game(gameid))["data"]
-                    self.database.exe(insert("game_info", dict(gameid=gameid, status=200, data=json.dumps(data), time=int(
+                    self.database.exe(insert("curseforge_game_info", dict(gameid=gameid, status=200, data=json.dumps(data), time=int(
                         time.time())), replace=True))
                     log(f"Get game: {gameid}")
                 except StatusCodeException as e:
-                    self.database.exe(insert("game_info", dict(
+                    self.database.exe(insert("curseforge_game_info", dict(
                         gameid=gameid, status=e.status, time=int(time.time())), replace=True))
                     log(f"Get game: {gameid} Status: {e.status}",
                         logging=logging.error)
@@ -112,11 +113,11 @@ class CurseforgeCache:
                         log("=================OQS limit====================",logging=logging.warning, to_qq=True)
                 except asyncio.TimeoutError:
                     log(f"Get game: {gameid} Timeout", logging=logging.error)
-                    self.database.exe(insert("game_info", dict(
+                    self.database.exe(insert("curseforge_game_info", dict(
                         gameid=gameid, status=0, time=int(time.time())), replace=True))
                 except TypeError:
                     log(f"Get game: {gameid} Type Error", logging=logging.error)
-                    self.database.exe(insert("game_info", dict(
+                    self.database.exe(insert("curseforge_game_info", dict(
                         gameid=gameid, status=0, time=int(time.time())), replace=True))
                 except KeyboardInterrupt:
                     log("~~ BYE ~~", to_qq=True)
@@ -132,7 +133,7 @@ class CurseforgeCache:
         for game in all_games["data"]:
             gameid = game["id"]
             game["cachetime"] = int(time.time())
-            self.database.exe(insert("game_info", dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(game)), replace=True))
+            self.database.exe(insert("curseforge_game_info", dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(game)), replace=True))
 
         log("Finish ALL GAMES", to_qq=True)
 
@@ -169,6 +170,42 @@ def getLogFile(basedir='logs'):
             i += 1
     return path
 
+class ModrinthCache:
+    def __init__(self, database: DataBase, *, limit: int = 2):
+        self.api_url = MCIMConfig.modrinth_api
+        self.proxies = MCIMConfig.proxies
+        self.timeout = MCIMConfig.async_timeout
+        self.headers = {
+            "User-Agent": "github_org/mcim/1.0.0 (mcim.z0z0r4.top)",
+            'Accept': 'application/json'
+        }
+        self.cli = AsyncHTTPClient(
+            headers=self.headers, timeout=aiohttp.ClientTimeout(total=self.timeout))
+        self.database = database
+        self.sem = asyncio.Semaphore(limit)
+        self.api = ModrinthApi(self.api_url, proxies=self.proxies, acli=self.cli)
+
+    async def sync(self):
+        async with self.sem:
+            with self.database:
+                limit = 100
+                offset = 0
+                search_result = await self.api.search(limit=limit, offset=offset)
+                total = search_result["total_hits"]
+                for offset in range(0, total, limit):
+                    try:
+                        search_result = await self.api.search(limit=limit, offset=offset)
+                        for mod in search_result["hits"]:
+                            if mod["project_id"] == "v2KhBu7C":
+                                pass
+                            mod["cachetime"] = int(time.time())
+                            cmd = insert("modrinth_mod_info", dict(
+                                project_id=mod["project_id"], slug=mod["slug"], status=200, time=int(time.time()), data=json.dumps(mod)), replace=True)
+                            self.database.exe(cmd)
+                            log(f"Get mod: {mod['project_id']}")
+                    except Exception as e:
+                        log("Error: " + str(e), logging=logging.error, to_qq=True)
+
 
 async def main():
     MCIMConfig.load()
@@ -184,11 +221,16 @@ async def main():
     log("Logging started", logging=logging.debug, to_qq=True)
 
     while True:
-        log("Start sync", to_qq=True)
+        log("Start sync Curseforge", to_qq=True)
         cache = CurseforgeCache(database, limit=16)
         await cache.sync()
-        log("Finish sync", to_qq=True)
+        log("Finish sync Curseforge", to_qq=True)
         time.sleep(60*60)
+        
+        log("Start sync Modrinth", to_qq=True)
+        await ModrinthCache(database=database).sync()
+        log("Finish sync Modrinth", to_qq=True)
+
 
 
 if __name__ == "__main__":
