@@ -163,7 +163,23 @@ class CurseForgeApi:
         
         :param classid: 类别 ID
         
+        :param modloadertype: [加载器类型](https://docs.curseforge.com/#schemamodloadertype)
+        
         :param sortfield: [排序字段](https://docs.curseforge.com/#tocS_ModsSearchSortField)
+        
+        :param sortorder: [排序顺序](https://docs.curseforge.com/#schemasortorder)
+        
+        :param gameversion: 游戏版本
+        
+        :param gameversiontype: 游戏版本类型
+        
+        :param index: 要包含在响应中的第一项的从零开始的索引
+        
+        :param pagesize: 要包含在响应中的项目数
+        
+        `gameid` 为 `必填项` , 其余为 `选填项` 。
+        
+        用法: `resp = <CurseForgeApi>.search(searchfilter, slug, gameid, classid categoryid, modloadertype, sortfield, sortorder, gameversion, gameversiontypeid, index, pagesize)`
         '''
         url = self.baseurl + "mods/search"
         headers = {
@@ -185,6 +201,15 @@ class CurseForgeApi:
             return json.loads(content)
 
     async def get_mod(self, modid):
+        '''
+        获取 Mod 信息。
+        
+        参数:
+        
+        :param modid: Mod ID
+        
+        用法: `resp = <CurseForgeApi>.get_mod(modid)`
+        '''
         url = self.baseurl + "mods/{modid}".format(modid=modid)
         headers = {
             'Accept': 'application/json',
@@ -195,6 +220,15 @@ class CurseForgeApi:
             return json.loads(content)
 
     async def get_mods(self, modids) -> list:
+        '''
+        获取列表内的 Mod 信息。
+        
+        参数:
+        
+        :param modids: 多个 Mod ID
+        
+        用法: `<CurseForgeApi>.get_mods(modids)`
+        '''
         url = self.baseurl + "mods"
         body = {
             "modIds": modids
@@ -209,6 +243,15 @@ class CurseForgeApi:
             return json.loads(content)
 
     async def get_mod_description(self, modid):
+        '''
+        获取 Mod 描述信息。
+        
+        参数:
+        
+        :param modid: Mod ID
+        
+        用法: `resp = <CurseForgeApi>.get_mod_description(modid)`
+        '''
         url = self.baseurl + "mods/{modid}/description".format(modid=modid)
         headers = {
             'Accept': 'application/json',
@@ -219,6 +262,17 @@ class CurseForgeApi:
             return json.loads(content)
 
     async def get_file(self, modid, fileid):
+        '''
+        获取指定模组的单个文件。
+        
+        参数:
+        
+        :param modid: Mod ID
+        
+        :param fileid: 文件 ID
+        
+        用法: `resp = <CurseForgeApi>.get_file(modid, fileid)`
+        '''
         url = self.baseurl + \
             "mods/{modid}/files/{fileid}".format(modid=modid, fileid=fileid)
         headers = {
@@ -230,6 +284,15 @@ class CurseForgeApi:
             return json.loads(content)
 
     async def get_files(self, modid):
+        '''
+        获取指定模组的所有文件。
+        
+        参数:
+        
+        :param modid: Mod ID
+        
+        用法: resp = `<CurseForgeApi>.get_files(modid)`
+        '''
         url = self.baseurl + \
             "mods/{modid}/files".format(modid=modid)
         headers = {
@@ -240,8 +303,17 @@ class CurseForgeApi:
             res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url, proxy=self.proxies, headers=headers)
             return json.loads(content)
 
-    async def post_files(self, fileids, modid):
-        url = self.baseurl + "mods/{modid}/files".format(modid=modid)
+    async def post_files(self, fileids):
+        '''
+        获取所有文件。
+        
+        参数:
+        
+        :param fileids: 多个文件 ID
+        
+        用法: `resp = <CurseForgeApi>.post_files(fileids)`
+        '''
+        url = self.baseurl + "mods/files"
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
@@ -255,6 +327,17 @@ class CurseForgeApi:
             return json.loads(content)
 
     async def get_mod_file_changelog(self, modid: int, fileid: int):
+        '''
+        获取模组更新日志。
+        
+        参数:
+        
+        :param modid: Mod ID
+        
+        :param fileid: 文件 ID
+        
+        用法: `resp = <CurseForgeApi>.get_mod_file_changelog(modid, fileid)`
+        '''
         url = self.baseurl + \
             "mods/{modid}/files/{fileid}/changelog".format(modid=modid, fileid=fileid)
         headers = {
@@ -267,8 +350,15 @@ class CurseForgeApi:
 
     async def get_file_download_info(self, modid, fileid):
         '''
-        获取格式化后的文件信息
-        用于下载Mod
+        获取经过格式化的模组文件信息。
+        
+        参数:
+        
+        :param modid: Mod ID
+        
+        :param fileid: 文件 ID
+        
+        用法: `resp = <CurseForgeApi>.get_file_download_info(modid, fileid)
         '''
         version_info = await self.get_file(modid, fileid)["data"]
         if version_info is None:
@@ -288,6 +378,17 @@ class CurseForgeApi:
         return info
 
     async def get_file_download_url(self, fileid, modid):
+        '''
+        获取指定模组的指定文件的下载链接。
+        
+        参数:
+        
+        :param fileid: 文件 ID
+        
+        :param modid: Mod ID
+        
+        用法: `<CurseForgeApi>.get_file_download_url(fileid, modid)`
+        '''
         url = self.baseurl + \
             "mods/{modid}/files/{fileid}/download-url".format(
                 modid=modid, fileid=fileid)
