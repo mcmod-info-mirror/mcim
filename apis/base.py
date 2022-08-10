@@ -47,7 +47,7 @@ def res_mustok_async(callback):
     async def w(*args, **kwargs):
         res = (await callback(*args, **kwargs))
         if not res[0].ok:
-            raise StatusCodeException(res[0].status) # aiohttp.ClientResponse.status not status_code
+            raise StatusCodeException(res[0])  # aiohttp.ClientResponse.status not status_code
         return res
     return w
 

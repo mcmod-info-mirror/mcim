@@ -22,7 +22,7 @@ class CurseForgeApi:
     见 CFCore: https://docs.curseforge.com/
     '''
 
-    def __init__(self, baseurl: str, api_key: str, proxies: dict = None, acli=None):
+    def __init__(self, baseurl: str, api_key: str, proxies: str = None, acli=None):
         '''
         定义参数。
 

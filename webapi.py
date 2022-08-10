@@ -78,6 +78,13 @@ async def redoc_html():
     )
 
 
+def format_list_to_str(text: str):
+    li = []
+    for t in text[1:-1].split(","):
+        li.append(t[1:-1])
+    return li
+
+
 def api_json_middleware(callback):
     @functools.wraps(callback)
     async def w(*args, **kwargs):
@@ -150,7 +157,7 @@ curseforge_game_example = {"id": 0, "name": "string", "slug": "string", "dateMod
              "application/json": {"example":
                                       {"status": "success", "data": curseforge_game_example}
                                   }}}
-                    }, description="Curseforge Game 信息", tags=["Curseforge", "Game"])
+                    }, description="Curseforge Game 信息", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge_game(gameid: int):
     return await _curseforge_get_game(gameid=gameid)
@@ -161,7 +168,7 @@ async def curseforge_game(gameid: int):
              "application/json": {"example":
                                       {"status": "success", "data": [curseforge_game_example]}
                                   }}}
-                    }, description="Curseforge 的全部 Game 信息", tags=["Curseforge", "Game"])
+                    }, description="Curseforge 的全部 Game 信息", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge_games():
     all_data = []
@@ -202,7 +209,7 @@ curseforge_category_example = {"id": 0, "gameId": 0, "name": "string", "slug": "
                                       {"status": "success", "data": [
                                           curseforge_category_example]}
                                   }}}
-                    }, description="Curseforge 的 Category 信息", tags=["Curseforge", "Category"])
+                    }, description="Curseforge 的 Category 信息", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge_categories(gameid: int = 432, classid: int = None):
     with database:
@@ -242,7 +249,7 @@ async def _curseforge_get_mod(modid: int, background_tasks=None):
 async def mod_notification(modid: int):
     with database:
         # files
-        files_info = await _get_files_info(modid=modid)
+        files_info = await _curseforge_get_files_info(modid=modid)
         for file_info in files_info:
             fileid = file_info["id"]
 
@@ -312,7 +319,7 @@ curseforge_mod_example = {"id": 0, "gameId": 0, "name": "string", "slug": "strin
              "application/json": {"example":
                                       {"status": "success", "data": curseforge_mod_example}
                                   }}}
-                    }, description="Curseforge Mod 信息", tags=["Curseforge", "Mod"])
+                    }, description="Curseforge Mod 信息", tags=["Curseforge"])
 @api_json_middleware
 async def get_mod(modid: int, background_tasks: BackgroundTasks):
     # background_tasks.add_task(mod_notification, modid)
@@ -328,7 +335,7 @@ class ModItemModel(BaseModel):
               "application/json": {"example":
                                        {"status": "success", "data": [curseforge_mod_example]}
                                    }}}
-                     }, description="批量获取 Curseforge Mods 信息", tags=["Curseforge", "Mod"])
+                     }, description="批量获取 Curseforge Mods 信息", tags=["Curseforge"])
 @api_json_middleware
 async def get_mods(item: ModItemModel):
     modids_data = []
@@ -345,7 +352,7 @@ async def get_mods(item: ModItemModel):
                                       {"status": "success", "description": "string",
                                        "cachetime": "integer"}
                                   }}}
-                    }, description="Curseforge Mod 的描述信息", tags=["Curseforge", "Mod"])
+                    }, description="Curseforge Mod 的描述信息", tags=["Curseforge"])
 @api_json_middleware
 async def get_mod_description(modid: int):
     with database:
@@ -410,6 +417,7 @@ async def curseforge_search(gameId: int, classId: int = None, categoryId: int = 
                              modloadertype=modLoaderType, gameversiontypeid=gameVersionTypeId, slug=slug, index=index,
                              pagesize=pageSize))["data"]
             }
+    # TODO 在数据库中搜索
 
 
 async def _curseforge_sync_file_info(modid: int, fileid: int, isinsert: bool = False):
@@ -425,7 +433,7 @@ async def _curseforge_sync_file_info(modid: int, fileid: int, isinsert: bool = F
     return cache_data
 
 
-async def _get_file_info(modid: int, fileid: int):
+async def _curseforge_get_file_info(modid: int, fileid: int):
     with database:
         cmd = select("curseforge_file_info", ["time", "status", "data"]).where(
             "modid", modid).AND("fileid", fileid).done()
@@ -446,7 +454,7 @@ async def _get_file_info(modid: int, fileid: int):
         return {"status": "success", "data": data, "cachetime": cachetime}
 
 
-async def _get_files_info(modid: int):
+async def _curseforge_get_files_info(modid: int):
     return (await cf_api.get_files(modid=modid))["data"]
 
 
@@ -468,10 +476,10 @@ curseforge_file_info_example = {"id": 0, "gameId": 0, "modId": 0, "isAvailable":
              "application/json": {"example":
                                       {"status": "success", "data": curseforge_file_info_example}
                                   }}}
-                    }, description="Curseforge Mod 的文件信息", tags=["Curseforge", "File"])
+                    }, description="Curseforge Mod 的文件信息", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge_mod_file(modId: int, fileId: int):
-    return await _get_file_info(modid=modId, fileid=fileId)
+    return await _curseforge_get_file_info(modid=modId, fileid=fileId)
 
 
 @api.get("/curseforge/mod/{modId}/files",
@@ -480,10 +488,10 @@ async def curseforge_mod_file(modId: int, fileId: int):
                                       {"status": "success", "data": [
                                           curseforge_file_info_example]}
                                   }}}
-                    }, description="Curseforge Mod 的全部文件信息", tags=["Curseforge", "File"])
+                    }, description="Curseforge Mod 的全部文件信息", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge_mod_files(modId: int):
-    return {"status": "success", "data": await _get_files_info(modid=modId)}
+    return {"status": "success", "data": await _curseforge_get_files_info(modid=modId)}  # TODO 在数据库中搜索
 
 
 async def _curseforge_sync_mod_file_changelog(modid: int, fileid: int, isinsert: bool = False):
@@ -526,7 +534,7 @@ async def _curseforge_get_mod_file_changelog(modid: int, fileid: int):
                                       {"status": "success", "changelog": "string",
                                        "cachetime": "integer"}
                                   }}}
-                    }, description="Curseforge Mod 的文件 Changelog", tags=["Curseforge", "File"])
+                    }, description="Curseforge Mod 的文件 Changelog", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge_mod_file_changelog(modId: int, fileId: int):
     return await _curseforge_get_mod_file_changelog(modid=modId, fileid=fileId)
@@ -538,9 +546,9 @@ async def curseforge_mod_file_changelog(modId: int, fileId: int):
                                       {"status": "success", "url": "string",
                                        "cachetime": "integer"}
                                   }}}
-                    }, description="Curseforge Mod 的文件下载地址", tags=["Curseforge", "File"])
+                    }, description="Curseforge Mod 的文件下载地址", tags=["Curseforge"])
 @api_json_middleware
-async def get_mod_file_download_url(modid: int, fileid: int):
+async def curseforge_get_mod_file_download_url(modid: int, fileid: int):
     with database:
         cmd = select("curseforge_file_info", ["time", "status", "data"]).where(
             "modid", modid).AND("fileid", fileid).done()
@@ -576,37 +584,6 @@ async def get_mod_file_download_url(modid: int, fileid: int):
 async def modrinth():
     return await mr_api.end_point()
 
-
-async def _modrinth_sync_project(idslug: str):  # 优先采用 slug
-    data = await mr_api.get_project(slug=idslug)
-    cache_data = data["data"]
-    slug = data["slug"]
-    project_id = data["id"]
-    cache_data["cachetime"] = int(time.time())
-    database.exe(insert("modrinth_mod_info", dict(project_id=project_id, slug=slug, status=200, time=int(time.time()),
-                                                  data=json.dumps(cache_data)), replace=True))
-    return cache_data
-
-
-async def _modrinth_get_project(idslug: str):
-    with database:
-        id_cmd = select("modrinth_mod_info", ["time", "status", "data"]).where("project_id", idslug).done()
-        id_query = database.query(id_cmd)
-        if id_query is None:
-            slug_cmd = select("modrinth_mod_info", ["time", "status", "data"]).where("slug", idslug).done()
-            slug_query = database.query(slug_cmd)
-            if slug_query is None:
-                data = await _modrinth_sync_project(idslug=idslug)
-            else:
-                cachetime, status, data = slug_query
-                data = json.loads(data)
-                if int(time.time()) - data["cachetime"] > 60 * 60 * 4:
-                    data = await _modrinth_sync_project(idslug=idslug)
-        else:
-            data = await _modrinth_get_project(idslug=idslug)
-        return {"status": "success", "data": data}
-
-
 modrinth_mod_example = {"slug": "my_project", "title": "My Project", "description": "A short description",
                         "categories": ["technology", "adventure", "fabric"], "client_side": "required",
                         "server_side": "optional", "body": "A long body describing my project in detail",
@@ -629,6 +606,50 @@ modrinth_mod_example = {"slug": "my_project", "title": "My Project", "descriptio
          "created": "2019-08-24T14:15:22Z"}]}
 
 
+async def _modrinth_background_task_sync_version(data: dict):
+    with database:
+        for version_id in data["versions"]:
+            await _modrinth_sync_version(version_id=version_id)
+        print(f'{data["id"]} sync version done')
+
+
+async def _modrinth_sync_project(idslug: str):  # 优先采用 slug
+    cache_data = await mr_api.get_project(slug=idslug)
+    slug = cache_data["slug"]
+    project_id = cache_data["id"]
+    cache_data["cachetime"] = int(time.time())
+    database.exe(
+        insert("modrinth_project_info", dict(project_id=project_id, slug=slug, status=200, time=int(time.time()),
+                                             data=json.dumps(cache_data)), replace=True))
+    return cache_data
+
+
+async def _modrinth_get_project(idslug: str, background_tasks=None):
+    with database:
+        id_cmd = select("modrinth_project_info", ["time", "status", "data"]).where("project_id", idslug).done()
+        id_query = database.query(id_cmd)
+        if id_query is None:
+            slug_cmd = select("modrinth_project_info", ["time", "status", "data"]).where("slug", idslug).done()
+            slug_query = database.query(slug_cmd)
+            if slug_query is None:
+                data = await _modrinth_sync_project(idslug=idslug)
+            else:
+                cachetime, status, data = slug_query
+                data = json.loads(data)
+                if int(time.time()) - data["cachetime"] > 60 * 60 * 4:
+                    data = await _modrinth_sync_project(idslug=idslug)
+        else:
+            cachetime, status, data = id_query
+            data = json.loads(data)
+            if int(time.time()) - data["cachetime"] > 60 * 60 * 4:
+                data = await _modrinth_sync_project(idslug=idslug)
+        # TODO 添加后台任务：version_info
+        if background_tasks is not None:
+            background_tasks.add_task(
+                _modrinth_background_task_sync_version, data)
+        return {"status": "success", "data": data}
+
+
 @api.get("/modrinth/project/{idslug}",
          responses={200: {"description": "Modrinth project info", "content": {
              "application/json": {"example":
@@ -636,8 +657,8 @@ modrinth_mod_example = {"slug": "my_project", "title": "My Project", "descriptio
                                   }}}
                     }, description="Modrinth project info", tags=["Modrinth"])
 @api_json_middleware
-async def get_modrinth_project(idslug: str):
-    return await _modrinth_get_project(idslug)
+async def get_modrinth_project(idslug: str, background_tasks: BackgroundTasks):
+    return await _modrinth_get_project(idslug, background_tasks=background_tasks)
 
 
 @api.get("/modrinth/projects",
@@ -647,24 +668,208 @@ async def get_modrinth_project(idslug: str):
                                   }}}
                     }, description="Modrinth project list", tags=["Modrinth"])
 @api_json_middleware
-async def get_modrinth_projects(ids: List[str]):
+async def get_modrinth_projects(ids: str, background_tasks: BackgroundTasks):
+    ids = format_list_to_str(ids)
     projects_data = []
     for project_id in ids:
-        project_data = (await _modrinth_get_project(idslug=project_id))["data"]
+        project_data = (await _modrinth_get_project(idslug=project_id, background_tasks=background_tasks))["data"]
         projects_data.append(project_data)
     return {"status": "success", "data": projects_data}
 
 
-@api.get("/modrinth/search")
-@api_json_middleware
-async def modrinth_search(query: str = None, facets: dict = None, limit: int = 20, offset: int = None, index: str = "relevance"):
-    search_result = await mr_api.search(query=query, facets=facets, limit=limit, offset=offset, index=index)
-    return {"status": "success", "data": search_result}
+modrinth_search_example = {
+    "name": "Version 1.0.0",
+    "version_number": "1.0.0",
+    "changelog": "List of changes in this version: ...",
+    "dependencies": [
+        {
+            "version_id": "IIJJKKLL",
+            "project_id": "QQRRSSTT",
+            "dependency_type": "required"
+        }
+    ],
+    "game_versions": [
+        "1.16.5",
+        "1.17.1"
+    ],
+    "version_type": "release",
+    "loaders": [
+        "fabric",
+        "forge"
+    ],
+    "featured": True,
+    "id": "IIJJKKLL",
+    "project_id": "AABBCCDD",
+    "author_id": "EEFFGGHH",
+    "date_published": "2019-08-24T14:15:22Z",
+    "downloads": 0,
+    "changelog_url": None,
+    "files": [
+        {
+            "hashes": {
+                "sha512": "93ecf5fe02914fb53d94aa3d28c1fb562e23985f8e4d48b9038422798618761fe208a31ca9b723667a4e05de0d91a3f86bcd8d018f6a686c39550e21b198d96f",
+                "sha1": "c84dd4b3580c02b79958a0590afd5783d80ef504"
+            },
+            "url": "https://cdn.modrinth.com/data/AABBCCDD/versions/1.0.0/my_file.jar",
+            "filename": "my_file.jar",
+            "primary": False,
+            "size": 1097270
+        }
+    ]
+}
 
+
+@api.get("/modrinth/search",
+         responses={200: {"description": "Modrinth search", "content": {
+             "application/json": {"example":
+                                      [modrinth_search_example]
+                                  }}}
+                    }, description="Modrinth search", tags=["Modrinth"])
+@api_json_middleware
+async def modrinth_search(query: str = None, facets: str = None, limit: int = 20, offset: int = 0,
+                          index: str = "relevance"):
+    search_result = await mr_api.search(query=query, facets=facets, limit=limit, offset=offset, index=index)
+    return {"status": "success", "data": search_result}  # TODO 在数据库中搜索
+
+
+modrinth_version_example = {
+    "name": "Version 1.0.0",
+    "version_number": "1.0.0",
+    "changelog": "List of changes in this version: ...",
+    "dependencies": [
+        {
+            "version_id": "IIJJKKLL",
+            "project_id": "QQRRSSTT",
+            "dependency_type": "required"
+        }
+    ],
+    "game_versions": [
+        "1.16.5",
+        "1.17.1"
+    ],
+    "version_type": "release",
+    "loaders": [
+        "fabric",
+        "forge"
+    ],
+    "featured": True,
+    "id": "IIJJKKLL",
+    "project_id": "AABBCCDD",
+    "author_id": "EEFFGGHH",
+    "date_published": "2019-08-24T14:15:22Z",
+    "downloads": 0,
+    "changelog_url": None,
+    "files": [
+        {
+            "hashes": {
+                "sha512": "93ecf5fe02914fb53d94aa3d28c1fb562e23985f8e4d48b9038422798618761fe208a31ca9b723667a4e05de0d91a3f86bcd8d018f6a686c39550e21b198d96f",
+                "sha1": "c84dd4b3580c02b79958a0590afd5783d80ef504"
+            },
+            "url": "https://cdn.modrinth.com/data/AABBCCDD/versions/1.0.0/my_file.jar",
+            "filename": "my_file.jar",
+            "primary": False,
+            "size": 1097270
+        }
+    ]
+}
+
+
+async def _modrinth_sync_version(version_id: str):
+    cache_data = await mr_api.get_project_version(version_id=version_id)
+    project_id = cache_data["project_id"]
+    cache_data["cachetime"] = int(time.time())
+    database.exe(insert("modrinth_version_info",
+                        dict(project_id=project_id, version_id=version_id, status=200, time=cache_data["cachetime"],
+                             data=json.dumps(cache_data)), replace=True))
+    return cache_data
+
+
+async def _modrinth_get_version(version_id: str):
+    with database:
+        cmd = select("modrinth_version_info", ["time", "status", "data"]).where("version_id", version_id).done()
+        query = database.query(cmd)
+        if query is None:
+            data = await _modrinth_sync_version(version_id=version_id)
+            pass
+        else:
+            cachetime, status, data = query
+            if status == 200:
+                data = json.loads(data)
+                if int(time.time()) - data["cachetime"] > 60 * 60 * 4:
+                    data = await _modrinth_sync_version(version_id=version_id)
+            else:
+                data = await _modrinth_sync_version(version_id=version_id)
+        return {"status": "success", "data": data}
+
+
+@api.get("/modrinth/version/{version_id}",
+         responses={200: {"description": "Modrinth version info", "content": {
+             "application/json": {"example":
+                                      modrinth_version_example
+                                  }}}
+                    }, description="Modrinth version info", tags=["Modrinth"])
+@api_json_middleware
+async def get_modrinth_version(version_id: str):
+    return await _modrinth_get_version(version_id)
+
+
+async def _modrinth_get_project_versions(project_id: str, game_versions: list = None, loaders: list = None, featured: bool = None):
+    version_info_lsit = await mr_api.get_project_versions(project_id=project_id, game_versions=game_versions, loaders=loaders, featured=featured)
+    for version_info in version_info_lsit:
+        version_info["cachetime"] = int(time.time())
+        database.exe(insert("modrinth_version_info",
+                            dict(project_id=project_id, version_id=version_info["id"], status=200,
+                                 time=version_info["cachetime"],
+                                 data=json.dumps(version_info)), replace=True))
+    # TODO Background_task
+    return {"status": "success", "data": version_info_lsit}
+
+
+@api.get("/modrinth/project/{idslug}/versions",
+         responses={200: {"description": "Modrinth project versions info", "content": {
+             "application/json": {"example":
+                                      [modrinth_version_example]
+                                  }}}
+                    }, description="Modrint project versions info", tags=["Modrinth"])
+@api_json_middleware
+async def get_modrinth_project_versions(idslug: str, loaders: str = None, game_versions: str = None, featured: bool = None):
+    with database:
+        if loaders:
+            loaders = format_list_to_str(loaders)
+        if game_versions:
+            game_versions = format_list_to_str(game_versions)
+        project_data = (await _modrinth_get_project(idslug))["data"]
+        project_id = project_data["id"]
+        query = database.query(
+            select("modrinth_version_info", ["time", "status", "data"]).where("project_id", project_id).done(), all=True)
+        if query is None:
+            version_info_list = await _modrinth_get_project_versions(project_id=project_id, loaders=loaders, game_versions=game_versions, featured=featured)
+        else:
+            version_info_list = []
+            for version_info in query:
+                cachetime, status, data = version_info
+                if status == 200:
+                    data = json.loads(data)
+                    if data["cachetime"] - int(time.time()) < 60 * 60 * 4:
+                        if featured:
+                            if data["featured"] != featured:
+                                continue
+                        if loaders:
+                            if len(list(set(loaders) & set(data["loaders"]))) == 0:
+                                continue
+                        if game_versions:
+                            if len(list(set(game_versions) & set(data["game_versions"]))) == 0:
+                                continue
+                    else:
+                        data = await _modrinth_sync_version(version_id=data["id"])
+                else:
+                    data = await _modrinth_sync_version(version_id=data["id"])
+                version_info_list.append(data)
+    return {"status": "success", "data": version_info_list}
 
 
 if __name__ == "__main__":
-    host, port = "127.0.0.1", 8000
+    host, port = "0.0.0.0", 8000
     try:
         uvicorn.run(api, host=host, port=port)
     except KeyboardInterrupt:

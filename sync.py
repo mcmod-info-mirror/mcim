@@ -18,12 +18,13 @@ from mysql import *
 
 
 def log(text, logging=logging.info, to_qq=False, to_file=True):
+
     print("[" + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()) + "] " + text)
-    if to_file == True:
+    if to_file:
         logging(text)
     
     # 把必要 log 转发到我 QQ
-    if to_qq == True: 
+    if to_qq:
         if MCIMConfig.cqhttp_type == "user":
             url = f"{MCIMConfig.cqhttp_baseurl}send_private_msg"
             res = requests.get(url=url, params={"user_id": MCIMConfig.cqhttp_userid, "message": text})
@@ -95,7 +96,7 @@ class CurseforgeCache:
 
             await asyncio.sleep(1)
 
-    async def try_games(self,gameid):
+    async def try_games(self, gameid):
         async with self.sem:
             with self.database:
                 try:
@@ -127,6 +128,7 @@ class CurseforgeCache:
             await asyncio.sleep(1)
 
     async def sync(self):
+
         # Games
         log("Start ALL GAMES", to_qq=True)
         all_games = await self.api.get_all_games()
@@ -186,25 +188,32 @@ class ModrinthCache:
         self.api = ModrinthApi(self.api_url, proxies=self.proxies, acli=self.cli)
 
     async def sync(self):
-        async with self.sem:
-            with self.database:
-                limit = 100
-                offset = 0
-                search_result = await self.api.search(limit=limit, offset=offset)
-                total = search_result["total_hits"]
-                for offset in range(0, total, limit):
-                    try:
-                        search_result = await self.api.search(limit=limit, offset=offset)
-                        for mod in search_result["hits"]:
-                            if mod["project_id"] == "v2KhBu7C":
-                                pass
-                            mod["cachetime"] = int(time.time())
-                            cmd = insert("modrinth_mod_info", dict(
-                                project_id=mod["project_id"], slug=mod["slug"], status=200, time=int(time.time()), data=json.dumps(mod)), replace=True)
+        with self.database:
+            limit = 100
+            offset = 0
+            search_result = await self.api.search(limit=limit, offset=offset)
+            total = search_result["total_hits"]
+            for offset in range(0, total, limit):
+                try:
+                    search_result = await self.api.search(limit=limit, offset=offset)
+                    for project in search_result["hits"]:
+                        project_id = project["project_id"]
+                        project = await self.api.get_project(project_id)
+                        project["cachetime"] = int(time.time())
+                        cmd = insert("modrinth_project_info", dict(
+                            project_id=project_id, slug=project["slug"], status=200, time=int(time.time()), data=json.dumps(project)), replace=True)
+                        self.database.exe(cmd)
+
+                        for version_id in project["versions"]:
+                            version = await self.api.get_project_version(version_id)
+                            version["cachetime"] = int(time.time())
+                            cmd = insert("modrinth_version_info", dict(project_id=project_id,
+                                version_id=version_id, status=200, time=int(time.time()), data=json.dumps(version)), replace=True)
                             self.database.exe(cmd)
-                            log(f"Get mod: {mod['project_id']}")
-                    except Exception as e:
-                        log("Error: " + str(e), logging=logging.error, to_qq=True)
+                            log(f'Get version: {version_id}')
+                        log(f"Get mod: {project_id}")
+                except Exception as e:
+                    log("Error: " + str(e), logging=logging.error, to_qq=True)
 
 
 async def main():
@@ -221,16 +230,15 @@ async def main():
     log("Logging started", logging=logging.debug, to_qq=True)
 
     while True:
-        log("Start sync Curseforge", to_qq=True)
-        cache = CurseforgeCache(database, limit=16)
-        await cache.sync()
-        log("Finish sync Curseforge", to_qq=True)
-        time.sleep(60*60)
-        
         log("Start sync Modrinth", to_qq=True)
         await ModrinthCache(database=database).sync()
         log("Finish sync Modrinth", to_qq=True)
 
+        log("Start sync Curseforge", to_qq=True)
+        cache = CurseforgeCache(database=database, limit=16)
+        await cache.sync()
+        log("Finish sync Curseforge", to_qq=True)
+        time.sleep(60*60)
 
 
 if __name__ == "__main__":
