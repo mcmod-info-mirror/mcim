@@ -15,11 +15,11 @@ HASHES_TYPE_ID = {
 
 class CurseForgeApi:
     '''
-    Curseforge Api 的包装，基于 Asyncio 和 AioHttp
+    Curseforge Api 的包装，基于 Asyncio 和 AioHttp。
 
-    函数只返回 api 原生数据，未处理 
+    函数只返回 Api 原生数据，未处理 。
 
-    见 CFCore: https://docs.curseforge.com/
+    见 [CFCore](https://docs.curseforge.com/) 。
     '''
 
     def __init__(self, baseurl: str, api_key: str, proxies: str = None, acli=None):
@@ -60,7 +60,7 @@ class CurseForgeApi:
 
     async def get_all_games(self, index=1, pageSize=50):
         '''
-        获取所有游戏 ID 。
+        获取所有游戏 ID 。[🔗](https://docs.curseforge.com/#get-games)
 
         参数:
 
@@ -84,7 +84,7 @@ class CurseForgeApi:
 
     async def get_game(self, gameid, index=1, pageSize=50):
         '''
-        获取游戏信息。
+        获取游戏信息。[🔗](https://docs.curseforge.com/#get-game)
 
         参数:
 
@@ -105,7 +105,7 @@ class CurseForgeApi:
 
     async def get_game_version(self, gameid, index=1, pageSize=50):
         '''
-        获取游戏版本。
+        获取游戏版本。[🔗](https://docs.curseforge.com/#get-versions)
 
         参数:
 
@@ -127,7 +127,7 @@ class CurseForgeApi:
     # classid 为主分类的有 main class [17,5,4546,4471,12,4559,6(Mods)]
     async def get_categories(self, gameid=432, classid=None):
         '''
-        获取指定游戏的所有可用类和类别。
+        获取指定游戏的所有可用类和类别。[🔗](https://docs.curseforge.com/#get-categories)
 
         参数:
 
@@ -158,7 +158,7 @@ class CurseForgeApi:
                      sortfield="Featured", sortorder=None, gameversion=None, gameversiontypeid=None, index=None,
                      pagesize=None):
         '''
-        搜索 Mod 。
+        搜索 Mod 。[🔗](https://docs.curseforge.com/#search-mods)
 
         参数:
 
@@ -211,7 +211,7 @@ class CurseForgeApi:
 
     async def get_mod(self, modid):
         '''
-        获取 Mod 信息。
+        获取 Mod 信息。[🔗](https://docs.curseforge.com/#get-mod)
 
         参数:
 
@@ -231,7 +231,7 @@ class CurseForgeApi:
 
     async def get_mods(self, modids) -> list:
         '''
-        获取列表内的 Mod 信息。
+        获取列表内的 Mod 信息。[🔗](https://docs.curseforge.com/#get-mods)
 
         参数:
 
@@ -254,7 +254,7 @@ class CurseForgeApi:
 
     async def get_mod_description(self, modid):
         '''
-        获取 Mod 描述信息。
+        获取 Mod 描述信息。[🔗](https://docs.curseforge.com/#get-mod-description)
 
         参数:
 
@@ -274,7 +274,7 @@ class CurseForgeApi:
 
     async def get_file(self, modid, fileid):
         '''
-        获取指定模组的单个文件。
+        获取指定模组的单个文件。[🔗](https://docs.curseforge.com/#get-mod-file)
 
         参数:
 
@@ -297,7 +297,7 @@ class CurseForgeApi:
 
     async def get_files(self, modid):
         '''
-        获取指定模组的所有文件。
+        获取指定模组的所有文件。[🔗](https://docs.curseforge.com/#get-mod-files)
 
         参数:
 
@@ -318,7 +318,7 @@ class CurseForgeApi:
 
     async def post_files(self, fileids):
         '''
-        获取所有文件。
+        获取所有文件。[🔗](https://docs.curseforge.com/#get-files)
 
         参数:
 
@@ -341,7 +341,7 @@ class CurseForgeApi:
 
     async def get_mod_file_changelog(self, modid: int, fileid: int):
         '''
-        获取模组更新日志。
+        获取模组更新日志。[🔗](https://docs.curseforge.com/#get-mod-file-changelog)
 
         参数:
 
@@ -364,7 +364,7 @@ class CurseForgeApi:
 
     async def get_file_download_info(self, modid, fileid):
         '''
-        获取经过格式化的模组文件信息。
+        获取经过格式化的模组文件信息。[🔗](https://docs.curseforge.com/#get-mod-files)
 
         参数:
 
@@ -387,7 +387,7 @@ class CurseForgeApi:
 
     async def get_file_download_url(self, fileid, modid):
         '''
-        获取指定模组的指定文件的下载链接。
+        获取指定模组的指定文件的下载链接。[🔗](https://docs.curseforge.com/#get-mod-file-download-url)
 
         参数:
 

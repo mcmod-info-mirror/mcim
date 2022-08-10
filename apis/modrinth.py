@@ -56,7 +56,7 @@ class ModrinthApi:
 
     async def get_project(self, project_id: str = None, slug: str = None):
         '''
-        获取 Mod 信息。
+        获取 Mod 信息。[🔗](https://docs.modrinth.com/api-spec/#tag/projects/operation/getProject)
 
         '''
         if slug is not None:
@@ -78,6 +78,17 @@ class ModrinthApi:
             return json.loads(content)
 
     async def check_project(self, project_id: str = None, slug: str = None):
+        '''
+        检查项目是否存在。[🔗](https://docs.modrinth.com/api-spec/#tag/projects/operation/checkProjectValidity)
+        
+        参数:
+        
+        :param project_id: Mod ID
+        
+        :param slug: Mod 项目 ID
+        
+        用法: `<ModrinthApi>.check_project(project_id, slug)`
+        '''
         if slug is not None:
             url = self.baseurl + "project/{slug}/check".format(slug=slug)
         elif project_id is not None:
@@ -93,6 +104,15 @@ class ModrinthApi:
                 return False
 
     async def get_project_dependencies(self, project_id: int):
+        '''
+        检查项目依赖。[🔗](https://docs.modrinth.com/api-spec/#tag/projects/operation/getDependencies)
+        
+        参数:
+        
+        :param project_id: Mod ID
+        
+        用法: `resp = <ModrinthApi>.get_project_dependencies(project_id)`
+        '''
         url = self.baseurl + "projects" + "/{id}/dependencies".format(id=project_id)
         async with self.acli:
             res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url,
@@ -133,12 +153,13 @@ class ModrinthApi:
 
     async def get_project_version(self, version_id: str):
         '''
-        根据提供的版本号获取信息。
-
-        id: 版本号。
-
-        使用例子:
-
+        根据版本 ID 获取信息。[🔗](https://docs.modrinth.com/api-spec/#tag/versions/operation/getVersion)
+        
+        参数:
+        
+        :param project_id: 版本 ID
+        
+        用法: `resp = <ModrinthApi>.get_project_version(project_id)`
         '''
         url = self.baseurl + "version/{version_id}".format(version_id=version_id)
         async with self.acli:
@@ -148,12 +169,13 @@ class ModrinthApi:
 
     async def get_project_version_list(self, ids: str):
         '''
-        根据提供的版本号列表获取信息。
-
-        ids: 版本号列表。
-
-        使用例子:
-
+        根据多个版本 ID 获取多个版本信息。[🔗](https://docs.modrinth.com/api-spec/#tag/versions/operation/getVersion)
+        
+        参数:
+        
+        :param ids: 多个版本 ID
+        
+        用法: `resp = <ModrinthApi>.get_project_version_list(ids)`
         '''
         url = self.baseurl + "version"
         async with self.acli:
@@ -163,11 +185,15 @@ class ModrinthApi:
 
     async def get_version_from_hash(self, hash: str, algorithm: str):
         '''
-        根据提供的 Hash 查找 version 信息
+        根据提供的 Hash 查找版本信息。[🔗](https://docs.modrinth.com/api-spec/#tag/version-files/operation/versionFromHash)
 
-        hash: 文件 Hash
+        参数:
+        
+        :param hash: 文件 Hash
 
-        algorithm: 文件 Hash 算法
+        :param algorithm: 文件 Hash 算法
+        
+        用法: `resp = <ModrinthApi>.get_version_from_hash(hash, algorithm)`
         '''
         url = self.baseurl + "version_file/{hash}".format(hash=hash)
         async with self.acli:
@@ -177,13 +203,21 @@ class ModrinthApi:
 
     async def search(self, query: str = None, limit: int = 20, offset: int = None, index: str = "relevance", facets: str =None):
         '''
-        搜索 Mod 。
+        搜索 Mod 。[🔗](https://docs.modrinth.com/api-spec/#tag/projects/operation/searchProjects)
 
-        query: 搜索内容;
+        参数:
+        
+        :param query: 搜索内容
 
-        offset: 从第几个开始;
+        :param limit: 返回数量限制
 
-        index
+        :param offset: 偏移量
+        
+        :param index: 排序方法
+        
+        :param facets: [筛选搜索结果](https://docs.modrinth.com/docs/tutorials/api_search)
+        
+        用法: `resp = <ModrinthApi>.search(query, limit, offset, index, facets)`
         '''
 
         if type(facets) == dict:
