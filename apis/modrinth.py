@@ -233,6 +233,37 @@ class ModrinthApi:
                     "query": query, "limit": limit, "offset": offset, "index": index, "facets": facets
                 })
         return json.loads(content)
+    
+
+    async def get_categories(self):
+        url = self.baseurl + "tag/category"
+        async with self.acli:
+            res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url,
+                                             proxy=self.proxies, headers=self.headers)
+        return json.loads(content)
+
+
+    async def get_loaders(self):
+        url = self.baseurl + "tag/loader"
+        async with self.acli:
+            res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url,
+                                             proxy=self.proxies, headers=self.headers)
+        return json.loads(content)
+
+
+    async def get_game_versions(self):
+        url = self.baseurl + "tag/game_version"
+        async with self.acli:
+            res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url,
+                                             proxy=self.proxies, headers=self.headers)
+        return json.loads(content)
+
+    async def get_licenses(self):
+        url = self.baseurl + "tag/license"
+        async with self.acli:
+            res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url,
+                                             proxy=self.proxies, headers=self.headers)
+        return json.loads(content)
 
     # TODO 整合信息
     # async def get_project_version_download_info(self, project_id: str):
