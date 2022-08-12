@@ -256,7 +256,7 @@ async def mod_notification(modid: int):
             # file_info
             cmd = select("curseforge_file_info", ["time", "status", "data"]).where(
                 "modid", modid).AND("fileid", fileid).done()
-            query = database.query(cmd)
+            query = database.queryone(cmd)
             if query is None:
                 await _curseforge_sync_file_info(modid=modid, fileid=fileid, isinsert=True)
             else:
