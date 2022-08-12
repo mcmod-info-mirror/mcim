@@ -18,11 +18,10 @@ from mysql import *
 
 
 def log(text, logging=logging.info, to_qq=False, to_file=True):
-
     print("[" + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()) + "] " + text)
     if to_file:
         logging(text)
-    
+
     # 把必要 log 转发到我 QQ
     if to_qq:
         if MCIMConfig.cqhttp_type == "user":
@@ -33,14 +32,28 @@ def log(text, logging=logging.info, to_qq=False, to_file=True):
             res = requests.get(url=url, params={"group_id": MCIMConfig.cqhttp_groupid, "message": text})
         elif MCIMConfig.cqhttp_type == "guild":
             url = f"{MCIMConfig.cqhttp_baseurl}send_guild_channel_msg"
-            res = requests.get(url=url, params={"guild_id": MCIMConfig.cqhttp_guild_id, "channel_id": MCIMConfig.cqhttp_channel_id, "message": text})
+            res = requests.get(url=url, params={"guild_id": MCIMConfig.cqhttp_guild_id,
+                                                "channel_id": MCIMConfig.cqhttp_channel_id, "message": text})
         if res.status_code == 200:
-            if res.json()["status"] in ["ok","async"]:
+            if res.json()["status"] in ["ok", "async"]:
                 pass
             else:
-                print(f"Failed Request CqHttp",res.json())
+                print(f"Failed Request CqHttp", res.json())
         else:
             print(f"Request CqHttp Bad, Status Code: {res.status_code}")
+
+
+def getLogFile(basedir='logs'):
+    if not os.path.exists(basedir):
+        os.makedirs(basedir)
+    date = datetime.datetime.now().strftime('%Y-%m-%d')
+    path = os.path.join(basedir, f'{date}.log')
+    if os.path.exists(path):
+        i = 1
+        while os.path.exists(path):
+            path = os.path.join(basedir, f'{date}-{i}.log')
+            i += 1
+    return path
 
 
 class CurseforgeCache:
@@ -70,8 +83,9 @@ class CurseforgeCache:
                 try:
                     data = (await self.api.get_mod(modid))["data"]
                     data["cachetime"] = int(time.time())
-                    self.database.exe(insert("curseforge_mod_info", dict(modid=modid, status=200, data=json.dumps(data), time=int(
-                        time.time())), replace=True))
+                    self.database.exe(
+                        insert("curseforge_mod_info", dict(modid=modid, status=200, data=json.dumps(data), time=int(
+                            time.time())), replace=True))
                     log(f"Get mod: {modid}")
                 except StatusCodeException as e:
                     self.database.exe(insert("curseforge_mod_info", dict(
@@ -79,8 +93,8 @@ class CurseforgeCache:
                     log(f"Get mod: {modid} Status: {e.status}",
                         logging=logging.error)
                     if e.status == 403:
-                        time.sleep(60*20)
-                        log("=================OQS limit====================",logging=logging.warning, to_qq=True)
+                        time.sleep(60 * 20)
+                        log("=================OQS limit====================", logging=logging.warning, to_qq=True)
                 except asyncio.TimeoutError:
                     log(f"Get mod: {modid} Timeout", logging=logging.error)
                     self.database.exe(insert("curseforge_mod_info", dict(
@@ -101,8 +115,9 @@ class CurseforgeCache:
             with self.database:
                 try:
                     data = (await self.api.get_game(gameid))["data"]
-                    self.database.exe(insert("curseforge_game_info", dict(gameid=gameid, status=200, data=json.dumps(data), time=int(
-                        time.time())), replace=True))
+                    self.database.exe(
+                        insert("curseforge_game_info", dict(gameid=gameid, status=200, data=json.dumps(data), time=int(
+                            time.time())), replace=True))
                     log(f"Get game: {gameid}")
                 except StatusCodeException as e:
                     self.database.exe(insert("curseforge_game_info", dict(
@@ -110,8 +125,8 @@ class CurseforgeCache:
                     log(f"Get game: {gameid} Status: {e.status}",
                         logging=logging.error)
                     if e.status == 403:
-                        time.sleep(60*20)
-                        log("=================OQS limit====================",logging=logging.warning, to_qq=True)
+                        time.sleep(60 * 20)
+                        log("=================OQS limit====================", logging=logging.warning, to_qq=True)
                 except asyncio.TimeoutError:
                     log(f"Get game: {gameid} Timeout", logging=logging.error)
                     self.database.exe(insert("curseforge_game_info", dict(
@@ -135,7 +150,9 @@ class CurseforgeCache:
         for game in all_games["data"]:
             gameid = game["id"]
             game["cachetime"] = int(time.time())
-            self.database.exe(insert("curseforge_game_info", dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(game)), replace=True))
+            self.database.exe(insert("curseforge_game_info",
+                                     dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(game)),
+                                     replace=True))
 
         log("Finish ALL GAMES", to_qq=True)
 
@@ -157,20 +174,8 @@ class CurseforgeCache:
                 log(f"Start {modid}/{end_modid} curseforge mods", to_qq=True)
                 await asyncio.gather(*tasks)
                 log(f"Finish {modid}/{end_modid} curseforge mods", to_qq=True)
-                time.sleep(60*10)
+                time.sleep(60 * 10)
 
-
-def getLogFile(basedir='logs'):
-    if not os.path.exists(basedir):
-        os.makedirs(basedir)
-    date = datetime.datetime.now().strftime('%Y-%m-%d')
-    path = os.path.join(basedir, f'{date}.log')
-    if os.path.exists(path):
-        i = 1
-        while os.path.exists(path):
-            path = os.path.join(basedir, f'{date}-{i}.log')
-            i += 1
-    return path
 
 class ModrinthCache:
     def __init__(self, database: DataBase, *, limit: int = 2):
@@ -201,14 +206,17 @@ class ModrinthCache:
                         project = await self.api.get_project(project_id)
                         project["cachetime"] = int(time.time())
                         cmd = insert("modrinth_project_info", dict(
-                            project_id=project_id, slug=project["slug"], status=200, time=int(time.time()), data=json.dumps(project)), replace=True)
+                            project_id=project_id, slug=project["slug"], status=200, time=int(time.time()),
+                            data=json.dumps(project)), replace=True)
                         self.database.exe(cmd)
 
                         for version_id in project["versions"]:
                             version = await self.api.get_project_version(version_id)
                             version["cachetime"] = int(time.time())
                             cmd = insert("modrinth_version_info", dict(project_id=project_id,
-                                version_id=version_id, status=200, time=int(time.time()), data=json.dumps(version)), replace=True)
+                                                                       version_id=version_id, status=200,
+                                                                       time=int(time.time()), data=json.dumps(version)),
+                                         replace=True)
                             self.database.exe(cmd)
                             log(f'Get version: {version_id}')
                         log(f"Get mod: {project_id}")
@@ -238,7 +246,7 @@ async def main():
         cache = CurseforgeCache(database=database, limit=16)
         await cache.sync()
         log("Finish sync Curseforge", to_qq=True)
-        time.sleep(60*60)
+        time.sleep(60 * 60)
 
 
 if __name__ == "__main__":
