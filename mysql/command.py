@@ -190,7 +190,7 @@ class FieldBuilder:
 
 def create(table: str, /, fields: FieldBuilder = None) -> CommandBuilder:
 	'''
-	Build `DROP TABLE` sql command
+	Build `CREATE TABLE` sql command
 
 	Args:
 		table: The name of the table to create
