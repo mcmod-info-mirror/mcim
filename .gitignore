@@ -6,13 +6,13 @@
 __pycache__
 
 # Go-Cqhttp
-cqhttp
+/cqhttp
 
 # Logs
-logs
+/logs
 
 # Pycharm
 .idea
 
-# Config
-config
+# Config? **Is TEST folder useless ?**
+/config
