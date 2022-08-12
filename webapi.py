@@ -136,7 +136,7 @@ async def _curseforge_sync_game(gameid: int):
 
 async def _curseforge_get_game(gameid: int):
     with database:
-        result = database.query(
+        result = database.queryone(
             select("curseforge_game_info", ["time", "status", "data"]).where("gameid", gameid).done())
         if result is None or len(result) == 0 or result[1] != 200:
             data = await _curseforge_sync_game(gameid)
@@ -174,7 +174,7 @@ async def curseforge_games():
     all_data = []
     with database:
         sql_games_result = database.query(
-            select("curseforge_game_info", ["gameid", "time", "status", "data"]), all=True)
+            select("curseforge_game_info", ["gameid", "time", "status", "data"]))
         for result in sql_games_result:
             if result is None or result == () or result[2] != 200:
                 break
@@ -266,16 +266,15 @@ async def mod_notification(modid: int):
             # changelog
             cmd = select("curseforge_file_changelog", ["time", "status", "changelog"]).where(
                 "modid", modid).AND("fileid", fileid).done()
-            query = database.query(cmd)
+            query = database.queryone(cmd)
             if query is None:
                 await _curseforge_sync_mod_file_changelog(modid=modid, fileid=fileid, isinsert=True)
             else:
                 await _curseforge_sync_mod_file_changelog(modid=modid, fileid=fileid)
-        pass
         # description
-        cmd = select("mod_description", ["time", "status", "description"]).where(
+        cmd = select("curseforge_mod_description", ["time", "status", "description"]).where(
             "modid", modid).done()
-        query = database.query(cmd)
+        query = database.queryone(cmd)
         if query is None:
             cachetime = int(time.time())
             description = (await cf_api.get_mod_description(modid=modid))["data"]
@@ -322,7 +321,6 @@ curseforge_mod_example = {"id": 0, "gameId": 0, "name": "string", "slug": "strin
                     }, description="Curseforge Mod 信息", tags=["Curseforge"])
 @api_json_middleware
 async def get_mod(modid: int, background_tasks: BackgroundTasks):
-    # background_tasks.add_task(mod_notification, modid)
     return await _curseforge_get_mod(modid, background_tasks=background_tasks)
 
 
@@ -356,7 +354,7 @@ async def get_mods(item: ModItemModel):
 @api_json_middleware
 async def get_mod_description(modid: int):
     with database:
-        result = database.query(select(
+        result = database.queryone(select(
             "mod_description", ["modid", "time", "status"]).where("modid", modid).done())
         if result is None or len(result) == 0:
             cachetime = int(time.time())
@@ -437,7 +435,7 @@ async def _curseforge_get_file_info(modid: int, fileid: int):
     with database:
         cmd = select("curseforge_file_info", ["time", "status", "data"]).where(
             "modid", modid).AND("fileid", fileid).done()
-        query = database.query(cmd)
+        query = database.queryone(cmd)
         if query is None:
             data = await _curseforge_sync_file_info(modid=modid, fileid=fileid, isinsert=True)
             cachetime = data["cachetime"]
@@ -510,7 +508,7 @@ async def _curseforge_get_mod_file_changelog(modid: int, fileid: int):
     with database:
         cmd = select("curseforge_file_changelog", ["time", "status", "changelog"]).where(
             "modid", modid).AND("fileid", fileid).done()
-        query = database.query(cmd)
+        query = database.queryone(cmd)
         if query is None:
             data = await _curseforge_sync_mod_file_changelog(modid=modid, fileid=fileid, isinsert=True)
             cachetime = int(time.time())
@@ -552,7 +550,7 @@ async def curseforge_get_mod_file_download_url(modid: int, fileid: int):
     with database:
         cmd = select("curseforge_file_info", ["time", "status", "data"]).where(
             "modid", modid).AND("fileid", fileid).done()
-        query = database.query(cmd)
+        query = database.queryone(cmd)
         if query is None:
             data = await _curseforge_sync_file_info(modid=modid, fileid=fileid, isinsert=True)
             cachetime = int(time.time())
@@ -627,10 +625,10 @@ async def _modrinth_sync_project(idslug: str):  # 优先采用 slug
 async def _modrinth_get_project(idslug: str, background_tasks=None):
     with database:
         id_cmd = select("modrinth_project_info", ["time", "status", "data"]).where("project_id", idslug).done()
-        id_query = database.query(id_cmd)
+        id_query = database.queryone(id_cmd)
         if id_query is None:
             slug_cmd = select("modrinth_project_info", ["time", "status", "data"]).where("slug", idslug).done()
-            slug_query = database.query(slug_cmd)
+            slug_query = database.queryone(slug_cmd)
             if slug_query is None:
                 data = await _modrinth_sync_project(idslug=idslug)
             else:
@@ -787,7 +785,7 @@ async def _modrinth_sync_version(version_id: str):
 async def _modrinth_get_version(version_id: str):
     with database:
         cmd = select("modrinth_version_info", ["time", "status", "data"]).where("version_id", version_id).done()
-        query = database.query(cmd)
+        query = database.queryone(cmd)
         if query is None:
             data = await _modrinth_sync_version(version_id=version_id)
             pass
@@ -841,7 +839,7 @@ async def get_modrinth_project_versions(idslug: str, loaders: str = None, game_v
         project_data = (await _modrinth_get_project(idslug))["data"]
         project_id = project_data["id"]
         query = database.query(
-            select("modrinth_version_info", ["time", "status", "data"]).where("project_id", project_id).done(), all=True)
+            select("modrinth_version_info", ["time", "status", "data"]).where("project_id", project_id).done())
         if query is None:
             version_info_list = await _modrinth_get_project_versions(project_id=project_id, loaders=loaders, game_versions=game_versions, featured=featured)
         else:

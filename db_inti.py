@@ -17,6 +17,7 @@ class create_table:
             cmds.append(create("modrinth_tag_info", fields=FieldBuilder().f("slug","char(8)", "PRIMARY KEY").f("status","INT").f("time", "INT").f("data", "JSON")))
             for cmd in cmds:
                 database.exe(cmd)
+
 if __name__ == "__main__":
     MysqlConfig.load()
     database = DataBase(**MysqlConfig.to_dict())
