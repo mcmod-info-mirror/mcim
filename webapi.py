@@ -126,7 +126,6 @@ async def curseforge():
 
 async def _curseforge_sync_game(gameid: int):
     data = await cf_api.get_game(gameid=gameid)
-    # add cachetime
     cache_data = data["data"]
     cache_data["cachetime"] = int(time.time())
     database.exe(insert("curseforge_game_info", dict(gameid=gameid, status=200, time=int(
@@ -229,7 +228,7 @@ async def _curseforge_sync_mod(modid: int):
 
 async def _curseforge_get_mod(modid: int, background_tasks=None):
     with database:
-        result = database.query(
+        result = database.queryone(
             select("curseforge_mod_info", ["time", "status", "data"]).where("modid", modid).done())
         if result is None or len(result) == 0 or result[1] != 200:
             data = await _curseforge_sync_mod(modid)
@@ -261,7 +260,6 @@ async def mod_notification(modid: int):
                 await _curseforge_sync_file_info(modid=modid, fileid=fileid, isinsert=True)
             else:
                 await _curseforge_sync_file_info(modid=modid, fileid=fileid)
-            database.exe(cmd)
 
             # changelog
             cmd = select("curseforge_file_changelog", ["time", "status", "changelog"]).where(
@@ -418,15 +416,15 @@ async def curseforge_search(gameId: int, classId: int = None, categoryId: int = 
     # TODO 在数据库中搜索
 
 
-async def _curseforge_sync_file_info(modid: int, fileid: int, isinsert: bool = False):
+async def _curseforge_sync_file_info(modid: int, fileid: int):
     cache_data = (await cf_api.get_file(modid=modid, fileid=fileid))["data"]
     cache_data["cachetime"] = int(time.time())
-    if isinsert:
-        cmd = insert("curseforge_file_info", dict(modid=modid, fileid=fileid, status=200, time=int(
-            time.time()), data=json.dumps(cache_data)))
-    else:
-        cmd = update("curseforge_file_info", dict(status=200, time=int(time.time(
-        )), data=json.dumps(cache_data))).where("modid", modid).AND("fileid", fileid).done()
+    cmd = insert("curseforge_file_info", dict(modid=modid, fileid=fileid, status=200, time=int(
+        time.time()), data=json.dumps(cache_data)))
+    # 有主键
+    # else:
+    #     cmd = update("curseforge_file_info", dict(status=200, time=int(time.time(
+    #     )), data=json.dumps(cache_data))).where("modid", modid).AND("fileid", fileid).done()
     database.exe(cmd)
     return cache_data
 
@@ -437,7 +435,7 @@ async def _curseforge_get_file_info(modid: int, fileid: int):
             "modid", modid).AND("fileid", fileid).done()
         query = database.queryone(cmd)
         if query is None:
-            data = await _curseforge_sync_file_info(modid=modid, fileid=fileid, isinsert=True)
+            data = await _curseforge_sync_file_info(modid=modid, fileid=fileid)
             cachetime = data["cachetime"]
         elif len(query) <= 0 or query[1] != 200:
             data = await _curseforge_sync_file_info(modid=modid, fileid=fileid)
@@ -492,14 +490,14 @@ async def curseforge_mod_files(modId: int):
     return {"status": "success", "data": await _curseforge_get_files_info(modid=modId)}  # TODO 在数据库中搜索
 
 
-async def _curseforge_sync_mod_file_changelog(modid: int, fileid: int, isinsert: bool = False):
+async def _curseforge_sync_mod_file_changelog(modid: int, fileid: int):
     changelog = (await cf_api.get_mod_file_changelog(modid=modid, fileid=fileid))["data"]
-    if isinsert:
-        cmd = insert("curseforge_file_changelog", dict(modid=modid, fileid=fileid,
-                                                       status=200, time=int(time.time()), changelog=changelog))
-    else:
-        cmd = update("curseforge_file_changelog", dict(status=200, time=int(time.time(
-        )), changelog=changelog)).where("modid", modid).AND("fileid", fileid).done()
+    # if isinsert:
+    cmd = insert("curseforge_file_changelog", dict(modid=modid, fileid=fileid,
+                                                    status=200, time=int(time.time()), changelog=changelog))
+    # else:
+        # cmd = update("curseforge_file_changelog", dict(status=200, time=int(time.time(
+        # )), changelog=changelog)).where("modid", modid).AND("fileid", fileid).done()
     database.exe(cmd)
     return changelog
 
@@ -510,7 +508,7 @@ async def _curseforge_get_mod_file_changelog(modid: int, fileid: int):
             "modid", modid).AND("fileid", fileid).done()
         query = database.queryone(cmd)
         if query is None:
-            data = await _curseforge_sync_mod_file_changelog(modid=modid, fileid=fileid, isinsert=True)
+            data = await _curseforge_sync_mod_file_changelog(modid=modid, fileid=fileid)
             cachetime = int(time.time())
         elif len(query) <= 0 or query[1] != 200:
             data = await _curseforge_sync_file_info(modid=modid, fileid=fileid)
@@ -552,7 +550,7 @@ async def curseforge_get_mod_file_download_url(modid: int, fileid: int):
             "modid", modid).AND("fileid", fileid).done()
         query = database.queryone(cmd)
         if query is None:
-            data = await _curseforge_sync_file_info(modid=modid, fileid=fileid, isinsert=True)
+            data = await _curseforge_sync_file_info(modid=modid, fileid=fileid)
             cachetime = int(time.time())
         elif len(query) <= 0 or query[1] != 200:
             data = await _curseforge_sync_file_info(modid=modid, fileid=fileid)
