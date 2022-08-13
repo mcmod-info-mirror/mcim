@@ -188,9 +188,37 @@ class FieldBuilder:
 
 	f = field
 
+def fields(*fields: list) -> FieldBuilder:
+	'''
+	Build fields for `CREATE TABLE`
+
+	Args:
+		fields: The fields to build
+	
+	Return:
+		FieldBuilder: the field builder use in `create` method
+
+	Usage:
+		create('example_table', fields(
+			('id', 'INTEGER'),
+			('tid', 'INTEGER'),
+			('name', 'VARCHAR(20)', 'NOT NULL'),
+			'PRIMARY KEY (`id`, `tid`)'
+		))
+	'''
+	fb = FieldBuilder()
+	for field in fields:
+		if isinstance(field, (tuple, list)):
+			name, typ = field[:2]
+			options = field[2:]
+			fb.field(name, typ, *options)
+		else:
+			fb.append(field)
+	return fb
+
 def create(table: str, /, fields: FieldBuilder = None) -> CommandBuilder:
 	'''
-	Build `DROP TABLE` sql command
+	Build `CREATE TABLE` sql command
 
 	Args:
 		table: The name of the table to create

@@ -30,12 +30,12 @@ class MysqlConfig:
 		}
 
 	@classmethod
-	def save(cls, target='./mysql.config.json'):
+	def save(cls, target='./config/mysql.config.json'):
 		with open(target, 'w') as fd:
 			json.dump(cls.to_dict(), fd)
 
 	@classmethod
-	def load(cls, target='./mysql.config.json'):
+	def load(cls, target='./config/mysql.config.json'):
 		if not os.path.exists(target):
 			cls.save(target=target)
 			return
@@ -82,12 +82,12 @@ class MCIMConfig:
 		}
 
 	@classmethod
-	def save(cls, target='./config.json'):
+	def save(cls, target='./config/config.json'):
 		with open(target, 'w') as fd:
 			json.dump(cls.to_dict(), fd)
 
 	@classmethod
-	def load(cls, target='./config.json'):
+	def load(cls, target='./config/config.json'):
 		if not os.path.exists(target):
 			cls.save(target=target)
 			return
@@ -121,12 +121,12 @@ class ClashConfig:
 		}
 
 	@classmethod
-	def save(cls, target='./clash.config.json'):
+	def save(cls, target='./config/clash.config.json'):
 		with open(target, 'w') as fd:
 			json.dump(cls.to_dict(), fd)
 
 	@classmethod
-	def load(cls, target='./clash.config.json'):
+	def load(cls, target='./config/clash.config.json'):
 		if not os.path.exists(target):
 			cls.save(target=target)
 			return

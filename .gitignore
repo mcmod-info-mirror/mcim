@@ -4,3 +4,15 @@
 
 # Python
 __pycache__
+
+# Go-Cqhttp
+/cqhttp
+
+# Logs
+/logs
+
+# Pycharm
+.idea
+
+# Config? **Is TEST folder useless ?**
+/config

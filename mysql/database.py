@@ -92,16 +92,18 @@ class DataBase:
 
 	exe = execute
 
-	def query(self, cmd: CommandBuilder, /, cursor=None, all=False):
+	def query(self, cmd: CommandBuilder, /, cursor=None):
 		if cursor is not None:
 			cursor.execute(cmd.command, cmd.values)
-			if all:
-				return cursor.fetchall()
-			else:
-				return cursor.fetchone()
+			return cursor.fetchall()
 		with self.cursor() as cursor:
 			cursor.execute(cmd.command, cmd.values)
-			if all:
-				return cursor.fetchall()
-			else:
-				return cursor.fetchone()
+			return cursor.fetchall()
+
+	def queryone(self, cmd: CommandBuilder, /, cursor=None):
+		if cursor is not None:
+			cursor.execute(cmd.command, cmd.values)
+			return cursor.fetchone()
+		with self.cursor() as cursor:
+			cursor.execute(cmd.command, cmd.values)
+			return cursor.fetchone()
