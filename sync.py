@@ -180,7 +180,7 @@ class ModrinthCache:
         self.sem = asyncio.Semaphore(limit)
         self.api = ModrinthApi(self.api_url, proxies=self.proxies, acli=self.cli)
 
-    async def _sync_one(self, limie: int, offset: int):
+    async def _sync_one(self, limit: int, offset: int):
         res = await self.api.search(limit=limit, offset=offset)
         for proj in res["hits"]:
             pid = proj["project_id"]
@@ -209,7 +209,40 @@ class ModrinthCache:
                 self._sync_one(limit, offset)
             except Exception as e:
                 log("Error: " + str(e), logging=logging.error, to_qq=True)
+        
+        # tag
+        async def _modrinth_sync_tag_category():
+            data = await self.api.get_categories()
+            data["cachetime"] = int(time.time())
+            self.database.exe(insert("modrinth_tag_info",
+                                dict(slug="category", status=200,
+                                    time=data["cachetime"],
+                                    data=json.dumps(data)), replace=True))
 
+        async def _modrinth_sync_tag_loader():
+            data = await self.api.get_loaders()
+            data["cachetime"] = int(time.time())
+            self.database.exe(insert("modrinth_tag_info",
+                                dict(slug="loader", status=200,
+                                    time=data["cachetime"],
+                                    data=json.dumps(data)), replace=True))
+
+        async def _modrinth_sync_tag_game_version():
+            data = await self.api.get_game_versions()
+            data["cachetime"] = int(time.time())
+            self.database.exe(insert("modrinth_tag_info",
+                                dict(slug="game_version", status=200,
+                                    time=data["cachetime"],
+                                    data=json.dumps(data)), replace=True))
+
+        async def _modrinth_sync_tag_license():
+            data = await self.api.get_licenses()
+            data["cachetime"] = int(time.time())
+            self.database.exe(insert("modrinth_tag_info",
+                                dict(slug="license", status=200,
+                                    time=data["cachetime"],
+                                    data=json.dumps(data)), replace=True))
+        await asyncio.gather(_modrinth_sync_tag_category(),_modrinth_sync_tag_game_version(),_modrinth_sync_tag_loader(),_modrinth_sync_tag_license())
 
 async def main():
     MCIMConfig.load()

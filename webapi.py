@@ -848,6 +848,108 @@ async def get_modrinth_project_versions(idslug: str, loaders: str = None, game_v
                 version_info_list.append(data)
     return {"status": "success", "data": version_info_list}
 
+async def _modrinth_sync_tag_category():
+    data = await mr_api.get_categories()
+    data["cachetime"] = int(time.time())
+    database.exe(insert("modrinth_tag_info",
+                        dict(slug="category", status=200,
+                             time=data["cachetime"],
+                             data=json.dumps(data)), replace=True))
+    return data
+
+async def _modrinth_sync_tag_loader():
+    data = await mr_api.get_loaders()
+    data["cachetime"] = int(time.time())
+    database.exe(insert("modrinth_tag_info",
+                        dict(slug="loader", status=200,
+                             time=data["cachetime"],
+                             data=json.dumps(data)), replace=True))
+    return data
+
+async def _modrinth_sync_tag_game_version():
+    data = await mr_api.get_game_versions()
+    data["cachetime"] = int(time.time())
+    database.exe(insert("modrinth_tag_info",
+                        dict(slug="game_version", status=200,
+                             time=data["cachetime"],
+                             data=json.dumps(data)), replace=True))
+    return data
+
+async def _modrinth_sync_tag_license():
+    data = await mr_api.get_licenses()
+    data["cachetime"] = int(time.time())
+    database.exe(insert("modrinth_tag_info",
+                        dict(slug="license", status=200,
+                             time=data["cachetime"],
+                             data=json.dumps(data)), replace=True))
+    return data
+
+@api.get("/modrinth/tag/category")
+async def get_modrinth_tag_category():
+    with database:
+        cmd = select("modrinth_tag_category", ["time", "status", "data"]).where(
+            "slug", "category").done()
+        query = database.queryone(cmd)
+        if query is None:
+            data = await _modrinth_sync_tag_category()
+        else:
+            cachetime, status, data = query
+            if cachetime - int(time.time()) < 60 * 60 * 4 and status == 200:
+                data = json.loads(data)
+            else:
+                data = await _modrinth_sync_tag_category()
+    return {"status": "success", "data": data}
+
+
+@api.get("/modrinth/tag/loader")
+async def get_modrinth_tag_loader():
+    with database:
+        cmd = select("modrinth_tag_category", ["time", "status", "data"]).where(
+            "slug", "loader").done()
+        query = database.queryone(cmd)
+        if query is None:
+            data = await _modrinth_sync_tag_loader()
+        else:
+            cachetime, status, data = query
+            if cachetime - int(time.time()) < 60 * 60 * 4 and status == 200:
+                data = json.loads(data)
+            else:
+                data = await _modrinth_sync_tag_loader()
+    return {"status": "success", "data": data}
+
+
+@api.get("modrinth/tag/game_version")
+async def get_modrinth_tag_game_version():
+    with database:
+        cmd = select("modrinth_tag_category", ["time", "status", "data"]).where(
+            "slug", "game_version").done()
+        query = database.queryone(cmd)
+        if query is None:
+            data = await _modrinth_sync_tag_game_version()
+        else:
+            cachetime, status, data = query
+            if cachetime - int(time.time()) < 60 * 60 * 4 and status == 200:
+                data = json.loads(data)
+            else:
+                data = await _modrinth_sync_tag_game_version()
+    return {"status": "success", "data": data}
+
+
+@api.get("/modrinth/tag/license")
+async def get_modrinth_tag_license():
+    with database:
+        cmd = select("modrinth_tag_category", ["time", "status", "data"]).where(
+            "slug", "license").done()
+        query = database.queryone(cmd)
+        if query is None:
+            data = await _modrinth_sync_tag_license()
+        else:
+            cachetime, status, data = query
+            if cachetime - int(time.time()) < 60 * 60 * 4 and status == 200:
+                data = json.loads(data)
+            else:
+                data = await _modrinth_sync_tag_license()
+    return {"status": "success", "data": data}
 
 if __name__ == "__main__":
     host, port = "0.0.0.0", 8000
