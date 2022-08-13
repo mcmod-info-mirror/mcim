@@ -200,6 +200,40 @@ class ModrinthCache:
                 log(f"Get mod: {pid}")
 
     async def sync(self):
+        # tag
+        log("Start ALL TAGS", to_qq=True)
+        async def _modrinth_sync_tag_category():
+            data = await self.api.get_categories()
+            self.database.exe(insert("modrinth_tag_info",
+                                dict(slug="category", status=200,
+                                    time=int(time.time()),
+                                    data=json.dumps(data)), replace=True))
+
+        async def _modrinth_sync_tag_loader():
+            data = await self.api.get_loaders()
+            self.database.exe(insert("modrinth_tag_info",
+                                dict(slug="loader", status=200,
+                                    time=int(time.time()),
+                                    data=json.dumps(data)), replace=True))
+
+        async def _modrinth_sync_tag_game_version():
+            data = await self.api.get_game_versions()
+            self.database.exe(insert("modrinth_tag_info",
+                                dict(slug="game_version", status=200,
+                                    time=int(time.time()),
+                                    data=json.dumps(data)), replace=True))
+
+        async def _modrinth_sync_tag_license():
+            data = await self.api.get_licenses()
+            self.database.exe(insert("modrinth_tag_info",
+                                dict(slug="license", status=200,
+                                    time=int(time.time()),
+                                    data=json.dumps(data)), replace=True))
+        await asyncio.gather(_modrinth_sync_tag_category(),_modrinth_sync_tag_game_version(),_modrinth_sync_tag_loader(),_modrinth_sync_tag_license())
+        log("Finish ALL TAGS", to_qq=True)
+
+        # project
+        log("Start ALL PROJECTS", to_qq=True)
         limit = 100
         offset = 0
         res = await self.api.search(limit=limit, offset=offset)
@@ -209,40 +243,9 @@ class ModrinthCache:
                 self._sync_one(limit, offset)
             except Exception as e:
                 log("Error: " + str(e), logging=logging.error, to_qq=True)
+        log("Finish ALL PROJECTS", to_qq=True)
         
-        # tag
-        async def _modrinth_sync_tag_category():
-            data = await self.api.get_categories()
-            data["cachetime"] = int(time.time())
-            self.database.exe(insert("modrinth_tag_info",
-                                dict(slug="category", status=200,
-                                    time=data["cachetime"],
-                                    data=json.dumps(data)), replace=True))
 
-        async def _modrinth_sync_tag_loader():
-            data = await self.api.get_loaders()
-            data["cachetime"] = int(time.time())
-            self.database.exe(insert("modrinth_tag_info",
-                                dict(slug="loader", status=200,
-                                    time=data["cachetime"],
-                                    data=json.dumps(data)), replace=True))
-
-        async def _modrinth_sync_tag_game_version():
-            data = await self.api.get_game_versions()
-            data["cachetime"] = int(time.time())
-            self.database.exe(insert("modrinth_tag_info",
-                                dict(slug="game_version", status=200,
-                                    time=data["cachetime"],
-                                    data=json.dumps(data)), replace=True))
-
-        async def _modrinth_sync_tag_license():
-            data = await self.api.get_licenses()
-            data["cachetime"] = int(time.time())
-            self.database.exe(insert("modrinth_tag_info",
-                                dict(slug="license", status=200,
-                                    time=data["cachetime"],
-                                    data=json.dumps(data)), replace=True))
-        await asyncio.gather(_modrinth_sync_tag_category(),_modrinth_sync_tag_game_version(),_modrinth_sync_tag_loader(),_modrinth_sync_tag_license())
 
 async def main():
     MCIMConfig.load()
@@ -270,9 +273,9 @@ async def main():
             time.sleep(60 * 60)
     except KeyboardInterrupt:
         pass
-    except Exception as e:
-        log("Error: " + str(e), logging=logging.error, to_qq=True)
-    log("~~ BYE ~~", to_qq=True)
+    # except Exception as e:
+    #     log("Error: " + str(e), logging=logging.error, to_qq=True)
+    # log("~~ BYE ~~", to_qq=True)
 
 
 if __name__ == "__main__":
