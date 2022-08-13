@@ -78,7 +78,8 @@ async def redoc_html():
     )
 
 
-def format_list_to_str(text: str):
+def str_to_list(text: str):
+    # Why not `json.loads(text)` ?
     li = []
     for t in text[1:-1].split(","):
         li.append(t[1:-1])
@@ -123,14 +124,13 @@ async def root():
 async def curseforge():
     return await cf_api.end_point()
 
-
 async def _curseforge_sync_game(gameid: int):
     data = await cf_api.get_game(gameid=gameid)
     # add cachetime
     cache_data = data["data"]
     cache_data["cachetime"] = int(time.time())
-    database.exe(insert("curseforge_game_info", dict(gameid=gameid, status=200, time=int(
-        time.time()), data=json.dumps(cache_data)), replace=True))
+    database.exe(insert("curseforge_game_info",
+        dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(cache_data)), replace=True))
     return cache_data
 
 
@@ -172,28 +172,27 @@ async def curseforge_game(gameid: int):
 @api_json_middleware
 async def curseforge_games():
     all_data = []
+    sql_games_result = database.query(
+        select("curseforge_game_info", ["gameid", "time", "status", "data"]))
+    for result in sql_games_result:
+        if result is None or result == () or result[2] != 200:
+            break
+        gameid, time_tag, status, data = result
+        data = json.loads(data)
+        if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
+            break
+        all_data.append(data)
+    else:
+        return {"status": "success", "data": all_data}
+    all_data = []
+    sync_games_result = await cf_api.get_all_games()
     with database:
-        sql_games_result = database.query(
-            select("curseforge_game_info", ["gameid", "time", "status", "data"]))
-        for result in sql_games_result:
-            if result is None or result == () or result[2] != 200:
-                break
-            else:
-                gameid, time_tag, status, data = result
-                data = json.loads(data)
-                if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
-                    break
-                else:
-                    all_data.append(data)
-        else:
-            return {"status": "success", "data": all_data}
-        all_data = []
-        sync_games_result = await cf_api.get_all_games()
         for result in sync_games_result["data"]:
             gameid = result["id"]
-            result["cachetime"] = int(time.time())
-            database.exe(insert("curseforge_game_info", dict(gameid=gameid, status=200, time=int(
-                time.time()), data=json.dumps(result)), replace=True))
+            tmnow = int(time.time())
+            result["cachetime"] = tmnow
+            database.exe(insert("curseforge_game_info",
+                dict(gameid=gameid, status=200, time=tmnow, data=json.dumps(result)), replace=True))
             all_data.append(result)
     return {"status": "success", "data": all_data}
 
@@ -204,12 +203,16 @@ curseforge_category_example = {"id": 0, "gameId": 0, "name": "string", "slug": "
 
 
 @api.get("/curseforge/categories",
-         responses={200: {"description": "Curseforge category info", "content": {
-             "application/json": {"example":
-                                      {"status": "success", "data": [
-                                          curseforge_category_example]}
-                                  }}}
-                    }, description="Curseforge 的 Category 信息", tags=["Curseforge"])
+    responses={
+        200: {
+            "description": "Curseforge category info",
+            "content": {
+                "application/json": {
+                    "example": {"status": "success", "data": [curseforge_category_example]}
+                }
+            }
+        }
+    }, description="Curseforge 的 Category 信息", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge_categories(gameid: int = 432, classid: int = None):
     with database:
@@ -220,10 +223,11 @@ async def curseforge_categories(gameid: int = 432, classid: int = None):
 async def _curseforge_sync_mod(modid: int):
     data = await cf_api.get_mod(modid=modid)
     # add cachetime
+    tmnow = int(time.time())
     cache_data = data["data"]
-    cache_data["cachetime"] = int(time.time())
-    database.exe(insert("curseforge_mod_info", dict(modid=modid, status=200, time=int(
-        time.time()), data=json.dumps(cache_data)), replace=True))
+    cache_data["cachetime"] = tmnow
+    database.exe(insert("curseforge_mod_info",
+        dict(modid=modid, status=200, time=tmnow, data=json.dumps(cache_data)), replace=True))
     return cache_data
 
 
@@ -252,40 +256,17 @@ async def mod_notification(modid: int):
         files_info = await _curseforge_get_files_info(modid=modid)
         for file_info in files_info:
             fileid = file_info["id"]
-
             # file_info
-            cmd = select("curseforge_file_info", ["time", "status", "data"]).where(
-                "modid", modid).AND("fileid", fileid).done()
-            query = database.queryone(cmd)
-            if query is None:
-                await _curseforge_sync_file_info(modid=modid, fileid=fileid, isinsert=True)
-            else:
-                await _curseforge_sync_file_info(modid=modid, fileid=fileid)
-            database.exe(cmd)
-
+            await _curseforge_sync_file_info(modid=modid, fileid=fileid)
             # changelog
-            cmd = select("curseforge_file_changelog", ["time", "status", "changelog"]).where(
-                "modid", modid).AND("fileid", fileid).done()
-            query = database.queryone(cmd)
-            if query is None:
-                await _curseforge_sync_mod_file_changelog(modid=modid, fileid=fileid, isinsert=True)
-            else:
-                await _curseforge_sync_mod_file_changelog(modid=modid, fileid=fileid)
-        pass
+            await _curseforge_sync_mod_file_changelog(modid=modid, fileid=fileid)
         # description
         cmd = select("mod_description", ["time", "status", "description"]).where(
             "modid", modid).done()
-        query = database.queryone(cmd)
-        if query is None:
-            cachetime = int(time.time())
-            description = (await cf_api.get_mod_description(modid=modid))["data"]
-            database.exe(insert("mod_description", dict(
-                modid=modid, status=200, time=cachetime, description=description), replace=True))
-        else:
-            cachetime = int(time.time())
-            description = (await cf_api.get_mod_description(modid=modid))["data"]
-            database.exe(update("mod_description", dict(
-                status=200, time=cachetime, description=description)).where("modid", modid).done())
+        cachetime = int(time.time())
+        description = (await cf_api.get_mod_description(modid=modid))["data"]
+        database.exe(insert("mod_description",
+            dict(modid=modid, status=200, time=cachetime, description=description), replace=True))
 
 
 curseforge_mod_example = {"id": 0, "gameId": 0, "name": "string", "slug": "string",
@@ -315,11 +296,16 @@ curseforge_mod_example = {"id": 0, "gameId": 0, "name": "string", "slug": "strin
 
 
 @api.get("/curseforge/mod/{modid}",
-         responses={200: {"description": "Curseforge mod info", "content": {
-             "application/json": {"example":
-                                      {"status": "success", "data": curseforge_mod_example}
-                                  }}}
-                    }, description="Curseforge Mod 信息", tags=["Curseforge"])
+    responses={
+        200: {
+            "description": "Curseforge mod info",
+            "content": {
+                "application/json": {
+                    "example": {"status": "success", "data": curseforge_mod_example}
+                }
+            }
+        }
+    }, description="Curseforge Mod 信息", tags=["Curseforge"])
 @api_json_middleware
 async def get_mod(modid: int, background_tasks: BackgroundTasks):
     # background_tasks.add_task(mod_notification, modid)
@@ -331,11 +317,16 @@ class ModItemModel(BaseModel):
 
 
 @api.post('/curseforge/mods',
-          responses={200: {"description": "Curseforge mods info", "content": {
-              "application/json": {"example":
-                                       {"status": "success", "data": [curseforge_mod_example]}
-                                   }}}
-                     }, description="批量获取 Curseforge Mods 信息", tags=["Curseforge"])
+    responses={
+        200: {
+            "description": "Curseforge mods info",
+            "content": {
+                "application/json": {
+                    "example": {"status": "success", "data": [curseforge_mod_example]}
+                }
+            }
+        }
+    }, description="批量获取 Curseforge Mods 信息", tags=["Curseforge"])
 @api_json_middleware
 async def get_mods(item: ModItemModel):
     modids_data = []
@@ -347,12 +338,16 @@ async def get_mods(item: ModItemModel):
 
 
 @api.get("/curseforge/mod/{modid}/description",
-         responses={200: {"description": "Curseforge mod description", "content": {
-             "application/json": {"example":
-                                      {"status": "success", "description": "string",
-                                       "cachetime": "integer"}
-                                  }}}
-                    }, description="Curseforge Mod 的描述信息", tags=["Curseforge"])
+        responses={
+            200: {
+                "description": "Curseforge mod description",
+                "content": {
+                    "application/json": {
+                        "example": {"status": "success", "description": "string", "cachetime": "integer"}
+                    }
+                }
+            }
+        }, description="Curseforge Mod 的描述信息", tags=["Curseforge"])
 @api_json_middleware
 async def get_mod_description(modid: int):
     with database:
@@ -374,74 +369,50 @@ async def get_mod_description(modid: int):
     return {"status": "success", "data": description, "cachetime": cachetime}
 
 
-curseforge_search_example = {"data": [{"id": 0, "gameId": 0, "name": "string", "slug": "string",
-                                       "links": {"websiteUrl": "string", "wikiUrl": "string", "issuesUrl": "string",
-                                                 "sourceUrl": "string"}, "summary": "string", "status": 1,
-                                       "downloadCount": 0, "isFeatured": True, "primaryCategoryId": 0, "categories": [
-        {"id": 0, "gameId": 0, "name": "string", "slug": "string", "url": "string", "iconUrl": "string",
-         "dateModified": "2019-08-24T14:15:22Z", "isClass": True, "classId": 0, "parentCategoryId": 0,
-         "displayIndex": 0}], "classId": 0, "authors": [{"id": 0, "name": "string", "url": "string"}],
-                                       "logo": {"id": 0, "modId": 0, "title": "string", "description": "string",
-                                                "thumbnailUrl": "string", "url": "string"}, "screenshots": [
-        {"id": 0, "modId": 0, "title": "string", "description": "string", "thumbnailUrl": "string", "url": "string"}],
-                                       "mainFileId": 0, "latestFiles": [
-        {"id": 0, "gameId": 0, "modId": 0, "isAvailable": True, "displayName": "string", "fileName": "string",
-         "releaseType": 1, "fileStatus": 1, "hashes": [{"value": "string", "algo": 1}],
-         "fileDate": "2019-08-24T14:15:22Z", "fileLength": 0, "downloadCount": 0, "downloadUrl": "string",
-         "gameVersions": ["string"], "sortableGameVersions": [
-            {"gameVersionName": "string", "gameVersionPadded": "string", "gameVersion": "string",
-             "gameVersionReleaseDate": "2019-08-24T14:15:22Z", "gameVersionTypeId": 0}],
-         "dependencies": [{"modId": 0, "relationType": 1}], "exposeAsAlternative": True, "parentProjectFileId": 0,
-         "alternateFileId": 0, "isServerPack": True, "serverPackFileId": 0, "fileFingerprint": 0,
-         "modules": [{"name": "string", "fingerprint": 0}]}], "latestFilesIndexes": [
-        {"gameVersion": "string", "fileId": 0, "filename": "string", "releaseType": 1, "gameVersionTypeId": 0,
-         "modLoader": 0}], "dateCreated": "2019-08-24T14:15:22Z", "dateModified": "2019-08-24T14:15:22Z",
-                                       "dateReleased": "2019-08-24T14:15:22Z", "allowModDistribution": True,
-                                       "gamePopularityRank": 0, "isAvailable": True, "thumbsUpCount": 0}],
-                             "pagination": {"index": 0, "pageSize": 0, "resultCount": 0, "totalCount": 0}}
+curseforge_search_example = {
+    'data': [
+        {'id': 0, 'gameId': 0, 'name': 'string', 'slug': 'string', 'links': {'websiteUrl': 'string', 'wikiUrl': 'string', 'issuesUrl': 'string', 'sourceUrl': 'string'}, 'summary': 'string', 'status': 1, 'downloadCount': 0, 'isFeatured': True, 'primaryCategoryId': 0, 'categories': [{'id': 0, 'gameId': 0, 'name': 'string', 'slug': 'string', 'url': 'string', 'iconUrl': 'string', 'dateModified': '2019-08-24T14:15:22Z', 'isClass': True, 'classId': 0, 'parentCategoryId': 0, 'displayIndex': 0}], 'classId': 0, 'authors': [{'id': 0, 'name': 'string', 'url': 'string'}], 'logo': {'id': 0, 'modId': 0, 'title': 'string', 'description': 'string', 'thumbnailUrl': 'string', 'url': 'string'}, 'screenshots': [{'id': 0, 'modId': 0, 'title': 'string', 'description': 'string', 'thumbnailUrl': 'string', 'url': 'string'}], 'mainFileId': 0, 'latestFiles': [{'id': 0, 'gameId': 0, 'modId': 0, 'isAvailable': True, 'displayName': 'string', 'fileName': 'string', 'releaseType': 1, 'fileStatus': 1, 'hashes': [{'value': 'string', 'algo': 1}], 'fileDate': '2019-08-24T14:15:22Z', 'fileLength': 0, 'downloadCount': 0, 'downloadUrl': 'string', 'gameVersions': ['string'], 'sortableGameVersions': [{'gameVersionName': 'string', 'gameVersionPadded': 'string', 'gameVersion': 'string', 'gameVersionReleaseDate': '2019-08-24T14:15:22Z', 'gameVersionTypeId': 0}], 'dependencies': [{'modId': 0, 'relationType': 1}], 'exposeAsAlternative': True, 'parentProjectFileId': 0, 'alternateFileId': 0, 'isServerPack': True, 'serverPackFileId': 0, 'fileFingerprint': 0, 'modules': [{'name': 'string', 'fingerprint': 0}]}], 'latestFilesIndexes': [{'gameVersion': 'string', 'fileId': 0, 'filename': 'string', 'releaseType': 1, 'gameVersionTypeId': 0, 'modLoader': 0}], 'dateCreated': '2019-08-24T14:15:22Z', 'dateModified': '2019-08-24T14:15:22Z', 'dateReleased': '2019-08-24T14:15:22Z', 'allowModDistribution': True, 'gamePopularityRank': 0, 'isAvailable': True, 'thumbsUpCount': 0}
+    ],
+    'pagination': {'index': 0, 'pageSize': 0, 'resultCount': 0, 'totalCount': 0}
+}
 
 
 @api.get("/curseforge/search",
-         responses={200: {"description": "Curseforge search", "content": {
-             "application/json": {"example":
-                                      {"status": "success", "data": curseforge_search_example}
-                                  }}}
-                    }, description="Curseforge 搜索", tags=["Curseforge"])
+    responses={
+        200: {
+            "description": "Curseforge search",
+            "content": {
+                "application/json": {
+                    "example": {"status": "success", "data": curseforge_search_example}
+                }
+            }
+        }
+    }, description="Curseforge 搜索", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge_search(gameId: int, classId: int = None, categoryId: int = None, gameVersion: str = None,
                             searchFilter: str = None, sortField=None, sortOrder: str = None, modLoaderType: int = None,
                             gameVersionTypeId: int = None, slug: str = None, index: int = None, pageSize: int = 50):
-    return {"status": "success", "data":
-        (await cf_api.search(gameid=gameId, classid=classId, categoryid=categoryId, gameversion=gameVersion,
-                             searchfilter=searchFilter, sortfield=sortField, sortorder=sortOrder,
-                             modloadertype=modLoaderType, gameversiontypeid=gameVersionTypeId, slug=slug, index=index,
-                             pagesize=pageSize))["data"]
-            }
     # TODO 在数据库中搜索
+    data = await cf_api.search(
+        gameid=gameId, classid=classId, categoryid=categoryId, gameversion=gameVersion,
+        searchfilter=searchFilter, sortfield=sortField, sortorder=sortOrder,
+        modloadertype=modLoaderType, gameversiontypeid=gameVersionTypeId, slug=slug, index=index,
+        pagesize=pageSize)
+    return {"status": "success", "data": data["data"]}
 
-
-async def _curseforge_sync_file_info(modid: int, fileid: int, isinsert: bool = False):
+async def _curseforge_sync_file_info(modid: int, fileid: int):
     cache_data = (await cf_api.get_file(modid=modid, fileid=fileid))["data"]
     cache_data["cachetime"] = int(time.time())
-    if isinsert:
-        cmd = insert("curseforge_file_info", dict(modid=modid, fileid=fileid, status=200, time=int(
-            time.time()), data=json.dumps(cache_data)))
-    else:
-        cmd = update("curseforge_file_info", dict(status=200, time=int(time.time(
-        )), data=json.dumps(cache_data))).where("modid", modid).AND("fileid", fileid).done()
-    database.exe(cmd)
+    database.exe(cmd := insert("curseforge_file_info",
+        dict(modid=modid, fileid=fileid, status=200, time=int(time.time()), data=json.dumps(cache_data)),
+        replace=True))
     return cache_data
-
 
 async def _curseforge_get_file_info(modid: int, fileid: int):
     with database:
-        cmd = select("curseforge_file_info", ["time", "status", "data"]).where(
-            "modid", modid).AND("fileid", fileid).done()
-        query = database.queryone(cmd)
-        if query is None:
-            data = await _curseforge_sync_file_info(modid=modid, fileid=fileid, isinsert=True)
-            cachetime = data["cachetime"]
-        elif len(query) <= 0 or query[1] != 200:
+        query = database.queryone(cmd := select("curseforge_file_info", ["time", "status", "data"]).
+            where("modid", modid).AND("fileid", fileid).done())
+        if query is None or query[1] != 200:
             data = await _curseforge_sync_file_info(modid=modid, fileid=fileid)
             cachetime = data["cachetime"]
         else:
@@ -458,51 +429,56 @@ async def _curseforge_get_files_info(modid: int):
     return (await cf_api.get_files(modid=modid))["data"]
 
 
-curseforge_file_info_example = {"id": 0, "gameId": 0, "modId": 0, "isAvailable": True, "displayName": "string",
-                                "fileName": "string", "releaseType": 1, "fileStatus": 1,
-                                "hashes": [{"value": "string", "algo": 1}], "fileDate": "2019-08-24T14:15:22Z",
-                                "fileLength": 0, "downloadCount": 0, "downloadUrl": "string",
-                                "gameVersions": ["string"], "sortableGameVersions": [
-        {"gameVersionName": "string", "gameVersionPadded": "string", "gameVersion": "string",
-         "gameVersionReleaseDate": "2019-08-24T14:15:22Z", "gameVersionTypeId": 0}],
-                                "dependencies": [{"modId": 0, "relationType": 1}], "exposeAsAlternative": True,
-                                "parentProjectFileId": 0, "alternateFileId": 0, "isServerPack": True,
-                                "serverPackFileId": 0, "fileFingerprint": 0,
-                                "modules": [{"name": "string", "fingerprint": 0}]}
+curseforge_file_info_example = {
+    "id": 0, "gameId": 0, "modId": 0, "isAvailable": True, "displayName": "string",
+    "fileName": "string", "releaseType": 1, "fileStatus": 1,
+    "hashes": [{"value": "string", "algo": 1}], "fileDate": "2019-08-24T14:15:22Z",
+    "fileLength": 0, "downloadCount": 0, "downloadUrl": "string",
+    "gameVersions": ["string"], "sortableGameVersions": [{
+        "gameVersionName": "string", "gameVersionPadded": "string", "gameVersion": "string",
+        "gameVersionReleaseDate": "2019-08-24T14:15:22Z", "gameVersionTypeId": 0
+    }],
+    "dependencies": [{"modId": 0, "relationType": 1}], "exposeAsAlternative": True,
+    "parentProjectFileId": 0, "alternateFileId": 0, "isServerPack": True,
+    "serverPackFileId": 0, "fileFingerprint": 0,
+    "modules": [{"name": "string", "fingerprint": 0}]
+}
 
 
 @api.get("/curseforge/mod/{modId}/file/{fileId}",
-         responses={200: {"description": "Curseforge mod file info", "content": {
-             "application/json": {"example":
-                                      {"status": "success", "data": curseforge_file_info_example}
-                                  }}}
-                    }, description="Curseforge Mod 的文件信息", tags=["Curseforge"])
+    responses={
+        200: {
+            "description": "Curseforge mod file info", "content": {
+                "application/json": {
+                    "example": {"status": "success", "data": curseforge_file_info_example}
+                }
+            }
+        }
+    }, description="Curseforge Mod 的文件信息", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge_mod_file(modId: int, fileId: int):
     return await _curseforge_get_file_info(modid=modId, fileid=fileId)
 
 
 @api.get("/curseforge/mod/{modId}/files",
-         responses={200: {"description": "Curseforge mod files info", "content": {
-             "application/json": {"example":
-                                      {"status": "success", "data": [
-                                          curseforge_file_info_example]}
-                                  }}}
-                    }, description="Curseforge Mod 的全部文件信息", tags=["Curseforge"])
+    responses={
+        200: {
+            "description": "Curseforge mod files info", "content": {
+                "application/json": {
+                    "example": {"status": "success", "data": [curseforge_file_info_example]}
+                }
+            }
+        }
+    }, description="Curseforge Mod 的全部文件信息", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge_mod_files(modId: int):
     return {"status": "success", "data": await _curseforge_get_files_info(modid=modId)}  # TODO 在数据库中搜索
 
 
-async def _curseforge_sync_mod_file_changelog(modid: int, fileid: int, isinsert: bool = False):
+async def _curseforge_sync_mod_file_changelog(modid: int, fileid: int):
     changelog = (await cf_api.get_mod_file_changelog(modid=modid, fileid=fileid))["data"]
-    if isinsert:
-        cmd = insert("curseforge_file_changelog", dict(modid=modid, fileid=fileid,
-                                                       status=200, time=int(time.time()), changelog=changelog))
-    else:
-        cmd = update("curseforge_file_changelog", dict(status=200, time=int(time.time(
-        )), changelog=changelog)).where("modid", modid).AND("fileid", fileid).done()
-    database.exe(cmd)
+    database.exe(cmd := insert("curseforge_file_changelog",
+        dict(modid=modid, fileid=fileid, status=200, time=int(time.time()), changelog=changelog), replace=True))
     return changelog
 
 
@@ -511,11 +487,8 @@ async def _curseforge_get_mod_file_changelog(modid: int, fileid: int):
         cmd = select("curseforge_file_changelog", ["time", "status", "changelog"]).where(
             "modid", modid).AND("fileid", fileid).done()
         query = database.queryone(cmd)
-        if query is None:
-            data = await _curseforge_sync_mod_file_changelog(modid=modid, fileid=fileid, isinsert=True)
-            cachetime = int(time.time())
-        elif len(query) <= 0 or query[1] != 200:
-            data = await _curseforge_sync_file_info(modid=modid, fileid=fileid)
+        if query is None or query[1] != 200:
+            data = await _curseforge_sync_mod_file_changelog(modid=modid, fileid=fileid)
             cachetime = int(time.time())
         else:
             data = str(query[2])
@@ -651,25 +624,35 @@ async def _modrinth_get_project(idslug: str, background_tasks=None):
 
 
 @api.get("/modrinth/project/{idslug}",
-         responses={200: {"description": "Modrinth project info", "content": {
-             "application/json": {"example":
-                                      modrinth_mod_example
-                                  }}}
-                    }, description="Modrinth project info", tags=["Modrinth"])
+    responses={
+        200: {
+            "description": "Modrinth project info",
+            "content": {
+                "application/json": {
+                    "example": modrinth_mod_example
+                }
+            }
+        }
+    }, description="Modrinth project info", tags=["Modrinth"])
 @api_json_middleware
 async def get_modrinth_project(idslug: str, background_tasks: BackgroundTasks):
     return await _modrinth_get_project(idslug, background_tasks=background_tasks)
 
 
 @api.get("/modrinth/projects",
-         responses={200: {"description": "Modrinth projects info", "content": {
-             "application/json": {"example":
-                                      [modrinth_mod_example]
-                                  }}}
-                    }, description="Modrinth project list", tags=["Modrinth"])
+    responses={
+        200: {
+            "description": "Modrinth projects info",
+            "content": {
+                "application/json": {
+                    "example": [modrinth_mod_example]
+                }
+            }
+        }
+    }, description="Modrinth project list", tags=["Modrinth"])
 @api_json_middleware
 async def get_modrinth_projects(ids: str, background_tasks: BackgroundTasks):
-    ids = format_list_to_str(ids)
+    ids = str_to_list(ids)
     projects_data = []
     for project_id in ids:
         project_data = (await _modrinth_get_project(idslug=project_id, background_tasks=background_tasks))["data"]
@@ -835,9 +818,9 @@ async def _modrinth_get_project_versions(project_id: str, game_versions: list = 
 async def get_modrinth_project_versions(idslug: str, loaders: str = None, game_versions: str = None, featured: bool = None):
     with database:
         if loaders:
-            loaders = format_list_to_str(loaders)
+            loaders = str_to_list(loaders)
         if game_versions:
-            game_versions = format_list_to_str(game_versions)
+            game_versions = str_to_list(game_versions)
         project_data = (await _modrinth_get_project(idslug))["data"]
         project_id = project_data["id"]
         query = database.query(
