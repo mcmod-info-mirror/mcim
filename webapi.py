@@ -126,7 +126,6 @@ async def curseforge():
 
 async def _curseforge_sync_game(gameid: int):
     data = await cf_api.get_game(gameid=gameid)
-    # add cachetime
     cache_data = data["data"]
     cache_data["cachetime"] = int(time.time())
     database.exe(insert("curseforge_game_info",
@@ -233,7 +232,7 @@ async def _curseforge_sync_mod(modid: int):
 
 async def _curseforge_get_mod(modid: int, background_tasks=None):
     with database:
-        result = database.query(
+        result = database.queryone(
             select("curseforge_mod_info", ["time", "status", "data"]).where("modid", modid).done())
         if result is None or len(result) == 0 or result[1] != 200:
             data = await _curseforge_sync_mod(modid)
@@ -261,7 +260,7 @@ async def mod_notification(modid: int):
             # changelog
             await _curseforge_sync_mod_file_changelog(modid=modid, fileid=fileid)
         # description
-        cmd = select("mod_description", ["time", "status", "description"]).where(
+        cmd = select("curseforge_mod_description", ["time", "status", "description"]).where(
             "modid", modid).done()
         cachetime = int(time.time())
         description = (await cf_api.get_mod_description(modid=modid))["data"]
@@ -308,7 +307,6 @@ curseforge_mod_example = {"id": 0, "gameId": 0, "name": "string", "slug": "strin
     }, description="Curseforge Mod 信息", tags=["Curseforge"])
 @api_json_middleware
 async def get_mod(modid: int, background_tasks: BackgroundTasks):
-    # background_tasks.add_task(mod_notification, modid)
     return await _curseforge_get_mod(modid, background_tasks=background_tasks)
 
 
@@ -527,7 +525,7 @@ async def curseforge_get_mod_file_download_url(modid: int, fileid: int):
             "modid", modid).AND("fileid", fileid).done()
         query = database.queryone(cmd)
         if query is None:
-            data = await _curseforge_sync_file_info(modid=modid, fileid=fileid, isinsert=True)
+            data = await _curseforge_sync_file_info(modid=modid, fileid=fileid)
             cachetime = int(time.time())
         elif len(query) <= 0 or query[1] != 200:
             data = await _curseforge_sync_file_info(modid=modid, fileid=fileid)
