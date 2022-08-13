@@ -887,69 +887,73 @@ async def _modrinth_sync_tag_license():
 @api.get("/modrinth/tag/category")
 async def get_modrinth_tag_category():
     with database:
-        cmd = select("modrinth_tag_category", ["time", "status", "data"]).where(
+        cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
             "slug", "category").done()
         query = database.queryone(cmd)
         if query is None:
             data = await _modrinth_sync_tag_category()
+            cachetime = int(time.time())
         else:
             cachetime, status, data = query
             if cachetime - int(time.time()) < 60 * 60 * 4 and status == 200:
                 data = json.loads(data)
             else:
                 data = await _modrinth_sync_tag_category()
-    return {"status": "success", "data": data}
+    return {"status": "success", "cachetime": cachetime, "data": data}
 
 
 @api.get("/modrinth/tag/loader")
 async def get_modrinth_tag_loader():
     with database:
-        cmd = select("modrinth_tag_category", ["time", "status", "data"]).where(
+        cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
             "slug", "loader").done()
         query = database.queryone(cmd)
         if query is None:
             data = await _modrinth_sync_tag_loader()
+            cachetime = int(time.time())
         else:
             cachetime, status, data = query
             if cachetime - int(time.time()) < 60 * 60 * 4 and status == 200:
                 data = json.loads(data)
             else:
                 data = await _modrinth_sync_tag_loader()
-    return {"status": "success","cachetime": cachetime, "data": data}
+    return {"status": "success", "cachetime": cachetime, "data": data}
 
 
-@api.get("modrinth/tag/game_version")
+@api.get("/modrinth/tag/game_version")
 async def get_modrinth_tag_game_version():
     with database:
-        cmd = select("modrinth_tag_category", ["time", "status", "data"]).where(
+        cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
             "slug", "game_version").done()
         query = database.queryone(cmd)
         if query is None:
             data = await _modrinth_sync_tag_game_version()
+            cachetime = int(time.time())
         else:
             cachetime, status, data = query
             if cachetime - int(time.time()) < 60 * 60 * 4 and status == 200:
                 data = json.loads(data)
             else:
                 data = await _modrinth_sync_tag_game_version()
-    return {"status": "success", "data": data}
+    return {"status": "success", "cachetime": cachetime, "data": data}
 
 
 @api.get("/modrinth/tag/license")
 async def get_modrinth_tag_license():
     with database:
-        cmd = select("modrinth_tag_category", ["time", "status", "data"]).where(
+        cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
             "slug", "license").done()
         query = database.queryone(cmd)
         if query is None:
             data = await _modrinth_sync_tag_license()
+            cachetime = int(time.time())
         else:
             cachetime, status, data = query
             if cachetime - int(time.time()) < 60 * 60 * 4 and status == 200:
                 data = json.loads(data)
             else:
                 data = await _modrinth_sync_tag_license()
-    return {"status": "success", "data": data}
+    return {"status": "success", "cachetime": cachetime, "data": data}
 
 if __name__ == "__main__":
     host, port = "0.0.0.0", 8000
