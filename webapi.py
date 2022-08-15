@@ -234,12 +234,13 @@ async def _curseforge_get_mod(modid: int = None, slug: str = None, background_ta
     with database:
         if slug is not None:
             query = "slug"
+            cmd = select("curseforge_mod_info", ["time", "status", "data"]).where(query, slug).done()
         elif modid is not None:
             query = "modid"
+            cmd = select("curseforge_mod_info", ["time", "status", "data"]).where(query, modid).done()
         else:
             return {"status": "failed", "error": "Neither slug and modid is not None"}
-        result = database.queryone(
-            select("curseforge_mod_info", ["time", "status", "data"]).where(query, modid).done())
+        result = database.queryone(cmd)
         if result is None or len(result) == 0 or result[1] != 200:
             if query == "slug":
                 return {"status": "failed", "error": f"Can't found {slug} in cache database, please request by modid it first"}
@@ -248,7 +249,9 @@ async def _curseforge_get_mod(modid: int = None, slug: str = None, background_ta
             data = json.loads(result[2])
             if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
                 if query == "slug":
-                    return {"status": "warning", "data": data, "error": "Data out of cachetime"}
+                    modid = data["id"]
+                    data = await _curseforge_sync_mod(modid)
+                    # return {"status": "warning", "data": data, "error": "Data out of cachetime"}
                 data = await _curseforge_sync_mod(modid)
     # to mod_notification
     if not background_tasks is None and query == "modid":
@@ -317,7 +320,7 @@ curseforge_mod_example = {"id": 0, "gameId": 0, "name": "string", "slug": "strin
     }, description="Curseforge Mod 信息；可以传入modid，不建议使用此处的 slug 参数，因为将从缓存数据库查询", tags=["Curseforge"])
 @api_json_middleware
 async def get_mod(modid_slug: int | str, background_tasks: BackgroundTasks):
-    if modid_slug is str:
+    if type(modid_slug) is str:
         return await _curseforge_get_mod(slug=modid_slug, background_tasks=background_tasks)
     else: 
         return await _curseforge_get_mod(modid=modid_slug, background_tasks=background_tasks)

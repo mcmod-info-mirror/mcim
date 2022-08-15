@@ -25,6 +25,8 @@ def create_table(database: DataBase):
             fields=fields(("project_id", "char(8)"), ("version_id", "char(8)"), ("status", "INT"), ("time", "INT"), ("data", "JSON"), "PRIMARY KEY (project_id, version_id)")))
         cmds.append(create("modrinth_tag_info",
             fields=fields(("slug","TEXT", "PRIMARY KEY"), ("status","INT"), ("time", "INT"), ("data", "JSON"))))
+        cmds.append(create("mcmod_info",
+            fields=fields(("classid", "INT", "PRIMARY KEY"), ("modid", "INT"), ("project_id", "char(8)"), ("status","INT"), ("time", "INT"), ("en_name", "TEXT"), ("zh_name", "TEXT"))))
         for cmd in cmds:
             print(cmd)
 

@@ -46,7 +46,7 @@ class AsyncHTTPClient:
 		'''
         return aiohttp.ClientSession(**{**self._session_kwargs, **kwargs})
 
-    async def _get(self, url: str, /, *, callback=None, sem=None, **kwargs):
+    async def _get(self, url: str, /, *, callback=None, **kwargs):
         async with self.session.get(url, **kwargs) as res:
             if callback is not None:
                 return await callback(res)
