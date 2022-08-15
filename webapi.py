@@ -230,18 +230,28 @@ async def _curseforge_sync_mod(modid: int):
     return cache_data
 
 
-async def _curseforge_get_mod(modid: int, background_tasks=None):
+async def _curseforge_get_mod(modid: int = None, slug: str = None, background_tasks=None):
     with database:
+        if slug is not None:
+            query = "slug"
+        elif modid is not None:
+            query = "modid"
+        else:
+            return {"status": "failed", "error": "Neither slug and modid is not None"}
         result = database.queryone(
-            select("curseforge_mod_info", ["time", "status", "data"]).where("modid", modid).done())
+            select("curseforge_mod_info", ["time", "status", "data"]).where(query, modid).done())
         if result is None or len(result) == 0 or result[1] != 200:
+            if query == "slug":
+                return {"status": "failed", "error": f"Can't found {slug} in cache database, please request by modid it first"}
             data = await _curseforge_sync_mod(modid)
         else:
             data = json.loads(result[2])
             if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
+                if query == "slug":
+                    return {"status": "warning", "data": data, "error": "Data out of cachetime"}
                 data = await _curseforge_sync_mod(modid)
     # to mod_notification
-    if not background_tasks is None:
+    if not background_tasks is None and query == "modid":
         background_tasks.add_task(mod_notification, modid)
     return {"status": "success", "data": data}
 
@@ -294,7 +304,7 @@ curseforge_mod_example = {"id": 0, "gameId": 0, "name": "string", "slug": "strin
                           "isAvailable": True, "thumbsUpCount": 0}
 
 
-@api.get("/curseforge/mod/{modid}",
+@api.get("/curseforge/mod/{modid_slug}",
     responses={
         200: {
             "description": "Curseforge mod info",
@@ -304,11 +314,14 @@ curseforge_mod_example = {"id": 0, "gameId": 0, "name": "string", "slug": "strin
                 }
             }
         }
-    }, description="Curseforge Mod 信息", tags=["Curseforge"])
+    }, description="Curseforge Mod 信息；可以传入modid，不建议使用此处的 slug 参数，因为将从缓存数据库查询", tags=["Curseforge"])
 @api_json_middleware
-async def get_mod(modid: int, background_tasks: BackgroundTasks):
-    return await _curseforge_get_mod(modid, background_tasks=background_tasks)
-
+async def get_mod(modid_slug: int | str, background_tasks: BackgroundTasks):
+    if modid_slug is str:
+        return await _curseforge_get_mod(slug=modid_slug, background_tasks=background_tasks)
+    else: 
+        return await _curseforge_get_mod(modid=modid_slug, background_tasks=background_tasks)
+    # slug 查询为 https://www.cfwidget.com/ 的启发
 
 class ModItemModel(BaseModel):
     modid: list[int]

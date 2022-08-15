@@ -148,7 +148,7 @@ class CurseforgeCache:
 
         # MOD
         log("Start ALL MODS", to_qq=True)
-        global start_modid
+        start_modid = 10000
         end_modid = 105000
         modid = start_modid
         tasks = []
@@ -240,7 +240,7 @@ class ModrinthCache:
         total = res["total_hits"]
         for offset in range(0, total, limit):
             try:
-                self._sync_one(limit, offset)
+                await self._sync_one(limit, offset)
             except Exception as e:
                 log("Error: " + str(e), logging=logging.error, to_qq=True)
         log("Finish ALL PROJECTS", to_qq=True)
@@ -279,10 +279,10 @@ async def main():
 
 
 if __name__ == "__main__":
-    opts, agrs = getopt.getopt(sys.argv[1:], '-s:', ['start_modid='])
-    for opt_name, opt_value in opts:
-        if opt_name in ("-s", "--start_modid"):
-            start_modid = int(opt_value)
-        else:
-            start_modid = 10000
+    # opts, agrs = getopt.getopt(sys.argv[1:], '-s:', ['start_modid='])
+    # for opt_name, opt_value in opts:
+    #     if opt_name in ("-s", "--start_modid"):
+    #         start_modid = int(opt_value)
+    #     else:
+    #         start_modid = 10000
     asyncio.run(main())
