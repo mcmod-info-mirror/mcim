@@ -65,7 +65,7 @@ class CurseforgeCache:
     缓存 curseforge 的信息
     '''
 
-    def __init__(self, database: DataBase, *, limit: int = 16) -> None:
+    def __init__(self, database: DataBase = None, *, limit: int = 16) -> None:
         self.key = MCIMConfig.curseforge_api_key
         self.api_url = MCIMConfig.curseforge_api
         self.proxies = MCIMConfig.proxies
@@ -76,7 +76,10 @@ class CurseforgeCache:
         }
         self.cli = AsyncHTTPClient(
             headers=self.headers, timeout=aiohttp.ClientTimeout(total=self.timeout))
-        self.database = database
+        if database is None:
+            self.database: DataBase = DataBase(**MysqlConfig.to_dict())
+        else:
+            self.database = database
         self.sem = asyncio.Semaphore(limit)
         self.api = CurseForgeApi(self.api_url, self.key, self.proxies, acli=self.cli)
         # self.clash = clash.Clash(api_url=ClashConfig.api_url, port=ClashConfig.api_port, secret=ClashConfig.api_secret)
@@ -171,7 +174,7 @@ class CurseforgeCache:
 
 
 class ModrinthCache:
-    def __init__(self, database: DataBase, *, limit: int = 16):
+    def __init__(self, database: DataBase = None, *, limit: int = 16):
         self.api_url = MCIMConfig.modrinth_api
         self.proxies = MCIMConfig.proxies
         self.timeout = MCIMConfig.async_timeout
@@ -181,7 +184,10 @@ class ModrinthCache:
         }
         self.cli = AsyncHTTPClient(
             headers=self.headers, timeout=aiohttp.ClientTimeout(total=self.timeout))
-        self.database = database
+        if database is None:
+            self.database: DataBase = DataBase(**MysqlConfig.to_dict())
+        else:
+            self.database = database
         self.sem = asyncio.Semaphore(limit)
         self.api = ModrinthApi(self.api_url, proxies=self.proxies, acli=self.cli)
 
@@ -255,7 +261,7 @@ class ModrinthCache:
         
 
 class McModCache:
-    def __init__(self, database: DataBase, limit: int = 4) -> None:
+    def __init__(self, database: DataBase = None, limit: int = 4) -> None:
         self.api_url = MCIMConfig.mcmod_api
         self.req_proxies = {"http": "http://127.0.0.1:7890/","https": "http://127.0.0.1:7890/"}
         self.proxies = "http://127.0.0.1:7890/"
@@ -269,7 +275,10 @@ class McModCache:
         }
         self.cli = AsyncHTTPClient(
             headers=self.headers, timeout=aiohttp.ClientTimeout(total=self.timeout))
-        self.database = database
+        if database is None:
+            self.database: DataBase = DataBase(**MysqlConfig.to_dict())
+        else:
+            self.database = database
         self.sem = asyncio.Semaphore(limit)
         self.cf_api = CurseForgeApi(baseurl=MCIMConfig.curseforge_api, api_key=MCIMConfig.curseforge_api_key, proxies=MCIMConfig.proxies, acli=AsyncHTTPClient(headers=self.cf_headers, timeout=aiohttp.ClientTimeout(total=self.timeout)))
         self.mr_api = ModrinthApi(self.api_url, proxies=self.proxies, acli=self.cli)
@@ -282,30 +291,29 @@ class McModCache:
                     res = requests.get(f'{self.api_url}class/{classid}.html', proxies=self.req_proxies, verify=False)
                     if res.status_code == 200:
                         content = res.text
+                        # content = str(content, "UTF-8")
+                        # get chinese name
+                        insert_dict = {}
+                        insert_dict["classid"] = classid
+                        zh_name_match_result = re.findall("<h3>(.+?)</h3>", content)
+                        en_name_match_result = re.findall("<h4>(.+?)</h4>", content)
+                        if len(zh_name_match_result) != 0:
+                            if (zh_name_match_result[0].encode( 'UTF-8' ).isalpha() or "'" in zh_name_match_result[0]) and en_name_match_result == []:
+                                insert_dict["en_name"] = zh_name_match_result[0] # 只有英文名
+                            else:
+                                insert_dict["en_name"] = en_name_match_result[0]
+                                insert_dict["zh_name"] = zh_name_match_result[0]
+                            if "zh_name" and "en_name" in locals()["insert_dict"]:
+                                log(f'{classid} found {insert_dict["en_name"]} to {insert_dict["zh_name"]}')
+                            else:
+                                log(f'{classid} found {insert_dict} to None')
+                            insert_dict = await self.get_info(insert_dict, content, classid)
+                            return self.database.exe(insert("mcmod_info", obj=insert_dict, replace=True))
+                        else:
+                            log(f"{classid} not found any name")
                 except Exception as e:
                     log(f'GET {self.api_url}class/{classid}.html error {e}')
-                    return None
-                # content = str(content, "UTF-8")
-                # get chinese name
-                insert_dict = {}
-                insert_dict["classid"] = classid
-                zh_name_match_result = re.findall("<h3>(.+?)</h3>", content)
-                en_name_match_result = re.findall("<h4>(.+?)</h4>", content)
-                if len(zh_name_match_result) != 0:
-                    if (zh_name_match_result[0].encode( 'UTF-8' ).isalpha() or "'" in zh_name_match_result[0]) and en_name_match_result == []:
-                        insert_dict["en_name"] = zh_name_match_result[0] # 只有英文名
-                    else:
-                        insert_dict["en_name"] = en_name_match_result[0]
-                        insert_dict["zh_name"] = zh_name_match_result[0]
-                    if "zh_name" and "en_name" in locals()["insert_dict"]:
-                        log(f'{classid} found {insert_dict["en_name"]} to {insert_dict["zh_name"]}')
-                    else:
-                        log(f'{classid} found {insert_dict} to None')
-                    insert_dict = await self.get_info(insert_dict, content, classid)
-                    return self.database.exe(insert("mcmod_info", obj=insert_dict, replace=True))
-                else:
-                    log(f"{classid} not found any name")
-                
+                    return None                
     async def get_info(self, insert_dict: dict, content: str, classid: int):
         insert_dict["status"] = 200
         insert_dict["time"] = int(time.time())
@@ -352,9 +360,9 @@ async def main():
 
     logging.basicConfig(level=logging.INFO,
                         filename=getLogFile(), filemode='w',
-                        format='[%(asctime)s] [%(levelname)s]: %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S')
-
+                        format='[%(asctime)s] [%(threadName)s] [%(levelname)s]: %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S', encoding="UTF-8")
+    
     log("Logging started", logging=logging.debug, to_qq=True)
     threads = []
     try:
@@ -362,17 +370,17 @@ async def main():
             threads = [
             # log("Start sync Modrinth", to_qq=True)
             # Modrinth_sync_thread = threading.Thread(target=asyncio.run, args=(ModrinthCache(database=database).sync(),), daemon=True)
-            threading.Thread(target=asyncio.run, args=(ModrinthCache(database=database).sync(),), daemon=True),
+            threading.Thread(name="Modrinthsync", target=asyncio.run, args=(ModrinthCache().sync(),), daemon=True),
             # await ModrinthCache(database=database).sync()
             # log("Finish sync Modrinth", to_qq=True)
 
             # log("Start sync Curseforge", to_qq=True)
             # Curseforge_sync_thread = threading.Thread(target=asyncio.run, args=(CurseforgeCache(database=database).sync(),), daemon=True)
-            threading.Thread(target=asyncio.run, args=(CurseforgeCache(database=database).sync(),), daemon=True),
+            threading.Thread(name="Curseforgesync", target=asyncio.run, args=(CurseforgeCache().sync(),), daemon=True),
             # await CurseforgeCache(database=database, limit=16).sync()
             # log("Finish sync Curseforge", to_qq=True)
             # McMod_sync_thread = threading.Thread(target=asyncio.run, args=(McModCache(database=database).sync(),), daemon=True)
-            threading.Thread(target=asyncio.run, args=(McModCache(database=database).sync(),), daemon=True)
+            threading.Thread(name="McModsync", target=asyncio.run, args=(McModCache().sync(),), daemon=True)
             # await McModCache(database=database).sync()
             ]
             for thread in threads:
