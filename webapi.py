@@ -5,7 +5,8 @@ from typing import List
 
 import aiohttp
 import uvicorn
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, Body, status
+from fastapi.responses import JSONResponse
 from fastapi.openapi.docs import (
     get_redoc_html,
     get_swagger_ui_html,
@@ -94,10 +95,10 @@ def api_json_middleware(callback):
             return res
         except StatusCodeException as e:
             if e.status == 404:
-                return {"status": "failed", "error": "DataNotExists", "errorMessage": "Data Not exists"}
-            return {"status": "failed", "error": "StatusCodeException", "errorMessage": str(e)}
+                return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"status": "failed", "error": "DataNotExists", "errorMessage": "Data Not exists"})
+            return JSONResponse(status_code=e.status, content={"status": "failed", "error": "StatusCodeException", "errorMessage": str(e)})
         except Exception as e:
-            return {"status": "failed", "error": "InternalError", "errorMessage": str(e)}
+            return JSONResponse(status_code=500, content={"status": "failed", "error": "StatusCodeException", "errorMessage": str(e)})
 
     return w
 
@@ -239,11 +240,11 @@ async def _curseforge_get_mod(modid: int = None, slug: str = None, background_ta
             query = "modid"
             cmd = select("curseforge_mod_info", ["time", "status", "data"]).where(query, modid).done()
         else:
-            return {"status": "failed", "error": "Neither slug and modid is not None"}
+            return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"status": "failed", "error": "Neither slug and modid is not None"})
         result = database.queryone(cmd)
         if result is None or len(result) == 0 or result[1] != 200:
             if query == "slug":
-                return {"status": "failed", "error": f"Can't found {slug} in cache database, please request by modid it first"}
+                return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"status": "failed", "error": f"Can't found {slug} in cache database, please request by modid it first"})
             data = await _curseforge_sync_mod(modid)
         else:
             data = json.loads(result[2])
