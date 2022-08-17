@@ -376,11 +376,11 @@ async def main():
 
             # log("Start sync Curseforge", to_qq=True)
             # Curseforge_sync_thread = threading.Thread(target=asyncio.run, args=(CurseforgeCache(database=database).sync(),), daemon=True)
-            threading.Thread(name="Curseforgesync", target=asyncio.run, args=(CurseforgeCache().sync(),), daemon=True),
+            threading.Thread(name="Curseforgesync", target=asyncio.run, args=(CurseforgeCache().sync(),), daemon=True)
             # await CurseforgeCache(database=database, limit=16).sync()
             # log("Finish sync Curseforge", to_qq=True)
             # McMod_sync_thread = threading.Thread(target=asyncio.run, args=(McModCache(database=database).sync(),), daemon=True)
-            threading.Thread(name="McModsync", target=asyncio.run, args=(McModCache().sync(),), daemon=True)
+            # threading.Thread(name="McModsync", target=asyncio.run, args=(McModCache().sync(),), daemon=True)
             # await McModCache(database=database).sync()
             ]
             for thread in threads:
