@@ -1,3 +1,4 @@
+from doctest import Example
 import functools
 import json
 import time
@@ -278,7 +279,7 @@ async def mod_notification(modid: int):
             "modid", modid).done()
         cachetime = int(time.time())
         description = (await cf_api.get_mod_description(modid=modid))["data"]
-        database.exe(insert("mod_description",
+        database.exe(insert("curseforge_mod_description",
             dict(modid=modid, status=200, time=cachetime, description=description), replace=True))
 
 
@@ -367,16 +368,16 @@ async def get_mods(item: ModItemModel):
 async def get_mod_description(modid: int):
     with database:
         result = database.queryone(select(
-            "mod_description", ["modid", "time", "status"]).where("modid", modid).done())
+            "curseforge_mod_description", ["modid", "time", "status", "description"]).where("modid", modid).done())
         if result is None or len(result) == 0:
             cachetime = int(time.time())
             description = (await cf_api.get_mod_description(modid=modid))["data"]
-            database.exe(insert("mod_description", dict(
+            database.exe(insert("curseforge_mod_description", dict(
                 modid=modid, status=200, time=cachetime, description=description), replace=True))
         elif result[2] != 200:
             cachetime = int(time.time())
             description = (await cf_api.get_mod_description(modid=modid))["data"]
-            database.exe(insert("mod_description", dict(
+            database.exe(insert("curseforge_mod_description", dict(
                 modid=modid, status=200, time=cachetime, description=description), replace=True))
         else:
             description = result[3]
@@ -865,6 +866,13 @@ async def get_modrinth_project_versions(idslug: str, loaders: str = None, game_v
                 version_info_list.append(data)
     return {"status": "success", "data": version_info_list}
 
+example_modrinth_category = [
+  {
+    "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><polygon points=\"16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76\"/></svg>",
+    "name": "adventure",
+    "project_type": "mod"
+  }
+]
 async def _modrinth_sync_tag_category():
     data = await mr_api.get_categories()
     
@@ -874,6 +882,16 @@ async def _modrinth_sync_tag_category():
                              data=json.dumps(data)), replace=True))
     return data
 
+example_modrinth_loader = [
+  {
+    "icon": "<svg viewBox=\"0 0 276 288\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"23\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><g transform=\"matrix(1,0,0,1,-3302.43,-67.3276)\"><g transform=\"matrix(0.564163,0,0,1.70346,1629.87,0)\"><g transform=\"matrix(1.97801,-0.0501803,0.151517,0.655089,1678.7,-354.14)\"><g><path d=\"M820.011,761.092C798.277,738.875 754.809,694.442 734.36,673.389C729.774,668.668 723.992,663.75 708.535,674.369C688.629,688.043 700.073,696.251 703.288,699.785C711.508,708.824 787.411,788.803 800.523,803.818C802.95,806.597 780.243,781.318 793.957,764.065C799.444,757.163 811.985,752.043 820.011,761.092C826.534,768.447 830.658,779.178 816.559,790.826C791.91,811.191 714.618,873.211 689.659,893.792C677.105,904.144 661.053,896.143 653.827,887.719C646.269,878.908 623.211,853.212 602.539,829.646C596.999,823.332 598.393,810.031 604.753,804.545C639.873,774.253 696.704,730.787 716.673,713.831\"/></g></g></g></g></svg>",
+    "name": "fabric",
+    "supported_project_types": [
+      "mod",
+      "modpack"
+    ]
+  }
+]
 async def _modrinth_sync_tag_loader():
     data = await mr_api.get_loaders()
     
@@ -883,6 +901,14 @@ async def _modrinth_sync_tag_loader():
                              data=json.dumps(data)), replace=True))
     return data
 
+example_modrinth_game_version = [
+  {
+    "version": "1.18.1",
+    "version_type": "release",
+    "date": "2019-08-24T14:15:22Z",
+    "major": True
+  }
+]
 async def _modrinth_sync_tag_game_version():
     data = await mr_api.get_game_versions()
     
@@ -892,6 +918,12 @@ async def _modrinth_sync_tag_game_version():
                              data=json.dumps(data)), replace=True))
     return data
 
+example_modrinth_license = [
+  {
+    "short": "lgpl-3",
+    "name": "GNU Lesser General Public License v3"
+  }
+]
 async def _modrinth_sync_tag_license():
     data = await mr_api.get_licenses()
     
@@ -901,7 +933,11 @@ async def _modrinth_sync_tag_license():
                              data=json.dumps(data)), replace=True))
     return data
 
-@api.get("/modrinth/tag/category")
+@api.get("/modrinth/tag/category",responses={200: {"description": "Modrinth tag catrgory", "content": {
+             "application/json": {"example":
+                                      example_modrinth_category
+                                  }}}
+                    }, description="Modrinth tag category", tags=["Modrinth"])
 async def get_modrinth_tag_category():
     with database:
         cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
@@ -919,7 +955,11 @@ async def get_modrinth_tag_category():
     return {"status": "success", "cachetime": cachetime, "data": data}
 
 
-@api.get("/modrinth/tag/loader")
+@api.get("/modrinth/tag/loader", responses={200: {"description": "Modrinth tag loader", "content": {
+             "application/json": {"example":
+                                      example_modrinth_loader
+                                  }}}
+                    }, description="Modrinth tag loader", tags=["Modrinth"])
 async def get_modrinth_tag_loader():
     with database:
         cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
@@ -937,7 +977,11 @@ async def get_modrinth_tag_loader():
     return {"status": "success", "cachetime": cachetime, "data": data}
 
 
-@api.get("/modrinth/tag/game_version")
+@api.get("/modrinth/tag/game_version", responses={200: {"description": "Modrinth tag game version", "content": {
+             "application/json": {"example":
+                                      example_modrinth_game_version
+                                  }}}
+                    }, description="Modrinth tag game version", tags=["Modrinth"])
 async def get_modrinth_tag_game_version():
     with database:
         cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
@@ -955,7 +999,11 @@ async def get_modrinth_tag_game_version():
     return {"status": "success", "cachetime": cachetime, "data": data}
 
 
-@api.get("/modrinth/tag/license")
+@api.get("/modrinth/tag/license",responses={200: {"description": "Modrinth tag license", "content": {
+             "application/json": {"example":
+                                        example_modrinth_license
+                                  }}}
+                    }, description="Modrinth tag license", tags=["Modrinth"])
 async def get_modrinth_tag_license():
     with database:
         cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
