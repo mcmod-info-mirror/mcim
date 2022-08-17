@@ -142,7 +142,7 @@ class ModrinthApi:
         if slug is not None:
             url = self.baseurl + "project/{slug}/version".format(slug=slug)
         elif project_id is not None:
-            url = self.baseurl + "project/{modid}/version".format(modid=modid)
+            url = self.baseurl + "project/{modid}/version".format(modid=project_id)
         else:
             raise AssertionError("Neither slug and modid is not None")
         async with self.acli:
