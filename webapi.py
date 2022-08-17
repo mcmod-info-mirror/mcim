@@ -114,7 +114,7 @@ def api_json_middleware(callback):
     description="MCIM API")
 @api_json_middleware
 async def root():
-    return {"status": "success", "message": "z0z0r4 Mod Info"}
+    return {"status": "success", "message": "z0z0r4 Mod Info", "urls": {"Status": "https://status.mcim.z0z0r4.top/status/mcim", "Docs": ["https://mcim.z0z0r4.top/docs", "https://mcim.z0z0r4.top/redoc"]}}
 
 
 @api.get("/curseforge",
