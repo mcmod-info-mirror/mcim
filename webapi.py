@@ -599,7 +599,6 @@ async def _modrinth_background_task_sync_version(data: dict):
     with database:
         for version_id in data["versions"]:
             await _modrinth_sync_version(version_id=version_id)
-        print(f'{data["id"]} sync version done')
 
 
 async def _modrinth_sync_project(idslug: str):  # 优先采用 slug
