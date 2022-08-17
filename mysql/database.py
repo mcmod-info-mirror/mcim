@@ -4,6 +4,10 @@ import pymysql
 
 from .command import *
 
+__all__ = [
+	'DataBase'
+]
+
 class DataBase:
 	def __init__(self, host: str, port: int, user: str, password: str, database: str):
 		'''
@@ -31,7 +35,7 @@ class DataBase:
 		self.db.begin()
 		return self
 
-	def __exit__(self, etyp, eval, traceback):
+	def __exit__(self, etyp, err, traceback):
 		if etyp is None:
 			self.db.commit()
 			return True
