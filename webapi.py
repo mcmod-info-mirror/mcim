@@ -4,6 +4,7 @@ import os
 import time
 import logging
 import datetime
+import traceback
 from typing import List
 
 import aiohttp
@@ -124,6 +125,7 @@ def api_json_middleware(callback):
                 return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"status": "failed", "error": "DataNotExists", "errorMessage": "Data Not exists"})
             return JSONResponse(status_code=e.status, content={"status": "failed", "error": "StatusCodeException", "errorMessage": str(e)})
         except Exception as e:
+            traceback.print_exc()
             return JSONResponse(status_code=500, content={"status": "failed", "error": "StatusCodeException", "errorMessage": str(e)})
     return w
 
@@ -303,7 +305,7 @@ async def mod_notification(modid: int):
     for file_info in files_info:
         fileid = file_info["id"]
         # file_info
-        await _curseforge_sync_file_info(modid=modid, fileid=fileid)
+        await _curseforge_sync_file_info(DataBase, modid=modid, fileid=fileid)
         # changelog
         await _curseforge_sync_mod_file_changelog(db, modid=modid, fileid=fileid)
     # description
@@ -548,7 +550,7 @@ async def _curseforge_get_mod_file_changelog(modid: int, fileid: int):
             data = str(query[2])
             cachetime = int(query[0])
             if int(time.time()) - cachetime > 60 * 60 * 4:
-                data = await _curseforge_sync_file_info(modid=modid, fileid=fileid)
+                data = await _curseforge_sync_file_info(DataBase, modid=modid, fileid=fileid)
                 cachetime = int(time.time())
             else:
                 cachetime = query[0]
@@ -580,15 +582,15 @@ async def curseforge_get_mod_file_download_url(modid: int, fileid: int):
         query = db.queryone(cmd := select("curseforge_file_info", ["time", "status", "data"]).where(
             "modid", modid).AND("fileid", fileid).done())
     if query is None:
-        data = await _curseforge_sync_file_info(modid=modid, fileid=fileid)
+        data = await _curseforge_sync_file_info(DataBase, modid=modid, fileid=fileid)
         cachetime = int(time.time())
     elif len(query) <= 0 or query[1] != 200:
-        data = await _curseforge_sync_file_info(modid=modid, fileid=fileid)
+        data = await _curseforge_sync_file_info(DataBase, modid=modid, fileid=fileid)
         cachetime = int(time.time())
     else:
         data = json.loads(query[2])
         if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
-            data = await _curseforge_sync_file_info(modid=modid, fileid=fileid)
+            data = await _curseforge_sync_file_info(DataBase, modid=modid, fileid=fileid)
             cachetime = int(time.time())
         else:
             cachetime = query[0]
@@ -634,7 +636,7 @@ modrinth_mod_example = {"slug": "my_project", "title": "My Project", "descriptio
 
 async def _modrinth_background_task_sync_version(data: dict):
     for version_id in data["versions"]:
-        await _modrinth_sync_version(version_id=version_id)
+        await _modrinth_sync_version(DataBase, version_id=version_id)
 
 
 async def _modrinth_sync_project(db: DataBase, idslug: str):  # 优先采用 slug
