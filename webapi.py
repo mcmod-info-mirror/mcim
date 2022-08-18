@@ -140,7 +140,7 @@ def api_json_middleware(callback):
     description="MCIM API")
 @api_json_middleware
 async def root():
-    return Response(content={"status": "success", "message": "z0z0r4 Mod Info", "information": {"Status": "https://status.mcim.z0z0r4.top/status/mcim", "Docs": ["https://mcim.z0z0r4.top/docs", "https://mcim.z0z0r4.top/redoc"], "Github": "https://github.com/z0z0r4/mcim", "contact": {"Eamil": "z0z0r4@outlook.com", "QQ": "3531890582"}}}, headers={"Cache-Control": "max-age=300, public"}, media_type="text/html")
+    return JSONResponse(content={"status": "success", "message": "z0z0r4 Mod Info", "information": {"Status": "https://status.mcim.z0z0r4.top/status/mcim", "Docs": ["https://mcim.z0z0r4.top/docs", "https://mcim.z0z0r4.top/redoc"], "Github": "https://github.com/z0z0r4/mcim", "contact": {"Eamil": "z0z0r4@outlook.com", "QQ": "3531890582"}}}, headers={"Cache-Control": "max-age=300, public"})
 
 @api.get("/log")
 @api_json_middleware
@@ -154,7 +154,8 @@ async def get_log():
          description="Curseforge API", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge():
-    return JSONResponse(content=await cf_api.end_point(), headers={"Cache-Control": "max-age=300, public"})
+    return Response(content=await cf_api.end_point(), headers={"Cache-Control": "max-age=300, public"}, media_type="text/html")
+
 
 
 async def _curseforge_sync_game(db: DataBase, gameid: int):
@@ -676,7 +677,7 @@ async def _modrinth_get_project(idslug: str, background_tasks=None):
         if background_tasks is not None:
             background_tasks.add_task(
                 _modrinth_background_task_sync_version, data)
-        return JSONResponse({"status": "success", "data": data}, headers={"Cache-Control": "max-age=300, public"})
+        return {"status": "success", "data": data}
 
 
 @api.get("/modrinth/project/{idslug}",
@@ -693,7 +694,7 @@ async def _modrinth_get_project(idslug: str, background_tasks=None):
 @api_json_middleware
 async def get_modrinth_project(idslug: str, background_tasks: BackgroundTasks):
     return await _modrinth_get_project(idslug, background_tasks=background_tasks)
-
+    return JSONResponse(await _modrinth_get_project(idslug, background_tasks=background_tasks), headers={"Cache-Control": "max-age=300, public"})
 
 @api.get("/modrinth/projects",
          responses={
@@ -817,10 +818,7 @@ async def _modrinth_sync_version(db: DataBase, version_id: str):
     cache_data = await mr_api.get_project_version(version_id=version_id)
     project_id = cache_data["project_id"]
     cache_data["cachetime"] = int(time.time())
-    db.exe(insert("modrinth_version_info",
-                  dict(project_id=project_id, version_id=version_id, status=200,
-                       time=cache_data["cachetime"], data=json.dumps(cache_data)),
-                  replace=True))
+    db.exe(insert("modrinth_version_info", dict(project_id=project_id, version_id=version_id, status=200, time=cache_data["cachetime"], data=json.dumps(cache_data)), replace=True))
     return cache_data
 
 
