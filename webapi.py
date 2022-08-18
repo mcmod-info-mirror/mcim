@@ -54,7 +54,7 @@ api.mount("/log", StaticFiles(directory="webapi_logs"), name="logs")
 
 proxies = MCIMConfig.proxies
 timeout = MCIMConfig.async_timeout
-dbpool = DBPool(MysqlConfig.to_dict(), size=16)
+dbpool = AsyncDBPool(MysqlConfig.to_dict(), size=10)
 
 # for cf
 cf_key = MCIMConfig.curseforge_api_key
@@ -193,7 +193,7 @@ curseforge_game_example = {"id": 0, "name": "string", "slug": "string", "dateMod
                     }, description="Curseforge Game 信息", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge_game(gameid: int):
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         return await _curseforge_get_game(db, gameid=gameid)
 
 
@@ -207,7 +207,7 @@ async def curseforge_game(gameid: int):
 @api_json_middleware
 async def curseforge_games():
     all_data = []
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         sql_games_result = db.query(
             select("curseforge_game_info", ["gameid", "time", "status", "data"]))
     for result in sql_games_result:
@@ -222,7 +222,7 @@ async def curseforge_games():
         return {"status": "success", "data": all_data}
     all_data = []
     sync_games_result = await cf_api.get_all_games()
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         for result in sync_games_result["data"]:
             gameid = result["id"]
             tmnow = int(time.time())
@@ -267,7 +267,7 @@ async def _curseforge_sync_mod(db: DataBase, modid: int):
 
 
 async def _curseforge_get_mod(modid: int = None, slug: str = None, background_tasks=None):
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         if slug is not None:
             query = "slug"
             cmd = select("curseforge_mod_info", ["time", "status", "data"]).where(
@@ -301,7 +301,7 @@ async def _curseforge_get_mod(modid: int = None, slug: str = None, background_ta
 
 
 async def mod_notification(modid: int):
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         # files
         files_info = await _curseforge_get_files_info(modid=modid)
         for file_info in files_info:
@@ -403,7 +403,7 @@ async def get_mods(item: ModItemModel):
          }, description="Curseforge Mod 的描述信息", tags=["Curseforge"])
 @api_json_middleware
 async def get_mod_description(modid: int):
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         result = db.queryone(select(
             "curseforge_mod_description", ["modid", "time", "status", "description"]).where("modid", modid).done())
         if result is None or len(result) == 0:
@@ -466,7 +466,7 @@ async def _curseforge_sync_file_info(db: DataBase, modid: int, fileid: int):
 
 
 async def _curseforge_get_file_info(modid: int, fileid: int):
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         query = db.queryone(cmd := select("curseforge_file_info", ["time", "status", "data"]).
                             where("modid", modid).AND("fileid", fileid).done())
         if query is None or query[1] != 200:
@@ -541,7 +541,7 @@ async def _curseforge_sync_mod_file_changelog(db: DataBase, modid: int, fileid: 
 
 
 async def _curseforge_get_mod_file_changelog(modid: int, fileid: int):
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         query = db.queryone(cmd := select("curseforge_file_changelog", ["time", "status", "changelog"]).where(
             "modid", modid).AND("fileid", fileid).done())
         if query is None or query[1] != 200:
@@ -579,7 +579,7 @@ async def curseforge_mod_file_changelog(modId: int, fileId: int):
                     }, description="Curseforge Mod 的文件下载地址", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge_get_mod_file_download_url(modid: int, fileid: int):
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         query = db.queryone(cmd := select("curseforge_file_info", ["time", "status", "data"]).where(
             "modid", modid).AND("fileid", fileid).done())
     if query is None:
@@ -653,7 +653,7 @@ async def _modrinth_sync_project(db: DataBase, idslug: str):  # 优先采用 slu
 
 
 async def _modrinth_get_project(idslug: str, background_tasks=None):
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         id_cmd = select("modrinth_project_info", ["time", "status", "data"]).where(
             "project_id", idslug).done()
         id_query = db.queryone(id_cmd)
@@ -823,7 +823,7 @@ async def _modrinth_sync_version(db: DataBase, version_id: str):
 
 
 async def _modrinth_get_version(version_id: str):
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         cmd = select("modrinth_version_info", ["time", "status", "data"]).where(
             "version_id", version_id).done()
         query = db.queryone(cmd)
@@ -871,7 +871,7 @@ async def _modrinth_get_project_versions(db: DataBase, project_id: str, game_ver
                     }, description="Modrint project versions info", tags=["Modrinth"])
 @api_json_middleware
 async def get_modrinth_project_versions(idslug: str, loaders: str = None, game_versions: str = None, featured: bool = None):
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         if loaders:
             loaders = str_to_list(loaders)
         if game_versions:
@@ -983,7 +983,7 @@ async def _modrinth_sync_tag_license(db: DataBase):
                          }}}
 }, description="Modrinth tag category", tags=["Modrinth"])
 async def get_modrinth_tag_category():
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
             "slug", "category").done()
         query = db.queryone(cmd)
@@ -1005,7 +1005,7 @@ async def get_modrinth_tag_category():
                          }}}
 }, description="Modrinth tag loader", tags=["Modrinth"])
 async def get_modrinth_tag_loader():
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
             "slug", "loader").done()
         query = db.queryone(cmd)
@@ -1027,7 +1027,7 @@ async def get_modrinth_tag_loader():
                          }}}
 }, description="Modrinth tag game version", tags=["Modrinth"])
 async def get_modrinth_tag_game_version():
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
             "slug", "game_version").done()
         query = db.queryone(cmd)
@@ -1049,7 +1049,7 @@ async def get_modrinth_tag_game_version():
                          }}}
 }, description="Modrinth tag license", tags=["Modrinth"])
 async def get_modrinth_tag_license():
-    with dbpool.get() as db:
+    async with dbpool.get(True) as db:
         cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
             "slug", "license").done()
         query = db.queryone(cmd)

@@ -8,5 +8,5 @@ __all__ = [
 	'FieldBuilder',
 	'create', 'drop',
 	'delete', 'insert', 'select', 'update',
-	'DataBase', 'DBPool'
+	'DataBase', 'DBPool', 'AsyncDBPool'
 ]
