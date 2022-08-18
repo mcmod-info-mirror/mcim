@@ -1,3 +1,7 @@
+from sqlalchemy.orm import Session
+import sqlalchemy
+from sqlalchemy.dialects.mysql import insert
+from sqlalchemy import *
 import functools
 import json
 import os
@@ -5,7 +9,7 @@ import time
 import logging
 import datetime
 import traceback
-from typing import List
+
 
 import aiohttp
 import uvicorn
@@ -19,13 +23,131 @@ from fastapi.openapi.docs import (
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+# local package
 from apis import *
 from async_httpclient import *
 from config import *
-from mysql import *
-
+# inti config
 MCIMConfig.load()
 MysqlConfig.load()
+proxies = MCIMConfig.proxies
+timeout = MCIMConfig.async_timeout
+# for cf
+cf_key = MCIMConfig.curseforge_api_key
+cf_api_url = MCIMConfig.curseforge_api
+cf_headers = {
+    "User-Agent": "github_org/mcim/1.0.0 (mcim.z0z0r4.top)",
+    'Accept': 'application/json',
+    'x-api-key': cf_key
+}
+cf_cli = AsyncHTTPClient(
+    headers=cf_headers, timeout=aiohttp.ClientTimeout(total=timeout))
+cf_api = CurseForgeApi(cf_api_url, cf_key, proxies=proxies, acli=cf_cli)
+# for mr
+mr_api_url = MCIMConfig.modrinth_api
+mr_headers = {
+    "User-Agent": "github_org/mcim/1.0.0 (mcim.z0z0r4.top)",
+    'Accept': 'application/json'
+}
+mr_cli = AsyncHTTPClient(
+    headers=mr_headers, timeout=aiohttp.ClientTimeout(total=timeout))
+mr_api = ModrinthApi(baseurl=mr_api_url, proxies=proxies,
+                     acli=mr_cli, ua="github_org/mcim/1.0.0 (mcim.z0z0r4.top)")
+
+# DB 我不要造轮子
+# from mysql import *
+# dbpool = AsyncDBPool(MysqlConfig.to_dict(), size=128)
+# from databases import Database
+engine = sqlalchemy.create_engine(
+    f'mysql+pymysql://{MysqlConfig.user}:{MysqlConfig.password}@{MysqlConfig.host}:{MysqlConfig.port}/{MysqlConfig.database}', pool_size=128, max_overflow=32)
+metadata = sqlalchemy.MetaData()
+
+# init table
+class Table:
+    '''
+    mysql> show tables;
+    +----------------------------+
+    | Tables_in_mod              |
+    +----------------------------+
+    | curseforge_category_info   |
+    | curseforge_file_changelog  |
+    | curseforge_file_info       |
+    | curseforge_game_info       |
+    | curseforge_mod_description |
+    | curseforge_mod_info        |
+    | mcmod_info                 |
+    | modrinth_project_info      |
+    | modrinth_tag_info          |
+    | modrinth_version_info      |
+    +----------------------------+
+    '''
+    curseforge_mod_info = sqlalchemy.Table("curseforge_mod_info", metadata,
+                                           sqlalchemy.Column(
+                                               "modid", sqlalchemy.Integer, primary_key=True),
+                                           sqlalchemy.Column(
+                                               "slug", sqlalchemy.String(255)),
+                                           sqlalchemy.Column(
+                                               "time", sqlalchemy.Integer),
+                                           sqlalchemy.Column(
+                                               "status", sqlalchemy.Integer),
+                                           sqlalchemy.Column("data", sqlalchemy.JSON))
+    curseforge_file_changelog = Table("curseforge_file_changelog", metadata,
+                                      Column("modid", Integer,
+                                             primary_key=True),
+                                      Column("fileid", Integer,
+                                             primary_key=True),
+                                      Column("status", Integer),
+                                      Column("time", Integer),
+                                      Column("change_log", Text))
+    curseforge_file_info = Table("curseforge_file_info", metadata,
+                                 Column("modid", Integer, primary_key=True),
+                                 Column("fileid", Integer, primary_key=True),
+                                 Column("status", Integer),
+                                 Column("time", Integer),
+                                 Column("data", JSON))
+    curseforge_game_info = Table("curseforge_game_info", metadata,
+                                 Column("gameid", Integer, primary_key=True),
+                                 Column("status", Integer),
+                                 Column("time", Integer),
+                                 Column("data", JSON))
+    curseforge_mod_description = Table("curseforge_mod_description", metadata,
+                                       Column("modid", Integer,
+                                              primary_key=True),
+                                       Column("status", Integer),
+                                       Column("time", Integer),
+                                       Column("description", Text))
+    curseforge_mod_info = Table("curseforge_mod_info", metadata,
+                                Column("modid", Integer, primary_key=True),
+                                Column("slug", VARCHAR(255)),
+                                Column("status", Integer),
+                                Column("time", Integer),
+                                Column("data", JSON))
+    modrinth_project_info = Table("modrinth_project_info", metadata,
+                                  Column("project_id", CHAR(
+                                      8), primary_key=True),
+                                  Column("slug", VARCHAR(255)),
+                                  Column("status", Integer),
+                                  Column("time", Integer),
+                                  Column("data", JSON))
+    modrinth_tag_info = Table("modrinth_tag_info", metadata,
+                              Column("slug", VARCHAR(255), primary_key=True),
+                              Column("time", Integer),
+                              Column("status", Integer),
+                              Column("data", JSON))
+    modrinth_version_info = Table("modrinth_version_info", metadata,
+                                  Column("project_id", CHAR(
+                                      8), primary_key=True),
+                                  Column("version_id", CHAR(
+                                      8), primary_key=True),
+                                  Column("status", Integer),
+                                  Column("time", Integer),
+                                  Column("data", JSON))
+
+
+api = FastAPI(docs_url=None, redoc_url=None, title="MCIM",
+              description="这是一个为 Curseforge Mod 信息加速的 API")
+
+# TODO 提供 Log
 
 
 def getLogFile(basedir='webapi_logs'):
@@ -40,47 +162,17 @@ def getLogFile(basedir='webapi_logs'):
             path = os.path.join(basedir, f'{date}-{i}.log')
     return path
 
+
 logging.basicConfig(level=logging.INFO,
                     filename=getLogFile(), filemode='w',
                     format='[%(asctime)s] [%(threadName)s] [%(levelname)s]: %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S', encoding="UTF-8")
-
-api = FastAPI(docs_url=None, redoc_url=None, title="MCIM",
-              description="这是一个为 Curseforge Mod 信息加速的 API")
-api.mount("/static", StaticFiles(directory="static"), name="static")
-
-# TODO 提供 Log
 api.mount("/log", StaticFiles(directory="webapi_logs"), name="logs")
 
-proxies = MCIMConfig.proxies
-timeout = MCIMConfig.async_timeout
-dbpool = AsyncDBPool(MysqlConfig.to_dict(), size=10)
-
-# for cf
-cf_key = MCIMConfig.curseforge_api_key
-cf_api_url = MCIMConfig.curseforge_api
-cf_headers = {
-    "User-Agent": "github_org/mcim/1.0.0 (mcim.z0z0r4.top)",
-    'Accept': 'application/json',
-    'x-api-key': cf_key
-}
-cf_cli = AsyncHTTPClient(
-    headers=cf_headers, timeout=aiohttp.ClientTimeout(total=timeout))
-cf_api = CurseForgeApi(cf_api_url, cf_key, proxies=proxies, acli=cf_cli)
-
-# for mr
-mr_api_url = MCIMConfig.modrinth_api
-mr_headers = {
-    "User-Agent": "github_org/mcim/1.0.0 (mcim.z0z0r4.top)",
-    'Accept': 'application/json'
-}
-mr_cli = AsyncHTTPClient(
-    headers=mr_headers, timeout=aiohttp.ClientTimeout(total=timeout))
-mr_api = ModrinthApi(baseurl=mr_api_url, proxies=proxies,
-                     acli=mr_cli, ua="github_org/mcim/1.0.0 (mcim.z0z0r4.top)")
-
-
 # docs
+api.mount("/static", StaticFiles(directory="static"), name="static")
+
+
 @api.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():
     return get_swagger_ui_html(
@@ -126,7 +218,7 @@ def api_json_middleware(callback):
             return JSONResponse(status_code=e.status, content={"status": "failed", "error": "StatusCodeException", "errorMessage": str(e)})
         except Exception as e:
             traceback.print_exc()
-            return JSONResponse(status_code=500, content={"status": "failed", "error": "StatusCodeException", "errorMessage": str(e)})
+            return JSONResponse(status_code=500, content={"status": "failed", "error": "Exception", "errorMessage": str(e)})
     return w
 
 
@@ -142,10 +234,12 @@ def api_json_middleware(callback):
 async def root():
     return JSONResponse(content={"status": "success", "message": "z0z0r4 Mod Info", "information": {"Status": "https://status.mcim.z0z0r4.top/status/mcim", "Docs": ["https://mcim.z0z0r4.top/docs", "https://mcim.z0z0r4.top/redoc"], "Github": "https://github.com/z0z0r4/mcim", "contact": {"Eamil": "z0z0r4@outlook.com", "QQ": "3531890582"}}}, headers={"Cache-Control": "max-age=300, public"})
 
+
 @api.get("/logs")
 @api_json_middleware
 async def get_log():
     return JSONResponse({"log_name": os.listdir("webapi_logs")}, headers={"Cache-Control": "max-age=300, public"})
+
 
 @api.get("/curseforge",
          responses={200: {"description": "CFCore", "content": {
@@ -157,25 +251,27 @@ async def curseforge():
     return Response(content=await cf_api.end_point(), headers={"Cache-Control": "max-age=300, public"}, media_type="text/html")
 
 
-
-async def _curseforge_sync_game(db: DataBase, gameid: int):
+async def _curseforge_sync_game(sess: Session, gameid: int):
     data = await cf_api.get_game(gameid=gameid)
     cache_data = data["data"]
     cache_data["cachetime"] = int(time.time())
-    db.exe(insert("curseforge_game_info",
-                  dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(cache_data)), replace=True))
+    sess.exe(insert("curseforge_game_info",
+                    dict(gameid=gameid, status=200, time=int(time.time()), data=json.dumps(cache_data)), replace=True))
     return cache_data
 
 
-async def _curseforge_get_game(db: DataBase, gameid: int):
-    result = db.queryone(
-        select("curseforge_game_info", ["time", "status", "data"]).where("gameid", gameid).done())
+async def _curseforge_get_game(sess: Session, gameid: int):
+    # result = sess.query(
+    #     select("curseforge_game_info", ["time", "status", "data"]).where("gameid", gameid).done())
+    t = Table.curseforge_game_info
+    result = sess.query(t.c.time, t.c.status, t.c.data).where(
+        t.c.gameid == gameid).first()
     if result is None or len(result) == 0 or result[1] != 200:
-        data = await _curseforge_sync_game(db, gameid)
+        data = await _curseforge_sync_game(sess, gameid)
     else:
         data = json.loads(result[2])
         if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
-            data = await _curseforge_sync_game(db, gameid)
+            data = await _curseforge_sync_game(sess, gameid)
     return JSONResponse(content={"status": "success", "data": data}, headers={"Cache-Control": "max-age=300, public"})
 
 
@@ -193,8 +289,8 @@ curseforge_game_example = {"id": 0, "name": "string", "slug": "string", "dateMod
                     }, description="Curseforge Game 信息", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge_game(gameid: int):
-    async with dbpool.get(True) as db:
-        return await _curseforge_get_game(db, gameid=gameid)
+    with Session(bind=engine) as sess:
+        return await _curseforge_get_game(sess, gameid=gameid)
 
 
 @api.get("/curseforge/games",
@@ -207,7 +303,7 @@ async def curseforge_game(gameid: int):
 @api_json_middleware
 async def curseforge_games():
     all_data = []
-    async with dbpool.get(True) as db:
+    async with await dbpool.get() as db:
         sql_games_result = db.query(
             select("curseforge_game_info", ["gameid", "time", "status", "data"]))
     for result in sql_games_result:
@@ -222,7 +318,7 @@ async def curseforge_games():
         return {"status": "success", "data": all_data}
     all_data = []
     sync_games_result = await cf_api.get_all_games()
-    async with dbpool.get(True) as db:
+    async with await dbpool.get() as db:
         for result in sync_games_result["data"]:
             gameid = result["id"]
             tmnow = int(time.time())
@@ -255,53 +351,61 @@ async def curseforge_categories(gameid: int = 432, classid: int = None):
     return JSONResponse({"status": "success", "data": data["data"]}, headers={"Cache-Control": "max-age=300, public"})
 
 
-async def _curseforge_sync_mod(db: DataBase, modid: int):
+async def _curseforge_sync_mod(sess: Session, modid: int):
+    t = Table.curseforge_mod_info
     data = await cf_api.get_mod(modid=modid)
     # add cachetime
     tmnow = int(time.time())
     cache_data = data["data"]
     cache_data["cachetime"] = tmnow
-    db.exe(insert("curseforge_mod_info",
-                  dict(modid=modid, status=200, time=tmnow, data=json.dumps(cache_data)), replace=True))
+    insert_stmt = insert(t).values(modid=modid, status=200,
+                                   time=tmnow, data=json.dumps(cache_data))
+    on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
+        data=insert_stmt.inserted.data)
+    sess.execute(on_duplicate_key_stmt)
+    sess.commit()
     return cache_data
+    # sess.execute(t.insert().values(modid=modid, status=200, time=tmnow, data=json.dumps(cache_data)))
+    # return cache_data
 
 
 async def _curseforge_get_mod(modid: int = None, slug: str = None, background_tasks=None):
-    async with dbpool.get(True) as db:
+    with Session(engine) as sess:
+        t = Table.curseforge_mod_info
         if slug is not None:
             query = "slug"
-            cmd = select("curseforge_mod_info", ["time", "status", "data"]).where(
-                query, slug).done()
+            result = sess.query(t.c.time, t.c.status, t.c.data).where(
+                t.c.slug == slug).first()
         elif modid is not None:
             query = "modid"
-            cmd = select("curseforge_mod_info", ["time", "status", "data"]).where(
-                query, modid).done()
+            result = sess.query(t.c.time, t.c.status, t.c.data).where(
+                t.c.modid == modid).first()
         else:
             return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"status": "failed", "error": "Neither slug and modid is not None"})
-        result = db.queryone(cmd)
         if result is None or len(result) == 0 or result[1] != 200:
             if query == "slug":
                 return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"status": "failed", "error": f"Can't found {slug} in cache database, please request by modid it first"})
-            data = await _curseforge_sync_mod(db, modid)
+            data = await _curseforge_sync_mod(sess, modid)
         else:
             data = json.loads(result[2])
+            # data = result[2]
             if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
                 if query == "slug":
                     modid = data["id"]
-                    data = await _curseforge_sync_mod(db, modid)
+                    data = await _curseforge_sync_mod(sess, modid)
                     # return {"status": "warning", "data": data, "error": "Data out of cachetime"}
-                data = await _curseforge_sync_mod(db, modid)
+                data = await _curseforge_sync_mod(sess, modid)
         # to mod_notification
-    if not background_tasks is None and query == "modid":
-        background_tasks.add_task(mod_notification, modid)
+        # if not background_tasks is None and query == "modid":
+        #     background_tasks.add_task(mod_notification, db, modid)
     return JSONResponse({"status": "success", "data": data}, headers={"Cache-Control": "max-age=300, public"})
 
 
 # 在有 mod 请求来后拉取 file_info 和 description，以及对应 file 的 changelog
 
 
-async def mod_notification(modid: int):
-    async with dbpool.get(True) as db:
+async def mod_notification(sess: Session, modid: int):
+    async with await dbpool.get() as db:
         # files
         files_info = await _curseforge_get_files_info(modid=modid)
         for file_info in files_info:
@@ -311,8 +415,6 @@ async def mod_notification(modid: int):
             # changelog
             await _curseforge_sync_mod_file_changelog(db, modid=modid, fileid=fileid)
         # description
-        cmd = select("curseforge_mod_description", ["time", "status", "description"]).where(
-            "modid", modid).done()
         cachetime = int(time.time())
         description = (await cf_api.get_mod_description(modid=modid))["data"]
         db.exe(insert("curseforge_mod_description",
@@ -356,7 +458,7 @@ curseforge_mod_example = {"id": 0, "gameId": 0, "name": "string", "slug": "strin
                  }
              }
          }, description="Curseforge Mod 信息；可以传入modid，不建议使用此处的 slug 参数，因为将从缓存数据库查询", tags=["Curseforge"])
-@api_json_middleware
+# @api_json_middleware
 async def get_mod(modid_slug: int | str, background_tasks: BackgroundTasks):
     if type(modid_slug) is str:
         return await _curseforge_get_mod(slug=modid_slug, background_tasks=background_tasks)
@@ -403,7 +505,7 @@ async def get_mods(item: ModItemModel):
          }, description="Curseforge Mod 的描述信息", tags=["Curseforge"])
 @api_json_middleware
 async def get_mod_description(modid: int):
-    async with dbpool.get(True) as db:
+    async with await dbpool.get() as db:
         result = db.queryone(select(
             "curseforge_mod_description", ["modid", "time", "status", "description"]).where("modid", modid).done())
         if result is None or len(result) == 0:
@@ -455,18 +557,18 @@ async def curseforge_search(gameId: int, classId: int = None, categoryId: int = 
     return JSONResponse({"status": "success", "data": data["data"]}, headers={"Cache-Control": "max-age=300, public"})
 
 
-async def _curseforge_sync_file_info(db: DataBase, modid: int, fileid: int):
+async def _curseforge_sync_file_info(sess: Session, modid: int, fileid: int):
     cache_data = (await cf_api.get_file(modid=modid, fileid=fileid))["data"]
     cache_data["cachetime"] = int(time.time())
     db.exe(insert("curseforge_file_info",
-                      dict(modid=modid, fileid=fileid, status=200, time=int(
-                          time.time()), data=json.dumps(cache_data)),
-                      replace=True))
+                  dict(modid=modid, fileid=fileid, status=200, time=int(
+                      time.time()), data=json.dumps(cache_data)),
+                  replace=True))
     return cache_data
 
 
 async def _curseforge_get_file_info(modid: int, fileid: int):
-    async with dbpool.get(True) as db:
+    async with await dbpool.get() as db:
         query = db.queryone(cmd := select("curseforge_file_info", ["time", "status", "data"]).
                             where("modid", modid).AND("fileid", fileid).done())
         if query is None or query[1] != 200:
@@ -533,7 +635,7 @@ async def curseforge_mod_files(modId: int):
     return JSONResponse({"status": "success", "data": await _curseforge_get_files_info(modid=modId)}, headers={"Cache-Control": "max-age=300, public"})
 
 
-async def _curseforge_sync_mod_file_changelog(db: DataBase, modid: int, fileid: int):
+async def _curseforge_sync_mod_file_changelog(sess: Session, modid: int, fileid: int):
     changelog = (await cf_api.get_mod_file_changelog(modid=modid, fileid=fileid))["data"]
     db.exe(cmd := insert("curseforge_file_changelog",
                          dict(modid=modid, fileid=fileid, status=200, time=int(time.time()), changelog=changelog), replace=True))
@@ -541,7 +643,7 @@ async def _curseforge_sync_mod_file_changelog(db: DataBase, modid: int, fileid: 
 
 
 async def _curseforge_get_mod_file_changelog(modid: int, fileid: int):
-    async with dbpool.get(True) as db:
+    async with await dbpool.get() as db:
         query = db.queryone(cmd := select("curseforge_file_changelog", ["time", "status", "changelog"]).where(
             "modid", modid).AND("fileid", fileid).done())
         if query is None or query[1] != 200:
@@ -579,7 +681,7 @@ async def curseforge_mod_file_changelog(modId: int, fileId: int):
                     }, description="Curseforge Mod 的文件下载地址", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge_get_mod_file_download_url(modid: int, fileid: int):
-    async with dbpool.get(True) as db:
+    async with await dbpool.get() as db:
         query = db.queryone(cmd := select("curseforge_file_info", ["time", "status", "data"]).where(
             "modid", modid).AND("fileid", fileid).done())
     if query is None:
@@ -635,12 +737,12 @@ modrinth_mod_example = {"slug": "my_project", "title": "My Project", "descriptio
                              "created": "2019-08-24T14:15:22Z"}]}
 
 
-async def _modrinth_background_task_sync_version(db: DataBase, data: dict):
+async def _modrinth_background_task_sync_version(sess: Session, data: dict):
     for version_id in data["versions"]:
         await _modrinth_sync_version(db, version_id=version_id)
 
 
-async def _modrinth_sync_project(db: DataBase, idslug: str):  # 优先采用 slug
+async def _modrinth_sync_project(sess: Session, idslug: str):  # 优先采用 slug
     cache_data = await mr_api.get_project(slug=idslug)
     slug = cache_data["slug"]
     project_id = cache_data["id"]
@@ -653,7 +755,7 @@ async def _modrinth_sync_project(db: DataBase, idslug: str):  # 优先采用 slu
 
 
 async def _modrinth_get_project(idslug: str, background_tasks=None):
-    async with dbpool.get(True) as db:
+    async with await dbpool.get() as db:
         id_cmd = select("modrinth_project_info", ["time", "status", "data"]).where(
             "project_id", idslug).done()
         id_query = db.queryone(id_cmd)
@@ -695,6 +797,7 @@ async def _modrinth_get_project(idslug: str, background_tasks=None):
 async def get_modrinth_project(idslug: str, background_tasks: BackgroundTasks):
     # return await _modrinth_get_project(idslug, background_tasks=background_tasks)
     return JSONResponse(await _modrinth_get_project(idslug, background_tasks=background_tasks), headers={"Cache-Control": "max-age=300, public"})
+
 
 @api.get("/modrinth/projects",
          responses={
@@ -769,7 +872,8 @@ modrinth_search_example = {
 async def modrinth_search(query: str = None, facets: str = None, limit: int = 20, offset: int = 0,
                           index: str = "relevance"):
     search_result = await mr_api.search(query=query, facets=facets, limit=limit, offset=offset, index=index)
-    return JSONResponse({"status": "success", "data": search_result}, headers={"Cache-Control": "max-age=300, public"})  # TODO 在数据库中搜索
+    # TODO 在数据库中搜索
+    return JSONResponse({"status": "success", "data": search_result}, headers={"Cache-Control": "max-age=300, public"})
 
 
 modrinth_version_example = {
@@ -814,16 +918,17 @@ modrinth_version_example = {
 }
 
 
-async def _modrinth_sync_version(db: DataBase, version_id: str):
+async def _modrinth_sync_version(sess: Session, version_id: str):
     cache_data = await mr_api.get_project_version(version_id=version_id)
     project_id = cache_data["project_id"]
     cache_data["cachetime"] = int(time.time())
-    db.exe(insert("modrinth_version_info", dict(project_id=project_id, version_id=version_id, status=200, time=cache_data["cachetime"], data=json.dumps(cache_data)), replace=True))
+    db.exe(insert("modrinth_version_info", dict(project_id=project_id, version_id=version_id,
+           status=200, time=cache_data["cachetime"], data=json.dumps(cache_data)), replace=True))
     return cache_data
 
 
 async def _modrinth_get_version(version_id: str):
-    async with dbpool.get(True) as db:
+    async with await dbpool.get() as db:
         cmd = select("modrinth_version_info", ["time", "status", "data"]).where(
             "version_id", version_id).done()
         query = db.queryone(cmd)
@@ -851,7 +956,7 @@ async def get_modrinth_version(version_id: str):
     return await _modrinth_get_version(version_id)
 
 
-async def _modrinth_get_project_versions(db: DataBase, project_id: str, game_versions: list = None, loaders: list = None, featured: bool = None):
+async def _modrinth_get_project_versions(sess: Session, project_id: str, game_versions: list = None, loaders: list = None, featured: bool = None):
     version_info_lsit = await mr_api.get_project_versions(project_id=project_id, game_versions=game_versions, loaders=loaders, featured=featured)
     for version_info in version_info_lsit:
         version_info["cachetime"] = int(time.time())
@@ -871,7 +976,7 @@ async def _modrinth_get_project_versions(db: DataBase, project_id: str, game_ver
                     }, description="Modrint project versions info", tags=["Modrinth"])
 @api_json_middleware
 async def get_modrinth_project_versions(idslug: str, loaders: str = None, game_versions: str = None, featured: bool = None):
-    async with dbpool.get(True) as db:
+    async with await dbpool.get() as db:
         if loaders:
             loaders = str_to_list(loaders)
         if game_versions:
@@ -914,7 +1019,7 @@ example_modrinth_category = [
 ]
 
 
-async def _modrinth_sync_tag_category(db: DataBase):
+async def _modrinth_sync_tag_category(sess: Session):
     data = await mr_api.get_categories()
     db.exe(insert("modrinth_tag_info",
                   dict(slug="category", status=200,
@@ -934,7 +1039,7 @@ example_modrinth_loader = [
 ]
 
 
-async def _modrinth_sync_tag_loader(db: DataBase):
+async def _modrinth_sync_tag_loader(sess: Session):
     data = await mr_api.get_loaders()
     db.exe(insert("modrinth_tag_info",
                   dict(slug="loader", status=200,
@@ -952,7 +1057,7 @@ example_modrinth_game_version = [
 ]
 
 
-async def _modrinth_sync_tag_game_version(db: DataBase):
+async def _modrinth_sync_tag_game_version(sess: Session):
     data = await mr_api.get_game_versions()
     db.exe(insert("modrinth_tag_info",
                   dict(slug="game_version", status=200,
@@ -968,7 +1073,7 @@ example_modrinth_license = [
 ]
 
 
-async def _modrinth_sync_tag_license(db: DataBase):
+async def _modrinth_sync_tag_license(sess: Session):
     data = await mr_api.get_licenses()
     db.exe(insert("modrinth_tag_info",
                   dict(slug="license", status=200,
@@ -983,7 +1088,7 @@ async def _modrinth_sync_tag_license(db: DataBase):
                          }}}
 }, description="Modrinth tag category", tags=["Modrinth"])
 async def get_modrinth_tag_category():
-    async with dbpool.get(True) as db:
+    async with await dbpool.get() as db:
         cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
             "slug", "category").done()
         query = db.queryone(cmd)
@@ -1005,7 +1110,7 @@ async def get_modrinth_tag_category():
                          }}}
 }, description="Modrinth tag loader", tags=["Modrinth"])
 async def get_modrinth_tag_loader():
-    async with dbpool.get(True) as db:
+    async with await dbpool.get() as db:
         cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
             "slug", "loader").done()
         query = db.queryone(cmd)
@@ -1027,7 +1132,7 @@ async def get_modrinth_tag_loader():
                          }}}
 }, description="Modrinth tag game version", tags=["Modrinth"])
 async def get_modrinth_tag_game_version():
-    async with dbpool.get(True) as db:
+    async with await dbpool.get() as db:
         cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
             "slug", "game_version").done()
         query = db.queryone(cmd)
@@ -1049,7 +1154,7 @@ async def get_modrinth_tag_game_version():
                          }}}
 }, description="Modrinth tag license", tags=["Modrinth"])
 async def get_modrinth_tag_license():
-    async with dbpool.get(True) as db:
+    async with await dbpool.get() as db:
         cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
             "slug", "license").done()
         query = db.queryone(cmd)
@@ -1090,7 +1195,7 @@ LOGGING_CONFIG = {
             "formatter": "access",
             "class": "logging.handlers.TimedRotatingFileHandler",
             "filename": getLogFile()
- 
+
         },
     },
     "loggers": {
@@ -1103,6 +1208,6 @@ LOGGING_CONFIG = {
 if __name__ == "__main__":
     host, port = "0.0.0.0", 8000
     try:
-        uvicorn.run(api, host=host, port=port, log_config=LOGGING_CONFIG)
+        uvicorn.run(api, host=host, port=port)
     except KeyboardInterrupt:
         print("~~ BYE ~~")
