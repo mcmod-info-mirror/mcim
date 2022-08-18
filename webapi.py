@@ -292,29 +292,29 @@ async def _curseforge_get_mod(modid: int = None, slug: str = None, background_ta
                     # return {"status": "warning", "data": data, "error": "Data out of cachetime"}
                 data = await _curseforge_sync_mod(db, modid)
         # to mod_notification
-        if not background_tasks is None and query == "modid":
-            background_tasks.add_task(mod_notification, db,  modid)
+    if not background_tasks is None and query == "modid":
+        background_tasks.add_task(mod_notification, modid)
     return JSONResponse({"status": "success", "data": data}, headers={"Cache-Control": "max-age=300, public"})
 
 
 # 在有 mod 请求来后拉取 file_info 和 description，以及对应 file 的 changelog
 
 
-async def mod_notification(db: DataBase, modid: int):
-    # files
-    files_info = await _curseforge_get_files_info(modid=modid)
-    for file_info in files_info:
-        fileid = file_info["id"]
-        # file_info
-        await _curseforge_sync_file_info(db, modid=modid, fileid=fileid)
-        # changelog
-        await _curseforge_sync_mod_file_changelog(db, modid=modid, fileid=fileid)
-    # description
-    cmd = select("curseforge_mod_description", ["time", "status", "description"]).where(
-        "modid", modid).done()
-    cachetime = int(time.time())
-    description = (await cf_api.get_mod_description(modid=modid))["data"]
+async def mod_notification(modid: int):
     with dbpool.get() as db:
+        # files
+        files_info = await _curseforge_get_files_info(modid=modid)
+        for file_info in files_info:
+            fileid = file_info["id"]
+            # file_info
+            await _curseforge_sync_file_info(db, modid=modid, fileid=fileid)
+            # changelog
+            await _curseforge_sync_mod_file_changelog(db, modid=modid, fileid=fileid)
+        # description
+        cmd = select("curseforge_mod_description", ["time", "status", "description"]).where(
+            "modid", modid).done()
+        cachetime = int(time.time())
+        description = (await cf_api.get_mod_description(modid=modid))["data"]
         db.exe(insert("curseforge_mod_description",
                       dict(modid=modid, status=200, time=cachetime, description=description), replace=True))
 
