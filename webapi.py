@@ -50,7 +50,7 @@ api = FastAPI(docs_url=None, redoc_url=None, title="MCIM",
 api.mount("/static", StaticFiles(directory="static"), name="static")
 
 # TODO 提供 Log
-# api.mount("/webapi_logs", StaticFiles(directory="logs"), name="logs")
+api.mount("/log", StaticFiles(directory="webapi_logs"), name="logs")
 
 proxies = MCIMConfig.proxies
 timeout = MCIMConfig.async_timeout
@@ -142,10 +142,10 @@ def api_json_middleware(callback):
 async def root():
     return JSONResponse(content={"status": "success", "message": "z0z0r4 Mod Info", "information": {"Status": "https://status.mcim.z0z0r4.top/status/mcim", "Docs": ["https://mcim.z0z0r4.top/docs", "https://mcim.z0z0r4.top/redoc"], "Github": "https://github.com/z0z0r4/mcim", "contact": {"Eamil": "z0z0r4@outlook.com", "QQ": "3531890582"}}}, headers={"Cache-Control": "max-age=300, public"})
 
-@api.get("/log")
+@api.get("/logs")
 @api_json_middleware
 async def get_log():
-    return JSONResponse({"log_name": os.listdir("logs")}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse({"log_name": os.listdir("webapi_logs")}, headers={"Cache-Control": "max-age=300, public"})
 
 @api.get("/curseforge",
          responses={200: {"description": "CFCore", "content": {
@@ -458,7 +458,7 @@ async def curseforge_search(gameId: int, classId: int = None, categoryId: int = 
 async def _curseforge_sync_file_info(db: DataBase, modid: int, fileid: int):
     cache_data = (await cf_api.get_file(modid=modid, fileid=fileid))["data"]
     cache_data["cachetime"] = int(time.time())
-    db.exe(cmd=insert("curseforge_file_info",
+    db.exe(insert("curseforge_file_info",
                       dict(modid=modid, fileid=fileid, status=200, time=int(
                           time.time()), data=json.dumps(cache_data)),
                       replace=True))
@@ -1064,9 +1064,45 @@ async def get_modrinth_tag_license():
                 data = await _modrinth_sync_tag_license(db)
     return JSONResponse({"status": "success", "cachetime": cachetime, "data": data}, headers={"Cache-Control": "max-age=300, public"})
 
+
+LOGGING_CONFIG = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {
+            "()": "uvicorn.logging.DefaultFormatter",
+            "fmt": "%(levelprefix)s %(message)s",
+            "use_colors": False,
+        },
+        "access": {
+            "()": "uvicorn.logging.AccessFormatter",
+            "fmt": '%(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s',
+            "use_colors": False
+        },
+    },
+    "handlers": {
+        "default": {
+            "formatter": "default",
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "filename": getLogFile()
+        },
+        "access": {
+            "formatter": "access",
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "filename": getLogFile()
+ 
+        },
+    },
+    "loggers": {
+        "": {"handlers": ["default"], "level": "INFO"},
+        "uvicorn.error": {"level": "INFO"},
+        "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
+    },
+}
+
 if __name__ == "__main__":
     host, port = "0.0.0.0", 8000
     try:
-        uvicorn.run(api, host=host, port=port)
+        uvicorn.run(api, host=host, port=port, log_config=LOGGING_CONFIG)
     except KeyboardInterrupt:
         print("~~ BYE ~~")
