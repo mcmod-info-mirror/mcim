@@ -171,7 +171,7 @@ async def _curseforge_get_game(db: DataBase, gameid: int):
     result = db.queryone(
         select("curseforge_game_info", ["time", "status", "data"]).where("gameid", gameid).done())
     if result is None or len(result) == 0 or result[1] != 200:
-        data = await _curseforge_sync_game(gameid)
+        data = await _curseforge_sync_game(db, gameid)
     else:
         data = json.loads(result[2])
         if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
@@ -293,20 +293,20 @@ async def _curseforge_get_mod(modid: int = None, slug: str = None, background_ta
                 data = await _curseforge_sync_mod(db, modid)
         # to mod_notification
         if not background_tasks is None and query == "modid":
-            background_tasks.add_task(mod_notification, modid)
+            background_tasks.add_task(mod_notification, db,  modid)
     return JSONResponse({"status": "success", "data": data}, headers={"Cache-Control": "max-age=300, public"})
 
 
 # 在有 mod 请求来后拉取 file_info 和 description，以及对应 file 的 changelog
 
 
-async def mod_notification(modid: int):
+async def mod_notification(db: DataBase, modid: int):
     # files
     files_info = await _curseforge_get_files_info(modid=modid)
     for file_info in files_info:
         fileid = file_info["id"]
         # file_info
-        await _curseforge_sync_file_info(DataBase, modid=modid, fileid=fileid)
+        await _curseforge_sync_file_info(db, modid=modid, fileid=fileid)
         # changelog
         await _curseforge_sync_mod_file_changelog(db, modid=modid, fileid=fileid)
     # description
@@ -469,16 +469,16 @@ async def _curseforge_get_file_info(modid: int, fileid: int):
     with dbpool.get() as db:
         query = db.queryone(cmd := select("curseforge_file_info", ["time", "status", "data"]).
                             where("modid", modid).AND("fileid", fileid).done())
-    if query is None or query[1] != 200:
-        data = await _curseforge_sync_file_info(db=DataBase, modid=modid, fileid=fileid)
-        cachetime = data["cachetime"]
-    else:
-        data = json.loads(query[2])
-        if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
-            data = await _curseforge_sync_file_info(db=DataBase, modid=modid, fileid=fileid)
+        if query is None or query[1] != 200:
+            data = await _curseforge_sync_file_info(db, modid=modid, fileid=fileid)
             cachetime = data["cachetime"]
         else:
-            cachetime = query[0]
+            data = json.loads(query[2])
+            if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
+                data = await _curseforge_sync_file_info(db, modid=modid, fileid=fileid)
+                cachetime = data["cachetime"]
+            else:
+                cachetime = query[0]
     return JSONResponse({"status": "success", "data": data, "cachetime": cachetime})
 
 
@@ -551,7 +551,7 @@ async def _curseforge_get_mod_file_changelog(modid: int, fileid: int):
             data = str(query[2])
             cachetime = int(query[0])
             if int(time.time()) - cachetime > 60 * 60 * 4:
-                data = await _curseforge_sync_file_info(DataBase, modid=modid, fileid=fileid)
+                data = await _curseforge_sync_file_info(db, modid=modid, fileid=fileid)
                 cachetime = int(time.time())
             else:
                 cachetime = query[0]
@@ -583,15 +583,15 @@ async def curseforge_get_mod_file_download_url(modid: int, fileid: int):
         query = db.queryone(cmd := select("curseforge_file_info", ["time", "status", "data"]).where(
             "modid", modid).AND("fileid", fileid).done())
     if query is None:
-        data = await _curseforge_sync_file_info(DataBase, modid=modid, fileid=fileid)
+        data = await _curseforge_sync_file_info(db, modid=modid, fileid=fileid)
         cachetime = int(time.time())
     elif len(query) <= 0 or query[1] != 200:
-        data = await _curseforge_sync_file_info(DataBase, modid=modid, fileid=fileid)
+        data = await _curseforge_sync_file_info(db, modid=modid, fileid=fileid)
         cachetime = int(time.time())
     else:
         data = json.loads(query[2])
         if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
-            data = await _curseforge_sync_file_info(DataBase, modid=modid, fileid=fileid)
+            data = await _curseforge_sync_file_info(db, modid=modid, fileid=fileid)
             cachetime = int(time.time())
         else:
             cachetime = query[0]
@@ -635,9 +635,9 @@ modrinth_mod_example = {"slug": "my_project", "title": "My Project", "descriptio
                              "created": "2019-08-24T14:15:22Z"}]}
 
 
-async def _modrinth_background_task_sync_version(data: dict):
+async def _modrinth_background_task_sync_version(db: DataBase, data: dict):
     for version_id in data["versions"]:
-        await _modrinth_sync_version(DataBase, version_id=version_id)
+        await _modrinth_sync_version(db, version_id=version_id)
 
 
 async def _modrinth_sync_project(db: DataBase, idslug: str):  # 优先采用 slug
@@ -676,7 +676,7 @@ async def _modrinth_get_project(idslug: str, background_tasks=None):
         # TODO 添加后台任务：version_info
         if background_tasks is not None:
             background_tasks.add_task(
-                _modrinth_background_task_sync_version, data)
+                _modrinth_background_task_sync_version, db, data)
         return {"status": "success", "data": data}
 
 
@@ -693,7 +693,7 @@ async def _modrinth_get_project(idslug: str, background_tasks=None):
          }, description="Modrinth project info", tags=["Modrinth"])
 @api_json_middleware
 async def get_modrinth_project(idslug: str, background_tasks: BackgroundTasks):
-    return await _modrinth_get_project(idslug, background_tasks=background_tasks)
+    # return await _modrinth_get_project(idslug, background_tasks=background_tasks)
     return JSONResponse(await _modrinth_get_project(idslug, background_tasks=background_tasks), headers={"Cache-Control": "max-age=300, public"})
 
 @api.get("/modrinth/projects",
