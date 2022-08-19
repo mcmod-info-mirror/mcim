@@ -1,4 +1,3 @@
-from re import T
 from typing import List
 from sqlalchemy import *
 from sqlalchemy.orm import Session
@@ -353,8 +352,7 @@ async def curseforge_categories(gameid: int = 432, classid: int = None):
     return JSONResponse({"status": "success", "data": data["data"]}, headers={"Cache-Control": "max-age=300, public"})
 
 # mod 请求后台拉取 file_info 和 description，以及对应 file 的 changelog
-async def mod_notification(sess: Session, modid: int):
-    
+async def curseforge_mod_background_task(sess: Session, modid: int):
     # files
     files_info = await _curseforge_get_files_info(modid=modid)
     for file_info in files_info:
@@ -742,12 +740,14 @@ modrinth_mod_example = {"slug": "my_project", "title": "My Project", "descriptio
                              "created": "2019-08-24T14:15:22Z"}]}
 
 
-async def _modrinth_background_task_sync_version(sess: Session, data: dict):
-    for version_id in data["versions"]:
-        await _modrinth_sync_version(sess, version_id=version_id)
+async def _modrinth_background_task_sync_version(sess: Session, id_slug: str):
+    # for version_id in data["versions"]:
+    #     await _modrinth_sync_version(sess, version_id=version_id)
+    await mr_api.get_project_versions(project_id=id_slug)
+    
 
 
-async def _modrinth_sync_project(sess: Session, idslug: str):  # 优先采用 slug
+async def _modrinth_sync_project(sess: Session, idslug: str, background_tasks: BackgroundTasks = None):  # 优先采用 slug
     t = Table.modrinth_project_info
     cache_data = await mr_api.get_project(slug=idslug)
     slug = cache_data["slug"]
@@ -759,6 +759,10 @@ async def _modrinth_sync_project(sess: Session, idslug: str):  # 优先采用 sl
     #               replace=True))
     sql_replace(sess, t, project_id=project_id, slug=slug, status=200, time=int(time.time()), data=cache_data)
     sess.commit()
+    
+    if background_tasks is not None:
+        background_tasks.add_task(
+                _modrinth_background_task_sync_version, sess, cache_data)
     return cache_data
 
 
@@ -775,27 +779,27 @@ async def _modrinth_get_project(idslug: str, background_tasks=None):
             # slug_query = db.queryone(slug_cmd)
             query = sess.query(t.c.time, t.c.status, t.c.data).where(t.c.slug == idslug).first()
             if query is None:
-                data = await _modrinth_sync_project(sess, idslug=idslug)
+                data = await _modrinth_sync_project(sess, idslug=idslug, background_tasks=background_tasks)
             else:
                 cachetime, status, data = query
                 if status == 200:
                     # data = json.loads(data)
                     if int(time.time()) - data["cachetime"] > 60 * 60 * 4:
-                        data = await _modrinth_sync_project(sess, idslug=idslug)
+                        data = await _modrinth_sync_project(sess, idslug=idslug, background_tasks=background_tasks)
                 else:
-                    data = await _modrinth_sync_project(sess, idslug=idslug)
+                    data = await _modrinth_sync_project(sess, idslug=idslug, background_tasks=background_tasks)
         else:
             print(query)
             cachetime, status, data = query
             if status == 200:
                 if int(time.time()) - data["cachetime"] > 60 * 60 * 4:
-                    data = await _modrinth_sync_project(sess, idslug=idslug)
+                    data = await _modrinth_sync_project(sess, idslug=idslug, background_tasks=background_tasks)
             else:
-                data = await _modrinth_sync_project(sess, idslug=idslug)
+                data = await _modrinth_sync_project(sess, idslug=idslug, background_tasks=background_tasks)
         # 添加后台任务：version_info
-        if background_tasks is not None:
-            background_tasks.add_task(
-                _modrinth_background_task_sync_version, sess, data)
+        # if background_tasks is not None:
+        #     background_tasks.add_task(
+        #         _modrinth_background_task_sync_version, sess, data)
         return data
 
 
@@ -947,6 +951,20 @@ async def _modrinth_sync_version(sess: Session, version_id: str):
     return cache_data
 
 
+async def _modrinth_sync_project_versions(sess: Session, project_id: str):
+    t = Table.modrinth_version_info
+    versions = await mr_api.get_project_versions(project_id=project_id)
+    for version in versions:
+        version["cachetime"] = int(time.time())
+        # db.exe(insert("modrinth_version_info",
+        #               dict(project_id=project_id, version_id=version_info["id"], status=200,
+        #                    time=version_info["cachetime"],
+        #                    data=json.dumps(version_info)), replace=True))
+        sql_replace(sess, t, project_id=project_id, version_id=version["id"], status=200, time=version["cachetime"], data=version)
+        sess.commit()
+    return versions
+
+
 async def _modrinth_get_version(version_id: str):
     with Session(engine) as sess:
         t = Table.modrinth_version_info
@@ -977,42 +995,36 @@ async def get_modrinth_version(version_id: str):
     return await _modrinth_get_version(version_id)
 
 
-async def _modrinth_get_project_versions(sess: Session, project_id: str, game_versions: list = None, loaders: list = None, featured: bool = None):
-    t = Table.modrinth_version_info
-    version_info_lsit = await mr_api.get_project_versions(project_id=project_id, game_versions=game_versions, loaders=loaders, featured=featured)
-    for version_info in version_info_lsit:
-        version_info["cachetime"] = int(time.time())
-        # db.exe(insert("modrinth_version_info",
-        #               dict(project_id=project_id, version_id=version_info["id"], status=200,
-        #                    time=version_info["cachetime"],
-        #                    data=json.dumps(version_info)), replace=True))
-        sql_replace(sess, t, project_id=project_id, version_id=version_info["id"], status=200, time=version_info["cachetime"], data=version_info)
-        sess.commit()
-    # TODO Background_task
-    return JSONResponse({"status": "success", "data": version_info_lsit}, headers={"Cache-Control": "max-age=300, public"})
+async def _modrinth_get_project_versions(idslug: str, game_versions: list = None, loaders: list = None, featured: bool = None):
+    async def sync_version_info_list(project_id: str, game_versions: list = None, loaders: list = None, featured: bool = None):
+        version_info_list = await _modrinth_sync_project_versions(sess, project_id=project_id)
+        versions = []
+        for version_info in version_info_list:
+            if featured:
+                if version_info["featured"] != featured:
+                    continue
+            if loaders:
+                if len(list(set(loaders) & set(version_info["loaders"]))) == 0:
+                    continue
+            if game_versions:
+                if len(list(set(game_versions) & set(version_info["game_versions"]))) == 0:
+                    continue
+            versions.append(version_info)
+        return versions
 
-
-@api.get("/modrinth/project/{idslug}/versions",
-         responses={200: {"description": "Modrinth project versions info", "content": {
-             "application/json": {"example":
-                                  [modrinth_version_example]
-                                  }}}
-                    }, description="Modrint project versions info", tags=["Modrinth"])
-@api_json_middleware
-async def get_modrinth_project_versions(idslug: str, loaders: str = None, game_versions: str = None, featured: bool = None):
     with Session(engine) as sess:
         t = Table.modrinth_version_info
         if loaders:
             loaders = str_to_list(loaders)
         if game_versions:
             game_versions = str_to_list(game_versions)
-        project_data = await _modrinth_get_project(idslug)
+        project_data = await _modrinth_get_project(idslug) # 获取 project_id
         project_id = project_data["id"]
         # query = db.query(
         #     select("modrinth_version_info", ["time", "status", "data"]).where("project_id", project_id).done())
         query = sess.query(t.c.time, t.c.status, t.c.data).filter(t.c.project_id == project_id).all()
         if len(query) == 0: # all() return List
-            version_info_list = await _modrinth_get_project_versions(sess, project_id=project_id, loaders=loaders, game_versions=game_versions, featured=featured)
+            version_info_list = await sync_version_info_list(project_id)
         else:
             version_info_list = []
             for version_info in query:
@@ -1029,11 +1041,38 @@ async def get_modrinth_project_versions(idslug: str, loaders: str = None, game_v
                             if len(list(set(game_versions) & set(data["game_versions"]))) == 0:
                                 continue
                     else:
-                        data = await _modrinth_sync_version(sess, version_id=data["id"])
+                        version_info_list = await sync_version_info_list(project_id)
+                        break
                 else:
-                    data = await _modrinth_sync_version(sess, version_id=data["id"])
+                    version_info_list = await sync_version_info_list(project_id)
+                    break
                 version_info_list.append(data)
+    # return {"status": "success", "data": version_info_list}
     return JSONResponse({"status": "success", "data": version_info_list}, headers={"Cache-Control": "max-age=300, public"})
+        # version_info_list = await sync_version_info_list(project_id)
+    # t = Table.modrinth_version_info
+    # version_info_lsit = await mr_api.get_project_versions(project_id=project_id, game_versions=game_versions, loaders=loaders, featured=featured)
+    # for version_info in version_info_lsit:
+    #     version_info["cachetime"] = int(time.time())
+    #     # db.exe(insert("modrinth_version_info",
+    #     #               dict(project_id=project_id, version_id=version_info["id"], status=200,
+    #     #                    time=version_info["cachetime"],
+    #     #                    data=json.dumps(version_info)), replace=True))
+    #     sql_replace(sess, t, project_id=project_id, version_id=version_info["id"], status=200, time=version_info["cachetime"], data=version_info)
+    #     sess.commit()
+    # # TODO Background_task
+
+
+@api.get("/modrinth/project/{idslug}/versions",
+         responses={200: {"description": "Modrinth project versions info", "content": {
+             "application/json": {"example":
+                                  [modrinth_version_example]
+                                  }}}
+                    }, description="Modrint project versions info", tags=["Modrinth"])
+@api_json_middleware
+async def get_modrinth_project_versions(idslug: str, loaders: str = None, game_versions: str = None, featured: bool = None):
+    return await _modrinth_get_project_versions(idslug, loaders=loaders, game_versions=game_versions, featured=featured)
+    # return JSONResponse({"status": "success", "data": version_info_list}, headers={"Cache-Control": "max-age=300, public"})
 
 example_modrinth_category = [
     {
