@@ -58,14 +58,14 @@ mr_api = ModrinthApi(baseurl=mr_api_url, proxies=proxies,
 # dbpool = AsyncDBPool(MysqlConfig.to_dict(), size=8)
 # from databases import Database
 engine = create_engine(
-    f'mysql+pymysql://{MysqlConfig.user}:{MysqlConfig.password}@{MysqlConfig.host}:{MysqlConfig.port}/{MysqlConfig.database}', pool_size=128, max_overflow=32)
+    f'mysql+pymysql://{MysqlConfig.user}:{MysqlConfig.password}@{MysqlConfig.host}:{MysqlConfig.port}/{MysqlConfig.database}?autocommit=1', pool_size=128, max_overflow=32)
 metadata = MetaData()
 
 # init table
 class Table:
     '''
     mysql> show tables;
-    +----------------------------+
+    +----------------------------+?autocommit=1
     | Tables_in_mod              |
     +----------------------------+
     | curseforge_category_info   |
@@ -245,8 +245,7 @@ async def get_log():
          description="Curseforge API", tags=["Curseforge"])
 @api_json_middleware
 async def curseforge():
-    return Response(content=await cf_api.end_point(), headers={"Cache-Control": "max-age=300, public"}, media_type="text/html")
-
+    return Response(content=await cf_api.end_point(), headers={"Cache-Control": "max-age=300, public"})
 
 async def _curseforge_sync_game(sess: Session, gameid: int):
     data = await cf_api.get_game(gameid=gameid)
@@ -288,7 +287,7 @@ curseforge_game_example = {"id": 0, "name": "string", "slug": "string", "dateMod
                                       "data": curseforge_game_example}
                                   }}}
                     }, description="Curseforge Game 信息", tags=["Curseforge"])
-@api_json_middleware
+# @api_json_middleware
 async def curseforge_game(gameid: int):
     return await _curseforge_get_game(gameid=gameid)
 
@@ -307,7 +306,7 @@ async def curseforge_games():
         # sql_games_result = db.query(
         #     select("curseforge_game_info", ["gameid", "time", "status", "data"]))
         t = Table.curseforge_game_info
-        sql_games_result = sess.query(t, t.c.time, t.c.status, t.c.data).where(t.c.gameid == gameid).all()
+        sql_games_result = sess.query(t, t.c.time, t.c.status, t.c.data).all()
         for result in sql_games_result:
             if result is None or result == () or result[2] != 200:
                 break
@@ -328,6 +327,7 @@ async def curseforge_games():
             #             dict(gameid=gameid, status=200, time=tmnow, data=json.dumps(result)), replace=True))
             sql_replace(sess, t, gameid=gameid, status=200, time=tmnow, data=result)
             all_data.append(result)
+        sess.commit()
     return JSONResponse(content={"status": "success", "data": all_data}, headers={"Cache-Control": "max-age=300, public"})
 
 
@@ -758,6 +758,7 @@ async def _modrinth_sync_project(sess: Session, idslug: str):  # 优先采用 sl
     #                    time=int(time.time()), data=json.dumps(cache_data)),
     #               replace=True))
     sql_replace(sess, t, project_id=project_id, slug=slug, status=200, time=int(time.time()), data=cache_data)
+    sess.commit()
     return cache_data
 
 
@@ -776,14 +777,15 @@ async def _modrinth_get_project(idslug: str, background_tasks=None):
             if query is None:
                 data = await _modrinth_sync_project(sess, idslug=idslug)
             else:
+                cachetime, status, data = query
                 if status == 200:
-                    cachetime, status, data = query
                     # data = json.loads(data)
                     if int(time.time()) - data["cachetime"] > 60 * 60 * 4:
                         data = await _modrinth_sync_project(sess, idslug=idslug)
                 else:
                     data = await _modrinth_sync_project(sess, idslug=idslug)
         else:
+            print(query)
             cachetime, status, data = query
             if status == 200:
                 if int(time.time()) - data["cachetime"] > 60 * 60 * 4:
@@ -940,7 +942,8 @@ async def _modrinth_sync_version(sess: Session, version_id: str):
     cache_data["cachetime"] = int(time.time())
     # db.exe(insert("modrinth_version_info", dict(project_id=project_id, version_id=version_id,
     #        status=200, time=cache_data["cachetime"], data=json.dumps(cache_data)), replace=True))
-    sql_replace(sess, t, project_id=project_id, version_id=version_id, status=200, time=cache_data["cachetime"])
+    sql_replace(sess, t, project_id=project_id, version_id=version_id, status=200, time=cache_data["cachetime"], data=cache_data)
+    sess.commit()
     return cache_data
 
 
@@ -956,7 +959,6 @@ async def _modrinth_get_version(version_id: str):
         else:
             cachetime, status, data = query
             if status == 200:
-                data = json.loads(data)
                 if int(time.time()) - data["cachetime"] > 60 * 60 * 4:
                     data = await _modrinth_sync_version(sess, version_id=version_id)
             else:
@@ -985,6 +987,7 @@ async def _modrinth_get_project_versions(sess: Session, project_id: str, game_ve
         #                    time=version_info["cachetime"],
         #                    data=json.dumps(version_info)), replace=True))
         sql_replace(sess, t, project_id=project_id, version_id=version_info["id"], status=200, time=version_info["cachetime"], data=version_info)
+        sess.commit()
     # TODO Background_task
     return JSONResponse({"status": "success", "data": version_info_lsit}, headers={"Cache-Control": "max-age=300, public"})
 
@@ -1003,11 +1006,11 @@ async def get_modrinth_project_versions(idslug: str, loaders: str = None, game_v
             loaders = str_to_list(loaders)
         if game_versions:
             game_versions = str_to_list(game_versions)
-        project_data = (await _modrinth_get_project(idslug))["data"]
+        project_data = await _modrinth_get_project(idslug)
         project_id = project_data["id"]
         # query = db.query(
         #     select("modrinth_version_info", ["time", "status", "data"]).where("project_id", project_id).done())
-        query = sess.query(sess, t.c.time, t.c.status, t.c.data).filter(t.c.project_id == project_id).all()
+        query = sess.query(t.c.time, t.c.status, t.c.data).filter(t.c.project_id == project_id).all()
         if len(query) == 0: # all() return List
             version_info_list = await _modrinth_get_project_versions(sess, project_id=project_id, loaders=loaders, game_versions=game_versions, featured=featured)
         else:
@@ -1015,7 +1018,6 @@ async def get_modrinth_project_versions(idslug: str, loaders: str = None, game_v
             for version_info in query:
                 cachetime, status, data = version_info
                 if status == 200:
-                    data = json.loads(data)
                     if data["cachetime"] - int(time.time()) < 60 * 60 * 4:
                         if featured:
                             if data["featured"] != featured:
@@ -1050,6 +1052,7 @@ async def _modrinth_sync_tag_category(sess: Session):
     #                    time=int(time.time()),
     #                    data=json.dumps(data)), replace=True))
     sql_replace(sess, t, slug="category", status=200, time=int(time.time()), data=data)
+    sess.commit()
     return data
 
 example_modrinth_loader = [
@@ -1072,6 +1075,7 @@ async def _modrinth_sync_tag_loader(sess: Session):
     #                    time=int(time.time()),
     #                    data=json.dumps(data)), replace=True))
     sql_replace(sess, t, slug="loader", status=200, time=int(time.time()), data=data)
+    sess.commit()
     return data
 
 example_modrinth_game_version = [
@@ -1092,6 +1096,7 @@ async def _modrinth_sync_tag_game_version(sess: Session):
     #                    time=int(time.time()),
     #                    data=json.dumps(data)), replace=True))
     sql_replace(sess, t, slug="game_version", status=200, time=int(time.time()), data=data)
+    sess.commit()
     return data
 
 example_modrinth_license = [
@@ -1110,6 +1115,7 @@ async def _modrinth_sync_tag_license(sess: Session):
     #                    time=int(time.time()),
     #                    data=json.dumps(data)), replace=True))
     sql_replace(sess, t, slug="license", status=200, time=int(time.time()), data=data)
+    sess.commit()
     return data
 
 
@@ -1130,9 +1136,7 @@ async def get_modrinth_tag_category():
             cachetime = int(time.time())
         else:
             cachetime, status, data = query
-            if cachetime - int(time.time()) < 60 * 60 * 4 and status == 200:
-                data = json.loads(data)
-            else:
+            if cachetime - int(time.time()) > 60 * 60 * 4 or status == 200:
                 data = await _modrinth_sync_tag_category(sess)
     return JSONResponse({"status": "success", "cachetime": cachetime, "data": data}, headers={"Cache-Control": "max-age=300, public"})
 
@@ -1154,9 +1158,7 @@ async def get_modrinth_tag_loader():
             cachetime = int(time.time())
         else:
             cachetime, status, data = query
-            if cachetime - int(time.time()) < 60 * 60 * 4 and status == 200:
-                data = json.loads(data)
-            else:
+            if cachetime - int(time.time()) > 60 * 60 * 4 or status == 200:
                 data = await _modrinth_sync_tag_loader(sess)
     return JSONResponse({"status": "success", "cachetime": cachetime, "data": data}, headers={"Cache-Control": "max-age=300, public"})
 
@@ -1178,9 +1180,7 @@ async def get_modrinth_tag_game_version():
             cachetime = int(time.time())
         else:
             cachetime, status, data = query
-            if cachetime - int(time.time()) < 60 * 60 * 4 and status == 200:
-                data = json.loads(data)
-            else:
+            if cachetime - int(time.time()) > 60 * 60 * 4 or status == 200:
                 data = await _modrinth_sync_tag_game_version(sess)
     return JSONResponse({"status": "success", "cachetime": cachetime, "data": data}, headers={"Cache-Control": "max-age=300, public"})
 
@@ -1202,9 +1202,7 @@ async def get_modrinth_tag_license():
             cachetime = int(time.time())
         else:
             cachetime, status, data = query
-            if cachetime - int(time.time()) < 60 * 60 * 4 and status == 200:
-                data = json.loads(data)
-            else:
+            if cachetime - int(time.time()) > 60 * 60 * 4 or status == 200:
                 data = await _modrinth_sync_tag_license(sess)
     return JSONResponse({"status": "success", "cachetime": cachetime, "data": data}, headers={"Cache-Control": "max-age=300, public"})
 
