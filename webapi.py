@@ -145,14 +145,19 @@ api = FastAPI(docs_url=None, redoc_url=None, title="MCIM",
 def getLogFile(basedir='logs'):
     if not os.path.exists(basedir):
         os.makedirs(basedir)
-    date = datetime.datetime.now().strftime('%Y-%m-%d')
-    path = os.path.join(basedir, f'{date}.log')
-    if os.path.exists(path):
-        i = 0
-        while os.path.exists(path):
-            i += 1
-            path = os.path.join(basedir, f'{date}-{i}.log')
-    return path
+    else:
+        if os.path.exists(os.path.join(basedir, "latest.log")):
+            date = datetime.datetime.now().strftime('%Y-%m-%d')
+            path = os.path.join(basedir, f'{date}.log')
+            if os.path.exists(path):
+                i = 0
+                while os.path.exists(path):
+                    i += 1
+                    path = os.path.join(basedir, f'{date}-{i}.log')
+                os.rename(os.path.join(basedir, "latest.log"), path)
+            else:
+                os.rename(os.path.join(basedir, "latest.log"), path)
+    return os.path.join(basedir, "latest.log")
 
 def log(text, logger=logging.info):
     logger(text)
@@ -162,7 +167,7 @@ logging.basicConfig(level=logging.INFO,
                     filename=getLogFile(basedir="logs/sync"), filemode='w',
                     format='[%(asctime)s] [%(threadName)s] [%(levelname)s]: %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S', encoding="UTF-8")
-api.mount("/logs", StaticFiles(directory="logs"), name="logs")
+api.mount("/log", StaticFiles(directory="logs"), name="logs")
 
 # docs
 api.mount("/static", StaticFiles(directory="static"), name="static")
@@ -237,7 +242,14 @@ async def root():
 @api.get("/logs")
 @api_json_middleware
 async def get_log():
-    return JSONResponse({"log_name": os.listdir("webapi_logs")}, headers={"Cache-Control": "max-age=300, public"})
+    def walk(path):
+        info = {}
+        for root, dirs, files in os.walk(path):
+            info["files"] = files
+            for dir in dirs:
+                info[dir] = walk(os.path.join(root, dir))
+        return info
+    return JSONResponse({"logs": walk("logs")}, headers={"Cache-Control": "max-age=300, public"})
 
 
 @api.get("/curseforge",
@@ -1291,12 +1303,12 @@ LOGGING_CONFIG = {
         "default": {
             "formatter": "default",
             "class": "logging.handlers.TimedRotatingFileHandler",
-            "filename": getLogFile(basedir="logs/web")
+            "filename": "logs/web/latest.log"
         },
         "access": {
             "formatter": "access",
             "class": "logging.handlers.TimedRotatingFileHandler",
-            "filename": getLogFile(basedir="logs/web")
+            "filename": "logs/web/latest.log"
         },
     },
     "loggers": {
@@ -1307,8 +1319,9 @@ LOGGING_CONFIG = {
 }
 
 if __name__ == "__main__":
-    host, port = "0.0.0.0", 8000
+    host, port = "0.0.0.0", 10001
     try:
-        uvicorn.run(api, host=host, port=port, log_config=LOGGING_CONFIG)
+        getLogFile(basedir="logs/web")
+        uvicorn.run(api, host=host, port=port)
     except KeyboardInterrupt:
         print("~~ BYE ~~")
