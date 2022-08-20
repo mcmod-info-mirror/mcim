@@ -154,7 +154,7 @@ def getLogFile(basedir='logs'):
             path = os.path.join(basedir, f'{date}-{i}.log')
     return path
 
-def log(text, logger=logging.info()):
+def log(text, logger=logging.info):
     logger(text)
     print(f'[{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}] {text}')
 
