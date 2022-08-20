@@ -399,6 +399,7 @@ async def _curseforge_get_mod(modid: int = None, slug: str = None, background_ta
             if query == "slug":
                 return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"status": "failed", "error": f"Can't found {slug} in cache database, please request by modid it first"})
             data = await _curseforge_sync_mod(sess, modid)
+            background_tasks.add_task(curseforge_mod_background_task, sess, modid)
         else:
             data = result[2]
             # data = result[2]
@@ -410,7 +411,7 @@ async def _curseforge_get_mod(modid: int = None, slug: str = None, background_ta
                 data = await _curseforge_sync_mod(sess, modid)
         # to mod_notification
         # if not background_tasks is None and query == "modid":
-        #     background_tasks.add_task(mod_notification, db, modid)
+        #     background_tasks.add_task(curseforge_mod_background_task, sess, modid)
     return data
 
 
@@ -544,18 +545,26 @@ curseforge_search_example = {
 @api_json_middleware
 async def curseforge_search(gameId: int, classId: int = None, categoryId: int = None, gameVersion: str = None,
                             searchFilter: str = None, sortField=None, sortOrder: str = None, modLoaderType: int = None,
-                            gameVersionTypeId: int = None, slug: str = None, index: int = None, pageSize: int = 50):
+                            gameVersionTypeId: int = None, slug: str = None, index: int = None, pageSize: int = 50, background_tasks: BackgroundTasks = None):
     # TODO 在数据库中搜索
     data = await cf_api.search(
         gameid=gameId, classid=classId, categoryid=categoryId, gameversion=gameVersion,
         searchfilter=searchFilter, sortfield=sortField, sortorder=sortOrder,
         modloadertype=modLoaderType, gameversiontypeid=gameVersionTypeId, slug=slug, index=index,
         pagesize=pageSize)
+    background_tasks.add_task(curseforge_search_background_task, data["data"])
     return JSONResponse({"status": "success", "data": data["data"]}, headers={"Cache-Control": "max-age=300, public"})
 
-async def curseforge_search_background_task(sess, data: List):
-    # TODO 将search结果写入数据库
-    pass
+async def curseforge_search_background_task(data: List):
+    with Session(engine) as sess:
+        t = Table.curseforge_mod_info
+        for mod in data:
+            modid = data["id"]
+            # add cachetime
+            tmnow = int(time.time())
+            mod["cachetime"] = tmnow
+            sql_replace(sess, t, modid=modid, status=200, time=tmnow, data=mod)
+        sess.commit()
 
 async def _curseforge_sync_file_info(sess: Session, modid: int, fileid: int):
     t = Table.curseforge_file_info
