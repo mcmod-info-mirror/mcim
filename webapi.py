@@ -142,7 +142,7 @@ api = FastAPI(docs_url=None, redoc_url=None, title="MCIM",
 
 
 
-def getLogFile(basedir='webapi_logs'):
+def getLogFile(basedir='logs'):
     if not os.path.exists(basedir):
         os.makedirs(basedir)
     date = datetime.datetime.now().strftime('%Y-%m-%d')
@@ -154,12 +154,15 @@ def getLogFile(basedir='webapi_logs'):
             path = os.path.join(basedir, f'{date}-{i}.log')
     return path
 
+def log(text, logger=logging.info()):
+    logger(text)
+    print(f'[{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}] {text}')
 
 logging.basicConfig(level=logging.INFO,
-                    filename=getLogFile(), filemode='w',
+                    filename=getLogFile(basedir="logs/sync"), filemode='w',
                     format='[%(asctime)s] [%(threadName)s] [%(levelname)s]: %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S', encoding="UTF-8")
-api.mount("/log", StaticFiles(directory="webapi_logs"), name="logs")
+api.mount("/logs", StaticFiles(directory="logs"), name="logs")
 
 # docs
 api.mount("/static", StaticFiles(directory="static"), name="static")
@@ -255,6 +258,7 @@ async def _curseforge_sync_game(sess: Session, gameid: int):
         data=insert_stmt.inserted.data)
     sess.execute(on_duplicate_key_stmt)
     sess.commit()
+    log(f'Sync curseforge game {gameid}')
     return cache_data
 
 
@@ -379,6 +383,7 @@ async def _curseforge_sync_mod(sess: Session, modid: int):
     cache_data["cachetime"] = tmnow
     sql_replace(sess, t, modid=modid, status=200, time=tmnow, data=cache_data)
     sess.commit()
+    log(f'Sync curseforge mod {modid}')
     return cache_data
 
 
@@ -572,6 +577,7 @@ async def _curseforge_sync_file_info(sess: Session, modid: int, fileid: int):
     cache_data["cachetime"] = int(time.time())
     sql_replace(sess, t, modid=modid, fileid=fileid, status=200, time=int(time.time()), data=cache_data)
     sess.commit()
+    log(f'Sync curseforge file {fileid}')
     return cache_data
 
 
@@ -647,6 +653,7 @@ async def _curseforge_sync_mod_file_changelog(sess: Session, modid: int, fileid:
     changelog = (await cf_api.get_mod_file_changelog(modid=modid, fileid=fileid))["data"]
     sql_replace(sess, t, modid=modid, fileid=fileid, status=200, time=int(time.time()), changelog=changelog)
     sess.commit()
+    log(f'Sync curseforge file changelog {fileid}')
     return changelog
 
 
@@ -749,10 +756,14 @@ modrinth_mod_example = {"slug": "my_project", "title": "My Project", "descriptio
                              "created": "2019-08-24T14:15:22Z"}]}
 
 
-async def _modrinth_background_task_sync_version(sess: Session, id_slug: str):
-    # for version_id in data["versions"]:
-    #     await _modrinth_sync_version(sess, version_id=version_id)
-    await mr_api.get_project_versions(project_id=id_slug)
+# async def _modrinth_background_task_sync_version(sess: Session, data: dict):
+#     # for version_id in data["versions"]:
+#     #     await _modrinth_sync_version(sess, version_id=version_id)
+#     project_id = data["id"]
+#     await mr_api.get_project_versions(project_id=project_id)
+#     for version_id in data["versions"]:
+#         pass
+
     
 
 
@@ -767,11 +778,11 @@ async def _modrinth_sync_project(sess: Session, idslug: str, background_tasks: B
     #                    time=int(time.time()), data=json.dumps(cache_data)),
     #               replace=True))
     sql_replace(sess, t, project_id=project_id, slug=slug, status=200, time=int(time.time()), data=cache_data)
+    log(f'Sync modrinth project {project_id}')
     sess.commit()
-    
     if background_tasks is not None:
         background_tasks.add_task(
-                _modrinth_background_task_sync_version, sess, cache_data)
+                _modrinth_sync_project_versions, sess, idslug)
     return cache_data
 
 
@@ -957,6 +968,7 @@ async def _modrinth_sync_version(sess: Session, version_id: str):
     #        status=200, time=cache_data["cachetime"], data=json.dumps(cache_data)), replace=True))
     sql_replace(sess, t, project_id=project_id, version_id=version_id, status=200, time=cache_data["cachetime"], data=cache_data)
     sess.commit()
+    log(f'Sync modrinth version {version_id}')
     return cache_data
 
 
@@ -971,6 +983,7 @@ async def _modrinth_sync_project_versions(sess: Session, project_id: str):
         #                    data=json.dumps(version_info)), replace=True))
         sql_replace(sess, t, project_id=project_id, version_id=version["id"], status=200, time=version["cachetime"], data=version)
         sess.commit()
+    log(f'Sync modrinth project {project_id} versions')
     return versions
 
 
@@ -1101,6 +1114,7 @@ async def _modrinth_sync_tag_category(sess: Session):
     #                    data=json.dumps(data)), replace=True))
     sql_replace(sess, t, slug="category", status=200, time=int(time.time()), data=data)
     sess.commit()
+    log(f'Sync modrinth tag category')
     return data
 
 example_modrinth_loader = [
@@ -1124,6 +1138,7 @@ async def _modrinth_sync_tag_loader(sess: Session):
     #                    data=json.dumps(data)), replace=True))
     sql_replace(sess, t, slug="loader", status=200, time=int(time.time()), data=data)
     sess.commit()
+    log(f'Sync modrinth tag loader')
     return data
 
 example_modrinth_game_version = [
@@ -1145,6 +1160,7 @@ async def _modrinth_sync_tag_game_version(sess: Session):
     #                    data=json.dumps(data)), replace=True))
     sql_replace(sess, t, slug="game_version", status=200, time=int(time.time()), data=data)
     sess.commit()
+    log(f'Sync modrinth tag game_version')
     return data
 
 example_modrinth_license = [
@@ -1164,6 +1180,7 @@ async def _modrinth_sync_tag_license(sess: Session):
     #                    data=json.dumps(data)), replace=True))
     sql_replace(sess, t, slug="license", status=200, time=int(time.time()), data=data)
     sess.commit()
+    log(f'Sync modrinth tag license')
     return data
 
 
@@ -1274,12 +1291,12 @@ LOGGING_CONFIG = {
         "default": {
             "formatter": "default",
             "class": "logging.handlers.TimedRotatingFileHandler",
-            "filename": getLogFile()
+            "filename": getLogFile(basedir="logs/web")
         },
         "access": {
             "formatter": "access",
             "class": "logging.handlers.TimedRotatingFileHandler",
-            "filename": getLogFile()
+            "filename": getLogFile(basedir="logs/web")
         },
     },
     "loggers": {
@@ -1292,6 +1309,6 @@ LOGGING_CONFIG = {
 if __name__ == "__main__":
     host, port = "0.0.0.0", 8000
     try:
-        uvicorn.run(api, host=host, port=port)
+        uvicorn.run(api, host=host, port=port, log_config=LOGGING_CONFIG)
     except KeyboardInterrupt:
         print("~~ BYE ~~")
