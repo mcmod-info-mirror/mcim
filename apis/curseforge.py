@@ -1,5 +1,6 @@
 
 import json
+from typing import List
 from .base import *
 
 
@@ -407,4 +408,38 @@ class CurseForgeApi:
         async with self.acli:
             res, content = await retry_async(self.acli.get, 3, (StatusCodeException,), url, proxy=self.proxies,
                                              headers=headers)
+            return json.loads(content)
+
+    async def get_fingerprint(self, fingerprints: List):
+        '''
+        Get mod files that match a list of fingerprints. [🔗](https://docs.curseforge.com/#get-fingerprints-matches)
+
+        :param fingerprints: List of fingerprints
+        '''
+        url = self.baseurl + "fingerprints"
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'x-api-key': self.api_key
+        }
+        async with self.acli:
+            res, content = await retry_async(self.acli.get, 3, (StatusCodeException,), url, proxy=self.proxies,
+                                             headers=headers, data={"fingerprints": fingerprints})
+            return json.loads(content)
+    
+    async def get_fuzzy_fingerprnt(self, gameid: int, fingerprints: dict):
+        '''
+        Get mod files that match a list of fingerprints. [🔗](https://docs.curseforge.com/#get-fingerprints-matches)
+
+        :param fingerprints: List of fingerprints
+        '''
+        url = self.baseurl + "fingerprints"
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'x-api-key': self.api_key
+        }
+        async with self.acli:
+            res, content = await retry_async(self.acli.get, 3, (StatusCodeException,), url, proxy=self.proxies,
+                                             headers=headers, data={"gameId": gameid,"fingerprints": fingerprints})
             return json.loads(content)

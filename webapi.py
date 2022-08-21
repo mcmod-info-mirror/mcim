@@ -503,7 +503,7 @@ async def curseforge_search_background_task(data: List):
     with Session(engine) as sess:
         t = Table.curseforge_mod_info
         for mod in data:
-            modid = data["id"]
+            modid = mod["id"]
             # add cachetime
             tmnow = int(time.time())
             mod["cachetime"] = tmnow
