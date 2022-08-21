@@ -58,83 +58,10 @@ mr_api = ModrinthApi(baseurl=mr_api_url, proxies=proxies,
 # from databases import Database
 engine = create_engine(
     f'mysql+pymysql://{MysqlConfig.user}:{MysqlConfig.password}@{MysqlConfig.host}:{MysqlConfig.port}/{MysqlConfig.database}?autocommit=1', pool_size=128, max_overflow=32)
-metadata = MetaData()
-
+metadata = MetaData(bind=engine)
 # init table
-class Table:
-    '''
-    mysql> show tables;
-    +----------------------------+?autocommit=1
-    | Tables_in_mod              |
-    +----------------------------+
-    | curseforge_category_info   |
-    | curseforge_file_changelog  |
-    | curseforge_file_info       |
-    | curseforge_game_info       |
-    | curseforge_mod_description |
-    | curseforge_mod_info        |
-    | mcmod_info                 |
-    | modrinth_project_info      |
-    | modrinth_tag_info          |
-    | modrinth_version_info      |
-    +----------------------------+
-    '''
-    curseforge_mod_info = Table("curseforge_mod_info", metadata,
-                                           Column(
-                                               "modid", Integer, primary_key=True),
-                                           Column(
-                                               "slug", String(255)),
-                                           Column(
-                                               "time", Integer),
-                                           Column(
-                                               "status", Integer),
-                                           Column("data", JSON))
-    curseforge_file_changelog = Table("curseforge_file_changelog", metadata,
-                                      Column("modid", Integer,
-                                             primary_key=True),
-                                      Column("fileid", Integer,
-                                             primary_key=True),
-                                      Column("status", Integer),
-                                      Column("time", Integer),
-                                      Column("change_log", Text))
-    curseforge_file_info = Table("curseforge_file_info", metadata,
-                                 Column("modid", Integer, primary_key=True),
-                                 Column("fileid", Integer, primary_key=True),
-                                 Column("status", Integer),
-                                 Column("time", Integer),
-                                 Column("data", JSON))
-    curseforge_game_info = Table("curseforge_game_info", metadata,
-                                 Column("gameid", Integer, primary_key=True),
-                                 Column("status", Integer),
-                                 Column("time", Integer),
-                                 Column("data", JSON))
-    curseforge_mod_description = Table("curseforge_mod_description", metadata,
-                                       Column("modid", Integer,
-                                              primary_key=True),
-                                       Column("status", Integer),
-                                       Column("time", Integer),
-                                       Column("description", Text))
-    modrinth_project_info = Table("modrinth_project_info", metadata,
-                                  Column("project_id", CHAR(
-                                      8), primary_key=True),
-                                  Column("slug", VARCHAR(255)),
-                                  Column("status", Integer),
-                                  Column("time", Integer),
-                                  Column("data", JSON))
-    modrinth_tag_info = Table("modrinth_tag_info", metadata,
-                              Column("slug", VARCHAR(255), primary_key=True),
-                              Column("time", Integer),
-                              Column("status", Integer),
-                              Column("data", JSON))
-    modrinth_version_info = Table("modrinth_version_info", metadata,
-                                  Column("project_id", CHAR(
-                                      8), primary_key=True),
-                                  Column("version_id", CHAR(
-                                      8), primary_key=True),
-                                  Column("status", Integer),
-                                  Column("time", Integer),
-                                  Column("data", JSON))
-
+Table = TableConfig(metadata=metadata)
+metadata.create_all()
 
 api = FastAPI(docs_url=None, redoc_url=None, title="MCIM",
               description="这是一个为 Curseforge Mod 信息加速的 API")
