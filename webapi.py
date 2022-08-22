@@ -58,88 +58,13 @@ mr_api = ModrinthApi(baseurl=mr_api_url, proxies=proxies,
 # from databases import Database
 engine = create_engine(
     f'mysql+pymysql://{MysqlConfig.user}:{MysqlConfig.password}@{MysqlConfig.host}:{MysqlConfig.port}/{MysqlConfig.database}?autocommit=1', pool_size=128, max_overflow=32)
-metadata = MetaData()
-
+metadata = MetaData(bind=engine)
 # init table
-class Table:
-    '''
-    mysql> show tables;
-    +----------------------------+?autocommit=1
-    | Tables_in_mod              |
-    +----------------------------+
-    | curseforge_category_info   |
-    | curseforge_file_changelog  |
-    | curseforge_file_info       |
-    | curseforge_game_info       |
-    | curseforge_mod_description |
-    | curseforge_mod_info        |
-    | mcmod_info                 |
-    | modrinth_project_info      |
-    | modrinth_tag_info          |
-    | modrinth_version_info      |
-    +----------------------------+
-    '''
-    curseforge_mod_info = Table("curseforge_mod_info", metadata,
-                                           Column(
-                                               "modid", Integer, primary_key=True),
-                                           Column(
-                                               "slug", String(255)),
-                                           Column(
-                                               "time", Integer),
-                                           Column(
-                                               "status", Integer),
-                                           Column("data", JSON))
-    curseforge_file_changelog = Table("curseforge_file_changelog", metadata,
-                                      Column("modid", Integer,
-                                             primary_key=True),
-                                      Column("fileid", Integer,
-                                             primary_key=True),
-                                      Column("status", Integer),
-                                      Column("time", Integer),
-                                      Column("change_log", Text))
-    curseforge_file_info = Table("curseforge_file_info", metadata,
-                                 Column("modid", Integer, primary_key=True),
-                                 Column("fileid", Integer, primary_key=True),
-                                 Column("status", Integer),
-                                 Column("time", Integer),
-                                 Column("data", JSON))
-    curseforge_game_info = Table("curseforge_game_info", metadata,
-                                 Column("gameid", Integer, primary_key=True),
-                                 Column("status", Integer),
-                                 Column("time", Integer),
-                                 Column("data", JSON))
-    curseforge_mod_description = Table("curseforge_mod_description", metadata,
-                                       Column("modid", Integer,
-                                              primary_key=True),
-                                       Column("status", Integer),
-                                       Column("time", Integer),
-                                       Column("description", Text))
-    modrinth_project_info = Table("modrinth_project_info", metadata,
-                                  Column("project_id", CHAR(
-                                      8), primary_key=True),
-                                  Column("slug", VARCHAR(255)),
-                                  Column("status", Integer),
-                                  Column("time", Integer),
-                                  Column("data", JSON))
-    modrinth_tag_info = Table("modrinth_tag_info", metadata,
-                              Column("slug", VARCHAR(255), primary_key=True),
-                              Column("time", Integer),
-                              Column("status", Integer),
-                              Column("data", JSON))
-    modrinth_version_info = Table("modrinth_version_info", metadata,
-                                  Column("project_id", CHAR(
-                                      8), primary_key=True),
-                                  Column("version_id", CHAR(
-                                      8), primary_key=True),
-                                  Column("status", Integer),
-                                  Column("time", Integer),
-                                  Column("data", JSON))
-
+Table = TableConfig(metadata=metadata)
+metadata.create_all()
 
 api = FastAPI(docs_url=None, redoc_url=None, title="MCIM",
               description="这是一个为 Curseforge Mod 信息加速的 API")
-
-
 
 
 def getLogFile(basedir='logs'):
@@ -159,9 +84,11 @@ def getLogFile(basedir='logs'):
                 os.rename(os.path.join(basedir, "latest.log"), path)
     return os.path.join(basedir, "latest.log")
 
+
 def log(text, logger=logging.info):
     logger(text)
     print(f'[{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}] {text}')
+
 
 logging.basicConfig(level=logging.INFO,
                     filename=getLogFile(basedir="logs/sync"), filemode='w',
@@ -205,10 +132,12 @@ def str_to_list(text: str):
         li.append(t[1:-1])
     return li
 
+
 def sql_replace(sess: Session, table, **kwargs):
     insert_stmt = insert(table).values(kwargs)
     on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(**kwargs)
     sess.execute(on_duplicate_key_stmt)
+
 
 def api_json_middleware(callback):
     @functools.wraps(callback)
@@ -261,11 +190,13 @@ async def get_log():
 async def curseforge():
     return Response(content=await cf_api.end_point(), headers={"Cache-Control": "max-age=300, public"})
 
+
 async def _curseforge_sync_game(sess: Session, gameid: int):
     data = await cf_api.get_game(gameid=gameid)
     cache_data = data["data"]
     cache_data["cachetime"] = int(time.time())
-    insert_stmt = insert(Table.curseforge_game_info).values(gameid=gameid, status=200, time=int(time.time()), data=cache_data)
+    insert_stmt = insert(Table.curseforge_game_info).values(
+        gameid=gameid, status=200, time=int(time.time()), data=cache_data)
     on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
         data=insert_stmt.inserted.data)
     sess.execute(on_duplicate_key_stmt)
@@ -340,7 +271,8 @@ async def curseforge_games():
             result["cachetime"] = tmnow
             # db.exe(insert("curseforge_game_info",
             #             dict(gameid=gameid, status=200, time=tmnow, data=json.dumps(result)), replace=True))
-            sql_replace(sess, t, gameid=gameid, status=200, time=tmnow, data=result)
+            sql_replace(sess, t, gameid=gameid, status=200,
+                        time=tmnow, data=result)
             all_data.append(result)
         sess.commit()
     return JSONResponse(content={"status": "success", "data": all_data}, headers={"Cache-Control": "max-age=300, public"})
@@ -368,6 +300,8 @@ async def curseforge_categories(gameid: int = 432, classid: int = None):
     return JSONResponse({"status": "success", "data": data["data"]}, headers={"Cache-Control": "max-age=300, public"})
 
 # mod 请求后台拉取 file_info 和 description，以及对应 file 的 changelog
+
+
 async def curseforge_mod_background_task(sess: Session, modid: int):
     # files
     files_info = await _curseforge_get_files_info(modid=modid)
@@ -383,8 +317,10 @@ async def curseforge_mod_background_task(sess: Session, modid: int):
     # db.exe(insert("curseforge_mod_description",
     #                 dict(modid=modid, status=200, time=cachetime, description=description), replace=True))
     t = Table.curseforge_mod_description
-    sql_replace(sess, t , modid=modid, status=200, time=cachetime, description=description)
+    sql_replace(sess, t, modid=modid, status=200,
+                time=cachetime, description=description)
     sess.commit()
+
 
 async def _curseforge_sync_mod(sess: Session, modid: int):
     t = Table.curseforge_mod_info
@@ -416,7 +352,8 @@ async def _curseforge_get_mod(modid: int = None, slug: str = None, background_ta
             if query == "slug":
                 return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"status": "failed", "error": f"Can't found {slug} in cache database, please request by modid it first"})
             data = await _curseforge_sync_mod(sess, modid)
-            background_tasks.add_task(curseforge_mod_background_task, sess, modid)
+            background_tasks.add_task(
+                curseforge_mod_background_task, sess, modid)
         else:
             data = result[2]
             # data = result[2]
@@ -502,6 +439,7 @@ async def get_mods(item: ModItemModel):
 
     return JSONResponse({"status": "success", "data": modids_data}, headers={"Cache-Control": "max-age=300, public"})
 
+
 @api.get("/curseforge/mod/{modid}/description",
          responses={
              200: {
@@ -518,7 +456,7 @@ async def get_mod_description(modid: int):
     with Session(engine) as sess:
         t = Table.curseforge_mod_description
         result = sess.query(t.c.time, t.c.status, t.c.description).where(
-                t.c.modid == modid).first()
+            t.c.modid == modid).first()
         # result = db.queryone(select(
         #     "curseforge_mod_description", ["modid", "time", "status", "description"]).where("modid", modid).done())
         if result is None or len(result) == 0:
@@ -526,12 +464,14 @@ async def get_mod_description(modid: int):
             description = (await cf_api.get_mod_description(modid=modid))["data"]
             # db.exe(insert("curseforge_mod_description", dict(
             #     modid=modid, status=200, time=cachetime, description=description), replace=True))
-            sql_replace(sess, t, modid=modid, time=int(time.time()), status=200, description=description)
+            sql_replace(sess, t, modid=modid, time=int(
+                time.time()), status=200, description=description)
             sess.commit()
         elif result[2] != 200:
             cachetime = int(time.time())
             description = (await cf_api.get_mod_description(modid=modid))["data"]
-            sql_replace(sess, t, modid=modid, time=int(time.time()), status=200, description=description)
+            sql_replace(sess, t, modid=modid, time=int(
+                time.time()), status=200, description=description)
             sess.commit()
         else:
             description = result[3]
@@ -572,22 +512,25 @@ async def curseforge_search(gameId: int, classId: int = None, categoryId: int = 
     background_tasks.add_task(curseforge_search_background_task, data["data"])
     return JSONResponse({"status": "success", "data": data["data"]}, headers={"Cache-Control": "max-age=300, public"})
 
+
 async def curseforge_search_background_task(data: List):
     with Session(engine) as sess:
         t = Table.curseforge_mod_info
         for mod in data:
-            modid = data["id"]
+            modid = mod["id"]
             # add cachetime
             tmnow = int(time.time())
             mod["cachetime"] = tmnow
             sql_replace(sess, t, modid=modid, status=200, time=tmnow, data=mod)
         sess.commit()
 
+
 async def _curseforge_sync_file_info(sess: Session, modid: int, fileid: int):
     t = Table.curseforge_file_info
     cache_data = (await cf_api.get_file(modid=modid, fileid=fileid))["data"]
     cache_data["cachetime"] = int(time.time())
-    sql_replace(sess, t, modid=modid, fileid=fileid, status=200, time=int(time.time()), data=cache_data)
+    sql_replace(sess, t, modid=modid, fileid=fileid, status=200,
+                time=int(time.time()), data=cache_data)
     sess.commit()
     log(f'Sync curseforge file {fileid}')
     return cache_data
@@ -596,7 +539,8 @@ async def _curseforge_sync_file_info(sess: Session, modid: int, fileid: int):
 async def _curseforge_get_file_info(modid: int, fileid: int):
     with Session(engine) as sess:
         t = Table.curseforge_file_info
-        query = sess.query(t.c.time, t.c.status, t.c.data).where(t.c.modid == modid, t.c.fileid == fileid).first()
+        query = sess.query(t.c.time, t.c.status, t.c.data).where(
+            t.c.modid == modid, t.c.fileid == fileid).first()
         if query is None or query[1] != 200:
             data = await _curseforge_sync_file_info(sess, modid=modid, fileid=fileid)
             cachetime = data["cachetime"]
@@ -663,7 +607,8 @@ async def curseforge_mod_files(modId: int):
 async def _curseforge_sync_mod_file_changelog(sess: Session, modid: int, fileid: int):
     t = Table.curseforge_file_changelog
     changelog = (await cf_api.get_mod_file_changelog(modid=modid, fileid=fileid))["data"]
-    sql_replace(sess, t, modid=modid, fileid=fileid, status=200, time=int(time.time()), changelog=changelog)
+    sql_replace(sess, t, modid=modid, fileid=fileid, status=200,
+                time=int(time.time()), changelog=changelog)
     sess.commit()
     log(f'Sync curseforge file changelog {fileid}')
     return changelog
@@ -674,7 +619,8 @@ async def _curseforge_get_mod_file_changelog(modid: int, fileid: int):
         t = Table.curseforge_file_changelog
         # query = db.queryone(cmd := select("curseforge_file_changelog", ["time", "status", "changelog"]).where(
         #     "modid", modid).AND("fileid", fileid).done())
-        query = sess.query(t.c.time, t.c.status, t.c.changelog).where(t.c.modid == modid, t.c.fileid == fileid).first()
+        query = sess.query(t.c.time, t.c.status, t.c.changelog).where(
+            t.c.modid == modid, t.c.fileid == fileid).first()
         if query is None or query[1] != 200:
             data = await _curseforge_sync_mod_file_changelog(sess, modid=modid, fileid=fileid)
             cachetime = int(time.time())
@@ -714,7 +660,8 @@ async def curseforge_get_mod_file_download_url(modid: int, fileid: int):
         t = Table.curseforge_file_info
         # query = db.queryone(cmd := select("curseforge_file_info", ["time", "status", "data"]).where(
         #     "modid", modid).AND("fileid", fileid).done())
-    query = sess.query(t.c.time, t.c.status, t.c.data).where(t.c.modid == modid, t.c.fileid == fileid).first()
+    query = sess.query(t.c.time, t.c.status, t.c.data).where(
+        t.c.modid == modid, t.c.fileid == fileid).first()
     if query is None:
         data = await _curseforge_sync_file_info(sess, modid=modid, fileid=fileid)
         cachetime = int(time.time())
@@ -729,6 +676,42 @@ async def curseforge_get_mod_file_download_url(modid: int, fileid: int):
         else:
             cachetime = query[0]
     return JSONResponse({"status": "success", "url": data["downloadUrl"], "cachetime": cachetime}, headers={"Cache-Control": "max-age=300, public"})
+
+# 仍未能够了解 fingerprint 到底是如何工作的...尤其是fuzzy fingerprint
+# 暂时不缓存fingerprint信息
+# 为啥不像 modrinth 一样简单明了
+class FingerprintsItemModel(BaseModel):
+    fingerprints: List[int]
+
+class Fuzzy_Fingerprint(BaseModel):
+    foldername = str
+    fingerprints: List[int]
+
+class Fuzzy_FingerprintModel(BaseModel):
+    gameId = int
+    fingerprints: List[Fuzzy_Fingerprint]
+
+curseforge_fingerprint_example = {"data":{"isCacheBuilt":true,"exactMatches":[{"id":0,"file":{"id":0,"gameId":0,"modId":0,"isAvailable":true,"displayName":"string","fileName":"string","releaseType":1,"fileStatus":1,"hashes":[{"value":"string","algo":1}],"fileDate":"2019-08-24T14:15:22Z","fileLength":0,"downloadCount":0,"downloadUrl":"string","gameVersions":["string"],"sortableGameVersions":[{"gameVersionName":"string","gameVersionPadded":"string","gameVersion":"string","gameVersionReleaseDate":"2019-08-24T14:15:22Z","gameVersionTypeId":0}],"dependencies":[{"modId":0,"relationType":1}],"exposeAsAlternative":true,"parentProjectFileId":0,"alternateFileId":0,"isServerPack":true,"serverPackFileId":0,"fileFingerprint":0,"modules":[{"name":"string","fingerprint":0}]},"latestFiles":[{"id":0,"gameId":0,"modId":0,"isAvailable":true,"displayName":"string","fileName":"string","releaseType":1,"fileStatus":1,"hashes":[{"value":"string","algo":1}],"fileDate":"2019-08-24T14:15:22Z","fileLength":0,"downloadCount":0,"downloadUrl":"string","gameVersions":["string"],"sortableGameVersions":[{"gameVersionName":"string","gameVersionPadded":"string","gameVersion":"string","gameVersionReleaseDate":"2019-08-24T14:15:22Z","gameVersionTypeId":0}],"dependencies":[{"modId":0,"relationType":1}],"exposeAsAlternative":true,"parentProjectFileId":0,"alternateFileId":0,"isServerPack":true,"serverPackFileId":0,"fileFingerprint":0,"modules":[{"name":"string","fingerprint":0}]}]}],"exactFingerprints":[0],"partialMatches":[{"id":0,"file":{"id":0,"gameId":0,"modId":0,"isAvailable":true,"displayName":"string","fileName":"string","releaseType":1,"fileStatus":1,"hashes":[{"value":"string","algo":1}],"fileDate":"2019-08-24T14:15:22Z","fileLength":0,"downloadCount":0,"downloadUrl":"string","gameVersions":["string"],"sortableGameVersions":[{"gameVersionName":"string","gameVersionPadded":"string","gameVersion":"string","gameVersionReleaseDate":"2019-08-24T14:15:22Z","gameVersionTypeId":0}],"dependencies":[{"modId":0,"relationType":1}],"exposeAsAlternative":true,"parentProjectFileId":0,"alternateFileId":0,"isServerPack":true,"serverPackFileId":0,"fileFingerprint":0,"modules":[{"name":"string","fingerprint":0}]},"latestFiles":[{"id":0,"gameId":0,"modId":0,"isAvailable":true,"displayName":"string","fileName":"string","releaseType":1,"fileStatus":1,"hashes":[{"value":"string","algo":1}],"fileDate":"2019-08-24T14:15:22Z","fileLength":0,"downloadCount":0,"downloadUrl":"string","gameVersions":["string"],"sortableGameVersions":[{"gameVersionName":"string","gameVersionPadded":"string","gameVersion":"string","gameVersionReleaseDate":"2019-08-24T14:15:22Z","gameVersionTypeId":0}],"dependencies":[{"modId":0,"relationType":1}],"exposeAsAlternative":true,"parentProjectFileId":0,"alternateFileId":0,"isServerPack":true,"serverPackFileId":0,"fileFingerprint":0,"modules":[{"name":"string","fingerprint":0}]}]}],"partialMatchFingerprints":{"property1":[0],"property2":[0]},"installedFingerprints":[0],"unmatchedFingerprints":[0]}}
+curseforge_fuzzy_fingerprint_example = {"data":{"fuzzyMatches":[{"id":0,"file":{"id":0,"gameId":0,"modId":0,"isAvailable":true,"displayName":"string","fileName":"string","releaseType":1,"fileStatus":1,"hashes":[{"value":"string","algo":1}],"fileDate":"2019-08-24T14:15:22Z","fileLength":0,"downloadCount":0,"downloadUrl":"string","gameVersions":["string"],"sortableGameVersions":[{"gameVersionName":"string","gameVersionPadded":"string","gameVersion":"string","gameVersionReleaseDate":"2019-08-24T14:15:22Z","gameVersionTypeId":0}],"dependencies":[{"modId":0,"relationType":1}],"exposeAsAlternative":true,"parentProjectFileId":0,"alternateFileId":0,"isServerPack":true,"serverPackFileId":0,"fileFingerprint":0,"modules":[{"name":"string","fingerprint":0}]},"latestFiles":[{"id":0,"gameId":0,"modId":0,"isAvailable":true,"displayName":"string","fileName":"string","releaseType":1,"fileStatus":1,"hashes":[{"value":"string","algo":1}],"fileDate":"2019-08-24T14:15:22Z","fileLength":0,"downloadCount":0,"downloadUrl":"string","gameVersions":["string"],"sortableGameVersions":[{"gameVersionName":"string","gameVersionPadded":"string","gameVersion":"string","gameVersionReleaseDate":"2019-08-24T14:15:22Z","gameVersionTypeId":0}],"dependencies":[{"modId":0,"relationType":1}],"exposeAsAlternative":true,"parentProjectFileId":0,"alternateFileId":0,"isServerPack":true,"serverPackFileId":0,"fileFingerprint":0,"modules":[{"name":"string","fingerprint":0}]}],"fingerprints":[0]}]}}
+
+
+@api.post("/curseforge/fingerprints",
+          responses={200: {"description": "Curseforge fingerprint", "content": {
+              "application/json": {"example": curseforge_fingerprint_example}}}
+          }, description="Curseforge Fingerprints", tags=["Curseforge"])
+@api_json_middleware
+async def get_curseforge_fingerprints(item: FingerprintsItemModel):
+    result = (await cf_api.get_fingerprint(item.fingerprints))["data"]
+    return JSONResponse({"status": "success", "data": result}, headers={"Cache-Control": "max-age=300, public"})
+
+@api.post("/curseforge/fingerprints/fuzzy",
+          responses={200: {"description": "Curseforge fuzzy fingerprint", "content": {
+              "application/json": {"example": curseforge_fuzzy_fingerprint_example}}}
+          }, description="Curseforge Fuzzy Fingerprints", tags=["Curseforge"])
+@api_json_middleware
+async def get_curseforge_fuzzy_fingerprints(item: Fuzzy_FingerprintModel):
+    result = (await cf_api.get_fuzzy_fingerprnt(gameid=item.gameId, fingerprints=item.fingerprints))["data"]
+    return JSONResponse({"status": "success", "data": result}, headers={"Cache-Control": "max-age=300, public"})
 
 
 @api.get("/modrinth",
@@ -776,8 +759,6 @@ modrinth_mod_example = {"slug": "my_project", "title": "My Project", "descriptio
 #     for version_id in data["versions"]:
 #         pass
 
-    
-
 
 async def _modrinth_sync_project(sess: Session, idslug: str, background_tasks: BackgroundTasks = None):  # 优先采用 slug
     t = Table.modrinth_project_info
@@ -789,12 +770,13 @@ async def _modrinth_sync_project(sess: Session, idslug: str, background_tasks: B
     #               dict(project_id=project_id, slug=slug, status=200,
     #                    time=int(time.time()), data=json.dumps(cache_data)),
     #               replace=True))
-    sql_replace(sess, t, project_id=project_id, slug=slug, status=200, time=int(time.time()), data=cache_data)
+    sql_replace(sess, t, project_id=project_id, slug=slug,
+                status=200, time=int(time.time()), data=cache_data)
     log(f'Sync modrinth project {project_id}')
     sess.commit()
     if background_tasks is not None:
         background_tasks.add_task(
-                _modrinth_sync_project_versions, sess, idslug)
+            _modrinth_sync_project_versions, sess, idslug)
     return cache_data
 
 
@@ -804,12 +786,14 @@ async def _modrinth_get_project(idslug: str, background_tasks=None):
         #     "project_id", idslug).done()
         # id_query = db.queryone(id_cmd)
         t = Table.modrinth_project_info
-        query = sess.query(t.c.time, t.c.status, t.c.data).where(t.c.project_id == idslug).first()
+        query = sess.query(t.c.time, t.c.status, t.c.data).where(
+            t.c.project_id == idslug).first()
         if query is None:
             # slug_cmd = select("modrinth_project_info", [
             #                   "time", "status", "data"]).where("slug", idslug).done()
             # slug_query = db.queryone(slug_cmd)
-            query = sess.query(t.c.time, t.c.status, t.c.data).where(t.c.slug == idslug).first()
+            query = sess.query(t.c.time, t.c.status, t.c.data).where(
+                t.c.slug == idslug).first()
             if query is None:
                 data = await _modrinth_sync_project(sess, idslug=idslug, background_tasks=background_tasks)
             else:
@@ -978,7 +962,8 @@ async def _modrinth_sync_version(sess: Session, version_id: str):
     cache_data["cachetime"] = int(time.time())
     # db.exe(insert("modrinth_version_info", dict(project_id=project_id, version_id=version_id,
     #        status=200, time=cache_data["cachetime"], data=json.dumps(cache_data)), replace=True))
-    sql_replace(sess, t, project_id=project_id, version_id=version_id, status=200, time=cache_data["cachetime"], data=cache_data)
+    sql_replace(sess, t, project_id=project_id, version_id=version_id,
+                status=200, time=cache_data["cachetime"], data=cache_data)
     sess.commit()
     log(f'Sync modrinth version {version_id}')
     return cache_data
@@ -993,7 +978,8 @@ async def _modrinth_sync_project_versions(sess: Session, project_id: str):
         #               dict(project_id=project_id, version_id=version_info["id"], status=200,
         #                    time=version_info["cachetime"],
         #                    data=json.dumps(version_info)), replace=True))
-        sql_replace(sess, t, project_id=project_id, version_id=version["id"], status=200, time=version["cachetime"], data=version)
+        sql_replace(sess, t, project_id=project_id,
+                    version_id=version["id"], status=200, time=version["cachetime"], data=version)
         sess.commit()
     log(f'Sync modrinth project {project_id} versions')
     return versions
@@ -1005,7 +991,8 @@ async def _modrinth_get_version(version_id: str):
         # cmd = select("modrinth_version_info", ["time", "status", "data"]).where(
         #     "version_id", version_id).done()
         # query = db.queryone(cmd)
-        query = sess.query(t.c.time, t.c.status, t.c.data).filter(t.c.version_id == version_id).first()
+        query = sess.query(t.c.time, t.c.status, t.c.data).filter(
+            t.c.version_id == version_id).first()
         if query is None:
             data = await _modrinth_sync_version(sess, version_id=version_id)
         else:
@@ -1052,12 +1039,13 @@ async def _modrinth_get_project_versions(idslug: str, game_versions: list = None
             loaders = str_to_list(loaders)
         if game_versions:
             game_versions = str_to_list(game_versions)
-        project_data = await _modrinth_get_project(idslug) # 获取 project_id
+        project_data = await _modrinth_get_project(idslug)  # 获取 project_id
         project_id = project_data["id"]
         # query = db.query(
         #     select("modrinth_version_info", ["time", "status", "data"]).where("project_id", project_id).done())
-        query = sess.query(t.c.time, t.c.status, t.c.data).filter(t.c.project_id == project_id).all()
-        if len(query) == 0: # all() return List
+        query = sess.query(t.c.time, t.c.status, t.c.data).filter(
+            t.c.project_id == project_id).all()
+        if len(query) == 0:  # all() return List
             version_info_list = await sync_version_info_list(project_id)
         else:
             version_info_list = []
@@ -1083,7 +1071,7 @@ async def _modrinth_get_project_versions(idslug: str, game_versions: list = None
                 version_info_list.append(data)
     # return {"status": "success", "data": version_info_list}
     return JSONResponse({"status": "success", "data": version_info_list}, headers={"Cache-Control": "max-age=300, public"})
-        # version_info_list = await sync_version_info_list(project_id)
+    # version_info_list = await sync_version_info_list(project_id)
     # t = Table.modrinth_version_info
     # version_info_lsit = await mr_api.get_project_versions(project_id=project_id, game_versions=game_versions, loaders=loaders, featured=featured)
     # for version_info in version_info_lsit:
@@ -1124,7 +1112,8 @@ async def _modrinth_sync_tag_category(sess: Session):
     #               dict(slug="category", status=200,
     #                    time=int(time.time()),
     #                    data=json.dumps(data)), replace=True))
-    sql_replace(sess, t, slug="category", status=200, time=int(time.time()), data=data)
+    sql_replace(sess, t, slug="category", status=200,
+                time=int(time.time()), data=data)
     sess.commit()
     log(f'Sync modrinth tag category')
     return data
@@ -1148,7 +1137,8 @@ async def _modrinth_sync_tag_loader(sess: Session):
     #               dict(slug="loader", status=200,
     #                    time=int(time.time()),
     #                    data=json.dumps(data)), replace=True))
-    sql_replace(sess, t, slug="loader", status=200, time=int(time.time()), data=data)
+    sql_replace(sess, t, slug="loader", status=200,
+                time=int(time.time()), data=data)
     sess.commit()
     log(f'Sync modrinth tag loader')
     return data
@@ -1170,7 +1160,8 @@ async def _modrinth_sync_tag_game_version(sess: Session):
     #               dict(slug="game_version", status=200,
     #                    time=int(time.time()),
     #                    data=json.dumps(data)), replace=True))
-    sql_replace(sess, t, slug="game_version", status=200, time=int(time.time()), data=data)
+    sql_replace(sess, t, slug="game_version", status=200,
+                time=int(time.time()), data=data)
     sess.commit()
     log(f'Sync modrinth tag game_version')
     return data
@@ -1190,7 +1181,8 @@ async def _modrinth_sync_tag_license(sess: Session):
     #               dict(slug="license", status=200,
     #                    time=int(time.time()),
     #                    data=json.dumps(data)), replace=True))
-    sql_replace(sess, t, slug="license", status=200, time=int(time.time()), data=data)
+    sql_replace(sess, t, slug="license", status=200,
+                time=int(time.time()), data=data)
     sess.commit()
     log(f'Sync modrinth tag license')
     return data
@@ -1207,7 +1199,8 @@ async def get_modrinth_tag_category():
         # cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
         #     "slug", "category").done()
         # query = db.queryone(cmd)
-        query = sess.query(t.c.time, t.c.status, t.c.data).filter(t.c.slug == "category").first()
+        query = sess.query(t.c.time, t.c.status, t.c.data).filter(
+            t.c.slug == "category").first()
         if query is None:
             data = await _modrinth_sync_tag_category(sess)
             cachetime = int(time.time())
@@ -1229,7 +1222,8 @@ async def get_modrinth_tag_loader():
         # cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
         #     "slug", "loader").done()
         # query = db.queryone(cmd)
-        query = sess.query(t.c.time, t.c.status, t.c.data).filter(t.c.slug == "loader").first()
+        query = sess.query(t.c.time, t.c.status, t.c.data).filter(
+            t.c.slug == "loader").first()
         if query is None:
             data = await _modrinth_sync_tag_loader(sess)
             cachetime = int(time.time())
@@ -1251,7 +1245,8 @@ async def get_modrinth_tag_game_version():
         # cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
         #     "slug", "game_version").done()
         # query = db.queryone(cmd)
-        query = sess.query(t.c.time, t.c.status, t.c.data).filter(t.c.slug == "game_version").first()
+        query = sess.query(t.c.time, t.c.status, t.c.data).filter(
+            t.c.slug == "game_version").first()
         if query is None:
             data = await _modrinth_sync_tag_game_version(sess)
             cachetime = int(time.time())
@@ -1273,7 +1268,8 @@ async def get_modrinth_tag_license():
         # cmd = select("modrinth_tag_info", ["time", "status", "data"]).where(
         #     "slug", "license").done()
         # query = db.queryone(cmd)
-        query = sess.query(t.c.time, t.c.status, t.c.data).filter(t.c.slug == "license").first()
+        query = sess.query(t.c.time, t.c.status, t.c.data).filter(
+            t.c.slug == "license").first()
         if query is None:
             data = await _modrinth_sync_tag_license(sess)
             cachetime = int(time.time())
@@ -1319,7 +1315,7 @@ LOGGING_CONFIG = {
 }
 
 if __name__ == "__main__":
-    host, port = "0.0.0.0", 10001
+    host, port = "0.0.0.0", 8000
     try:
         getLogFile(basedir="logs/web")
         uvicorn.run(api, host=host, port=port)
