@@ -47,7 +47,7 @@ class AsyncHTTPClient:
                     if params[param] is None:
                         del final_params[param]
                 kwargs["params"] = final_params
-                return kwargs
+        return kwargs
 
     async def new_session(self, **kwargs):
         '''
@@ -86,25 +86,25 @@ class AsyncHTTPClient:
         async with sem:
             return await self._get(url, callback=callback, **kwargs)
 
-    # async def _post(self, url: str, /, *, callback=None, **kwargs):
-    #     async with self.session.post(url, **kwargs) as res:
-    #         if callback is not None:
-    #             return await callback(res)
-    #         reader = res.content
-    #         content = await reader.read()
-    #         return res, content
+    async def _post(self, url: str, /, *, callback=None, **kwargs):
+        async with self.session.post(url, **kwargs) as res:
+            if callback is not None:
+                return await callback(res)
+            reader = res.content
+            content = await reader.read()
+            return res, content
     
     async def post(self, url: str, /, *, callback=None, sem=None, **kwargs):
         '''
         Usage: res, content = await cli.post('http://example.com', data={'key': 'value'})
         '''
         kwargs = self.format_params(kwargs)
-        
+
         #_get()通用
         if sem is None:
-            return await self._get(url, callback=callback, **kwargs)
+            return await self._post(url, callback=callback, **kwargs)
         async with sem:
-            return await self._get(url, callback=callback, **kwargs)
+            return await self._post(url, callback=callback, **kwargs)
 
     async def get_all(self, urls: list[str], *, limit: int = -1, callback=None, **kwargs):
         if limit > 0:
