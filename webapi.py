@@ -12,7 +12,7 @@ import traceback
 import aiohttp
 import uvicorn
 from fastapi import FastAPI, BackgroundTasks, Body, status
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, RedirectResponse
 from fastapi.openapi.docs import (
     get_redoc_html,
     get_swagger_ui_html,
@@ -99,6 +99,9 @@ api.mount("/log", StaticFiles(directory="logs"), name="logs")
 # docs
 api.mount("/static", StaticFiles(directory="static"), name="static")
 
+@api.get("/favicon.ico")
+async def favicon():
+    return RedirectResponse(status_code=301, url=MCIMConfig.favicon_url)
 
 @api.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():

@@ -62,6 +62,8 @@ class MCIMConfig:
     sync_interval: int = 3600  # seconds
     async_timeout: int = 60  # seconds
 
+    favicon_url = "https://thirdqq.qlogo.cn/g?b=sdk&k=ABmaVOlfKKPceB5qfiajxqg&s=640"
+
     # cqhttp
     cqhttp_type: str = "user"
     cqhttp_baseurl: str = "http://localhost:7777/"
@@ -106,7 +108,7 @@ class MCIMConfig:
         cls.proxies = data.get('proxies')
         cls.sync_interval = checktyp(data.get('sync_interval'), int)
         cls.async_timeout = checktyp(data.get('async_timeout'), int)
-        cls.cqhttp_type = checktyp(data.get('cqhttp_type'), str)
+        cls.cqhttp_type = data.get('cqhttp_type')
         cls.cqhttp_baseurl = checktyp(data.get('cqhttp_baseurl'), str)
         cls.cqhttp_userid = checktyp(data.get('cqhttp_userid'), int)
         cls.cqhttp_groupid = checktyp(data.get('cqhttp_groupid'), int)

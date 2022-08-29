@@ -26,25 +26,26 @@ def log(text, logging=logging.info, to_qq=False, to_file=True):
         logging(text)
 
     # 把必要 log 转发到我 QQ
-    if to_qq:
-        if MCIMConfig.cqhttp_type == "user":
-            url = f"{MCIMConfig.cqhttp_baseurl}send_private_msg"
-            res = requests.get(url=url, params={"user_id": MCIMConfig.cqhttp_userid, "message": text})
-        elif MCIMConfig.cqhttp_type == "group":
-            url = f"{MCIMConfig.cqhttp_baseurl}send_group_msg"
-            res = requests.get(url=url, params={"group_id": MCIMConfig.cqhttp_groupid, "message": text})
-        elif MCIMConfig.cqhttp_type == "guild":
-            url = f"{MCIMConfig.cqhttp_baseurl}send_guild_channel_msg"
-            res = requests.get(url=url, params={
-                "guild_id": MCIMConfig.cqhttp_guild_id,
-                "channel_id": MCIMConfig.cqhttp_channel_id,
-                "message": text
-            })
-        if res.status_code == 200:
-            if res.json()["status"] not in ["ok", "async"]:
-                print(f"Failed Request CqHttp", res.json())
-        else:
-            print(f"Request CqHttp Bad, Status Code: {res.status_code}")
+    if MCIMConfig.cqhttp_type is not None:
+        if to_qq:
+            if MCIMConfig.cqhttp_type == "user":
+                url = f"{MCIMConfig.cqhttp_baseurl}send_private_msg"
+                res = requests.get(url=url, params={"user_id": MCIMConfig.cqhttp_userid, "message": text})
+            elif MCIMConfig.cqhttp_type == "group":
+                url = f"{MCIMConfig.cqhttp_baseurl}send_group_msg"
+                res = requests.get(url=url, params={"group_id": MCIMConfig.cqhttp_groupid, "message": text})
+            elif MCIMConfig.cqhttp_type == "guild":
+                url = f"{MCIMConfig.cqhttp_baseurl}send_guild_channel_msg"
+                res = requests.get(url=url, params={
+                    "guild_id": MCIMConfig.cqhttp_guild_id,
+                    "channel_id": MCIMConfig.cqhttp_channel_id,
+                    "message": text
+                })
+            if res.status_code == 200:
+                if res.json()["status"] not in ["ok", "async"]:
+                    print(f"Failed Request CqHttp", res.json())
+            else:
+                print(f"Request CqHttp Bad, Status Code: {res.status_code}")
 
 
 def getLogFile(basedir='logs'):
