@@ -1,4 +1,5 @@
 from typing import List
+import sqlalchemy
 from sqlalchemy import *
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.mysql import insert
@@ -57,7 +58,7 @@ mr_api = ModrinthApi(baseurl=mr_api_url, proxies=proxies,
 # dbpool = AsyncDBPool(MysqlConfig.to_dict(), size=8)
 # from databases import Database
 engine = create_engine(
-    f'mysql+pymysql://{MysqlConfig.user}:{MysqlConfig.password}@{MysqlConfig.host}:{MysqlConfig.port}/{MysqlConfig.database}?autocommit=1', pool_size=128, max_overflow=32)
+    f'mysql+pymysql://{MysqlConfig.user}:{MysqlConfig.password}@{MysqlConfig.host}:{MysqlConfig.port}/{MysqlConfig.database}?autocommit=1', pool_size=128, max_overflow=32, pool_pre_ping=True, pool_recycle=3600)
 metadata = MetaData(bind=engine)
 # init table
 Table = TableConfig(metadata=metadata)
@@ -152,6 +153,11 @@ def api_json_middleware(callback):
             if e.status == 404:
                 return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"status": "failed", "error": "DataNotExists", "errorMessage": "Data Not exists"})
             return JSONResponse(status_code=e.status, content={"status": "failed", "error": "StatusCodeException", "errorMessage": str(e)})
+        except sqlalchemy.exc.OperationalError as e:
+            global engine
+            engine = create_engine(
+                f'mysql+pymysql://{MysqlConfig.user}:{MysqlConfig.password}@{MysqlConfig.host}:{MysqlConfig.port}/{MysqlConfig.database}?autocommit=1', pool_size=128, max_overflow=32, pool_pre_ping=True, pool_recycle=3600)
+            return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"status": "failed", "error": "Mysql Connection OperationalError", "errorMessage": str(e)})
         except Exception as e:
             traceback.print_exc()
             return JSONResponse(status_code=500, content={"status": "failed", "error": "Exception", "errorMessage": str(e)})
@@ -198,11 +204,7 @@ async def _curseforge_sync_game(sess: Session, gameid: int):
     data = await cf_api.get_game(gameid=gameid)
     cache_data = data["data"]
     cache_data["cachetime"] = int(time.time())
-    insert_stmt = insert(Table.curseforge_game_info).values(
-        gameid=gameid, status=200, time=int(time.time()), data=cache_data)
-    on_duplicate_key_stmt = insert_stmt.on_duplicate_key_update(
-        data=insert_stmt.inserted.data)
-    sess.execute(on_duplicate_key_stmt)
+    sql_replace(sess, Table.curseforge_game_info, gameid=gameid, status=200, time=int(time.time()), data=cache_data)
     sess.commit()
     log(f'Sync curseforge game {gameid}')
     return cache_data
@@ -210,8 +212,6 @@ async def _curseforge_sync_game(sess: Session, gameid: int):
 
 async def _curseforge_get_game(gameid: int):
     with Session(bind=engine) as sess:
-        # result = sess.query(
-        #     select("curseforge_game_info", ["time", "status", "data"]).where("gameid", gameid).done())
         t = Table.curseforge_game_info
         result = sess.query(t.c.time, t.c.status, t.c.data).where(
             t.c.gameid == gameid).first()
@@ -252,14 +252,12 @@ async def curseforge_game(gameid: int):
 async def curseforge_games():
     with Session(engine) as sess:
         all_data = []
-        # sql_games_result = db.query(
-        #     select("curseforge_game_info", ["gameid", "time", "status", "data"]))
         t = Table.curseforge_game_info
         sql_games_result = sess.query(t, t.c.time, t.c.status, t.c.data).all()
         for result in sql_games_result:
-            if result is None or result == () or result[2] != 200:
+            if result is None or result == () or result[1] != 200:
                 break
-            gameid, time_tag, status, data = result
+            gameid, status, time_tag, data = result
             if status == 200:
                 if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
                     break
@@ -272,8 +270,6 @@ async def curseforge_games():
             gameid = result["id"]
             tmnow = int(time.time())
             result["cachetime"] = tmnow
-            # db.exe(insert("curseforge_game_info",
-            #             dict(gameid=gameid, status=200, time=tmnow, data=json.dumps(result)), replace=True))
             sql_replace(sess, t, gameid=gameid, status=200,
                         time=tmnow, data=result)
             all_data.append(result)
