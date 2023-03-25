@@ -3,5 +3,5 @@ fastapi==0.95.0
 pydantic==1.10.6
 PyMySQL==1.0.2
 requests==2.28.2
-SQLAlchemy==1.4.46
+SQLAlchemy==1.4.47
 uvicorn==0.21.1
