@@ -582,8 +582,11 @@ async def _curseforge_get_file_info(modid: int, fileid: int):
     return JSONResponse({"status": "success", "data": data, "cachetime": cachetime})
 
 
-async def _curseforge_get_files_info(modid: int):
-    return (await cf_api.get_files(modid=modid))["data"]
+async def _curseforge_get_files_info(modid: int, gameVersion: str = None, modLoaderType: int = None,
+                                     gameVersionTypeId: int = None,  index: int = 0, pageSize: int = 20):
+    return (await cf_api.get_files(modid=modid, gameVersion=gameVersion, modLoaderType=modLoaderType,
+                                   gameVersionTypeId=gameVersionTypeId, index=index, pageSize=pageSize
+                                   ))["data"]
 
 
 curseforge_file_info_example = {
@@ -628,8 +631,17 @@ async def curseforge_mod_file(modId: int, fileId: int):
              }
          }, description="Curseforge Mod 的全部文件信息", tags=["Curseforge"])
 @api_json_middleware
-async def curseforge_mod_files(modId: int):
-    return JSONResponse({"status": "success", "data": await _curseforge_get_files_info(modid=modId)}, headers={"Cache-Control": "max-age=300, public"})
+async def curseforge_mod_files(modId: int, gameVersion: str = None, modLoaderType: int = None, 
+                               gameVersionTypeId: int = None,  index: int = None, pageSize: int = 20):
+    # TODO 待缓存...background_tasks
+    return JSONResponse({"status": "success", "data": await _curseforge_get_files_info(modid=modId,
+                                                                                       gameVersion=gameVersion,
+                                                                                       modLoaderType=modLoaderType,
+                                                                                       gameVersionTypeId=gameVersionTypeId, 
+                                                                                       index=index, 
+                                                                                       pageSize=pageSize)},
+                        headers={"Cache-Control": "max-age=300, public"}
+                        )
 
 
 async def _curseforge_sync_mod_file_changelog(sess: Session, modid: int, fileid: int):
@@ -645,8 +657,6 @@ async def _curseforge_sync_mod_file_changelog(sess: Session, modid: int, fileid:
 async def _curseforge_get_mod_file_changelog(modid: int, fileid: int):
     with Session(sql_engine) as sess:
         t = tables.curseforge_file_changelog
-        # query = db.queryone(cmd := select("curseforge_file_changelog", ["time", "status", "change_log"]).where(
-        #     "modid", modid).AND("fileid", fileid).done())
         query = sess.query(t.c.time, t.c.status, t.c.change_log).where(
             t.c.modid == modid, t.c.fileid == fileid).first()
         if query is None or query[1] != 200:
@@ -686,8 +696,6 @@ async def curseforge_mod_file_changelog(modId: int, fileId: int):
 async def curseforge_get_mod_file_download_url(modid: int, fileid: int):
     with Session(sql_engine) as sess:
         t = tables.curseforge_file_info
-        # query = db.queryone(cmd := select("curseforge_file_info", ["time", "status", "data"]).where(
-        #     "modid", modid).AND("fileid", fileid).done())
     query = sess.query(t.c.time, t.c.status, t.c.data).where(
         t.c.modid == modid, t.c.fileid == fileid).first()
     if query is None:
@@ -706,8 +714,8 @@ async def curseforge_get_mod_file_download_url(modid: int, fileid: int):
             cachetime = query[0]
     return JSONResponse({"status": "success", "url": data["downloadUrl"], "cachetime": cachetime}, headers={"Cache-Control": "max-age=300, public"})
 
-# 仍未能够了解 fingerprint 到底是如何工作的...尤其是fuzzy fingerprint
-# 暂时不缓存fingerprint信息
+# 仍未能够了解 fingerprint 到底是如何工作的...尤其是 fuzzy fingerprint
+# 暂时不缓存 fingerprint 信息
 # 为啥不像 modrinth 一样简单明了
 
 
@@ -862,7 +870,7 @@ async def _modrinth_get_project(idslug: str, background_tasks=None):
          }, description="Modrinth project info", tags=["Modrinth"])
 @api_json_middleware
 async def get_modrinth_project(idslug: str, background_tasks: BackgroundTasks):
-    return JSONResponse({"status": "success","data": await _modrinth_get_project(idslug, background_tasks=background_tasks)}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse({"status": "success", "data": await _modrinth_get_project(idslug, background_tasks=background_tasks)}, headers={"Cache-Control": "max-age=300, public"})
 
 
 @api.get("/modrinth/projects",
@@ -1058,7 +1066,8 @@ async def _modrinth_get_project_versions(idslug: str, game_versions: list = None
             t = tables.modrinth_version_info
             for version_info in versions:
                 version_info["cachetime"] = int(time.time())
-                sql_replace(sess, t, project_id=project_id, version_id=version_info["id"], status=200, time=version_info["cachetime"], data=version_info)
+                sql_replace(sess, t, project_id=project_id,
+                            version_id=version_info["id"], status=200, time=version_info["cachetime"], data=version_info)
             sess.commit()
 
     with Session(sql_engine) as sess:
@@ -1103,8 +1112,6 @@ async def _modrinth_get_project_versions(idslug: str, game_versions: list = None
     return JSONResponse({"status": "success", "data": versions}, headers={"Cache-Control": "max-age=300, public"})
 
 
-
-
 @api.get("/modrinth/project/{idslug}/versions",
          responses={200: {"description": "Modrinth project versions info", "content": {
              "application/json": {"example":
@@ -1113,7 +1120,7 @@ async def _modrinth_get_project_versions(idslug: str, game_versions: list = None
                     }, description="Modrint project versions info", tags=["Modrinth"])
 @api_json_middleware
 async def get_modrinth_project_versions(idslug: str, loaders: str = None, game_versions: str = None, featured: bool = None, background_tasks: BackgroundTasks = None):
-    return JSONResponse({"status": "success", "data": await _modrinth_get_project_versions(idslug, loaders=loaders, game_versions=game_versions, featured=featured, background_tasks = background_tasks)}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse({"status": "success", "data": await _modrinth_get_project_versions(idslug, loaders=loaders, game_versions=game_versions, featured=featured, background_tasks=background_tasks)}, headers={"Cache-Control": "max-age=300, public"})
 
 example_modrinth_category = [
     {

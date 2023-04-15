@@ -296,13 +296,23 @@ class CurseForgeApi:
                                              proxy=self.proxies, headers=headers)
             return json.loads(content)
 
-    async def get_files(self, modid):
+    async def get_files(self, modid: int, gameVersion: str = None, modLoaderType: int = None, gameVersionTypeId: int = None,  index: int = 0, pageSize: int = 20):
         '''
         获取指定模组的所有文件。[🔗](https://docs.curseforge.com/#get-mod-files)
 
         参数:
 
         :param modid: Mod ID
+
+        :param gameVersion: 游戏版本
+
+        :param modLoaderType: 模组加载器类型
+
+        :param gameVersionTypeId: 游戏版本类型
+
+        :param index: 页码
+        
+        :param pageSize: 每页数量
 
         用法: resp = `<CurseForgeApi>.get_files(modid)`
         '''
@@ -314,7 +324,13 @@ class CurseForgeApi:
         }
         async with self.acli:
             res, content = await retry_async(res_mustok_async(self.acli.get), 3, (StatusCodeException,), url,
-                                             proxy=self.proxies, headers=headers)
+                                             proxy=self.proxies, headers=headers, params={
+                "gameVersion": gameVersion,
+                "modLoaderType": modLoaderType,
+                "gameVersionTypeId": gameVersionTypeId,
+                "index": index,
+                "pageSize": pageSize
+                                             })
             return json.loads(content)
 
     async def post_files(self, fileids):

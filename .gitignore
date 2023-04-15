@@ -17,3 +17,4 @@ __pycache__
 
 # Config? **Is TEST folder useless ?**
 /config
+.vscode/settings.json
