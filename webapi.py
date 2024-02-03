@@ -23,9 +23,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 # local package
-from apis import *
-from async_httpclient import *
+from app.service import *
+from app.utils.network.async_httpclient import *
 from config import *
+
 # inti config
 MCIMConfig.load()
 MysqlConfig.load()
@@ -36,50 +37,65 @@ cf_key = MCIMConfig.curseforge_api_key
 cf_api_url = MCIMConfig.curseforge_api
 cf_headers = {
     "User-Agent": "github_org/mcim/1.0.0 (mcim.z0z0r4.top)",
-    'Accept': 'application/json',
-    'x-api-key': cf_key
+    "Accept": "application/json",
+    "x-api-key": cf_key,
 }
 cf_cli = AsyncHTTPClient(
-    headers=cf_headers, timeout=aiohttp.ClientTimeout(total=timeout))
+    headers=cf_headers, timeout=aiohttp.ClientTimeout(total=timeout)
+)
 cf_api = CurseForgeApi(cf_api_url, cf_key, proxies=proxies, acli=cf_cli)
 # for mr
 mr_api_url = MCIMConfig.modrinth_api
 mr_headers = {
     "User-Agent": "github_org/mcim/1.0.0 (mcim.z0z0r4.top)",
-    'Accept': 'application/json'
+    "Accept": "application/json",
 }
 mr_cli = AsyncHTTPClient(
-    headers=mr_headers, timeout=aiohttp.ClientTimeout(total=timeout))
-mr_api = ModrinthApi(baseurl=mr_api_url, proxies=proxies,
-                     acli=mr_cli, ua="github_org/mcim/1.0.0 (mcim.z0z0r4.top)")
+    headers=mr_headers, timeout=aiohttp.ClientTimeout(total=timeout)
+)
+mr_api = ModrinthApi(
+    baseurl=mr_api_url,
+    proxies=proxies,
+    acli=mr_cli,
+    ua="github_org/mcim/1.0.0 (mcim.z0z0r4.top)",
+)
 
 # DB 我不要造轮子
 # from mysql import *
 # dbpool = AsyncDBPool(MysqlConfig.to_dict(), size=8)
 # from databases import Database
 sql_engine = create_engine(
-    f'mysql+pymysql://{MysqlConfig.user}:{MysqlConfig.password}@{MysqlConfig.host}:{MysqlConfig.port}/{MysqlConfig.database}?autocommit=1', pool_size=128, max_overflow=32, pool_pre_ping=True, pool_recycle=3600)
-metadata = MetaData(bind=sql_engine)
+    f"mysql+pymysql://{MysqlConfig.user}:{MysqlConfig.password}@{MysqlConfig.host}:{MysqlConfig.port}/{MysqlConfig.database}?autocommit=1",
+    pool_size=128,
+    max_overflow=32,
+    pool_pre_ping=True,
+    pool_recycle=3600,
+)
+metadata = MetaData()
 # init table
 tables = TableConfig(metadata=metadata)
-metadata.create_all()
+metadata.create_all(sql_engine)
 
-api = FastAPI(docs_url=None, redoc_url=None, title="MCIM",
-              description="这是一个为 Curseforge Mod 信息加速的 API")
+api = FastAPI(
+    docs_url=None,
+    redoc_url=None,
+    title="MCIM",
+    description="这是一个为 Curseforge Mod 信息加速的 API",
+)
 
 
-def getLogFile(basedir='logs'):
+def getLogFile(basedir="logs"):
     if not os.path.exists(basedir):
         os.makedirs(basedir)
     else:
         if os.path.exists(os.path.join(basedir, "latest.log")):
-            date = datetime.datetime.now().strftime('%Y-%m-%d')
-            path = os.path.join(basedir, f'{date}.log')
+            date = datetime.datetime.now().strftime("%Y-%m-%d")
+            path = os.path.join(basedir, f"{date}.log")
             if os.path.exists(path):
                 i = 0
                 while os.path.exists(path):
                     i += 1
-                    path = os.path.join(basedir, f'{date}-{i}.log')
+                    path = os.path.join(basedir, f"{date}-{i}.log")
                 os.rename(os.path.join(basedir, "latest.log"), path)
             else:
                 os.rename(os.path.join(basedir, "latest.log"), path)
@@ -91,10 +107,14 @@ def log(text, logger=logging.info):
     print(f'[{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}] {text}')
 
 
-logging.basicConfig(level=logging.INFO,
-                    filename=getLogFile(basedir="logs/sync"), filemode='w',
-                    format='[%(asctime)s] [%(threadName)s] [%(levelname)s]: %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S', encoding="UTF-8")
+logging.basicConfig(
+    level=logging.INFO,
+    filename=getLogFile(basedir="logs/sync"),
+    filemode="w",
+    format="[%(asctime)s] [%(threadName)s] [%(levelname)s]: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    encoding="UTF-8",
+)
 api.mount("/log", StaticFiles(directory="logs"), name="logs")
 
 # docs
@@ -153,34 +173,76 @@ def api_json_middleware(callback):
         except StatusCodeException as e:
             if e.status == 404:
                 status_code, content = status.HTTP_404_NOT_FOUND, {
-                    "status": "failed", "error": "DataNotExists", "errorMessage": "Data Not exists"}
+                    "status": "failed",
+                    "error": "DataNotExists",
+                    "errorMessage": "Data Not exists",
+                }
             status_code, content = e.status, {
-                "status": "failed", "error": "StatusCodeException", "errorMessage": str(e)}
+                "status": "failed",
+                "error": "StatusCodeException",
+                "errorMessage": str(e),
+            }
         except sqlalchemy.exc.OperationalError as e:
             global sql_engine
             sql_engine = create_engine(
-                f'mysql+pymysql://{MysqlConfig.user}:{MysqlConfig.password}@{MysqlConfig.host}:{MysqlConfig.port}/{MysqlConfig.database}?autocommit=1', pool_size=128, max_overflow=32, pool_pre_ping=True, pool_recycle=3600)
+                f"mysql+pymysql://{MysqlConfig.user}:{MysqlConfig.password}@{MysqlConfig.host}:{MysqlConfig.port}/{MysqlConfig.database}?autocommit=1",
+                pool_size=128,
+                max_overflow=32,
+                pool_pre_ping=True,
+                pool_recycle=3600,
+            )
             status_code, content = status.HTTP_500_INTERNAL_SERVER_ERROR, {
-                "status": "failed", "error": "Mysql Connection OperationalError", "errorMessage": str(e)}
+                "status": "failed",
+                "error": "Mysql Connection OperationalError",
+                "errorMessage": str(e),
+            }
         except Exception as e:
             traceback.print_exc()
             status_code, content = status.HTTP_500_INTERNAL_SERVER_ERROR, {
-                "status": "failed", "error": str(e)}
-        return JSONResponse(status_code=status_code, content=content, headers={"Cache-Control": "no-cache, public"})
+                "status": "failed",
+                "error": str(e),
+            }
+        return JSONResponse(
+            status_code=status_code,
+            content=content,
+            headers={"Cache-Control": "no-cache, public"},
+        )
+
     return w
 
 
 @api.get(
     "/",
-    responses={200: {"description": "MCIM API status", "content": {
-        "application/json": {"example":
-                             {"status": "success", "message": "z0z0r4 Mod Info"}
-                             }}}
-               },
-    description="MCIM API")
+    responses={
+        200: {
+            "description": "MCIM API status",
+            "content": {
+                "application/json": {
+                    "example": {"status": "success", "message": "z0z0r4 Mod Info"}
+                }
+            },
+        }
+    },
+    description="MCIM API",
+)
 @api_json_middleware
 async def root():
-    return JSONResponse(content={"status": "success", "message": "z0z0r4 Mod Info", "information": {"Status": "https://status.mcim.z0z0r4.top/status/mcim", "Docs": ["https://mcim.z0z0r4.top/docs", "https://mcim.z0z0r4.top/redoc"], "Github": "https://github.com/z0z0r4/mcim", "contact": {"Eamil": "z0z0r4@outlook.com", "QQ": "3531890582"}}}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        content={
+            "status": "success",
+            "message": "z0z0r4 Mod Info",
+            "information": {
+                "Status": "https://status.mcim.z0z0r4.top/status/mcim",
+                "Docs": [
+                    "https://mcim.z0z0r4.top/docs",
+                    "https://mcim.z0z0r4.top/redoc",
+                ],
+                "Github": "https://github.com/z0z0r4/mcim",
+                "contact": {"Eamil": "z0z0r4@outlook.com", "QQ": "3531890582"},
+            },
+        },
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
 @api.get("/logs")
@@ -193,56 +255,94 @@ async def get_log():
             for dir in dirs:
                 info[dir] = walk(os.path.join(root, dir))
         return info
-    return JSONResponse({"logs": walk("logs")}, headers={"Cache-Control": "max-age=300, public"})
+
+    return JSONResponse(
+        {"logs": walk("logs")}, headers={"Cache-Control": "max-age=300, public"}
+    )
 
 
-@api.get("/curseforge",
-         responses={200: {"description": "CFCore", "content": {
-             "text/plain": {"example": "CurseForge Core (397e291)"}}}
-         },
-         description="Curseforge API", tags=["Curseforge"])
+@api.get(
+    "/curseforge",
+    responses={
+        200: {
+            "description": "CFCore",
+            "content": {"text/plain": {"example": "CurseForge Core (397e291)"}},
+        }
+    },
+    description="Curseforge API",
+    tags=["Curseforge"],
+)
 @api_json_middleware
 async def curseforge():
-    return Response(content=await cf_api.end_point(), headers={"Cache-Control": "max-age=300, public"})
+    return Response(
+        content=await cf_api.end_point(),
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
 async def _curseforge_sync_game(sess: Session, gameid: int):
     data = await cf_api.get_game(gameid=gameid)
     cache_data = data["data"]
     cache_data["cachetime"] = int(time.time())
-    sql_replace(sess, tables.curseforge_game_info, gameid=gameid,
-                status=200, time=int(time.time()), data=cache_data)
+    sql_replace(
+        sess,
+        tables.curseforge_game_info,
+        gameid=gameid,
+        status=200,
+        time=int(time.time()),
+        data=cache_data,
+    )
     sess.commit()
-    log(f'Sync curseforge game {gameid}')
+    log(f"Sync curseforge game {gameid}")
     return cache_data
 
 
 async def _curseforge_get_game(gameid: int):
     with Session(bind=sql_engine) as sess:
         t = tables.curseforge_game_info
-        result = sess.query(t.c.time, t.c.status, t.c.data).where(
-            t.c.gameid == gameid).first()
+        result = (
+            sess.query(t.c.time, t.c.status, t.c.data)
+            .where(t.c.gameid == gameid)
+            .first()
+        )
         if result is None or len(result) == 0 or result[1] != 200:
             data = await _curseforge_sync_game(sess, gameid)
         else:
             data = result[2]
             if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
                 data = await _curseforge_sync_game(sess, gameid)
-        return JSONResponse(content={"status": "success", "data": data}, headers={"Cache-Control": "max-age=300, public"})
+        return JSONResponse(
+            content={"status": "success", "data": data},
+            headers={"Cache-Control": "max-age=300, public"},
+        )
 
 
-curseforge_game_example = {"id": 0, "name": "string", "slug": "string", "dateModified": "2019-08-24T14:15:22Z",
-                           "assets": {"iconUrl": "string", "tileUrl": "string", "coverUrl": "string"}, "status": 1,
-                           "apiStatus": 1}
+curseforge_game_example = {
+    "id": 0,
+    "name": "string",
+    "slug": "string",
+    "dateModified": "2019-08-24T14:15:22Z",
+    "assets": {"iconUrl": "string", "tileUrl": "string", "coverUrl": "string"},
+    "status": 1,
+    "apiStatus": 1,
+}
 
 
-@api.get("/curseforge/game/{gameid}",
-         responses={200: {"description": "Curseforge Game info", "content": {
-             "application/json": {"example":
-                                  {"status": "success",
-                                      "data": curseforge_game_example}
-                                  }}}
-                    }, description="Curseforge Game 信息", tags=["Curseforge"])
+@api.get(
+    "/curseforge/game/{gameid}",
+    responses={
+        200: {
+            "description": "Curseforge Game info",
+            "content": {
+                "application/json": {
+                    "example": {"status": "success", "data": curseforge_game_example}
+                }
+            },
+        }
+    },
+    description="Curseforge Game 信息",
+    tags=["Curseforge"],
+)
 # @api_json_middleware
 async def curseforge_game(gameid: int):
     return await _curseforge_get_game(gameid=gameid)
@@ -255,27 +355,40 @@ async def _sync_curseforge_games(sess: Session):
         gameid = result["id"]
         time_now = int(time.time())
         result["cachetime"] = time_now
-        sql_replace(sess, tables.curseforge_game_info, gameid=gameid, status=200,
-                    time=time_now, data=result)
+        sql_replace(
+            sess,
+            tables.curseforge_game_info,
+            gameid=gameid,
+            status=200,
+            time=time_now,
+            data=result,
+        )
         all_data.append(result)
     sess.commit()
     return all_data
 
 
-@api.get("/curseforge/games",
-         responses={200: {"description": "Curseforge Games info", "content": {
-             "application/json": {"example":
-                                  {"status": "success", "data": [
-                                      curseforge_game_example]}
-                                  }}}
-                    }, description="Curseforge 的全部 Game 信息", tags=["Curseforge"])
+@api.get(
+    "/curseforge/games",
+    responses={
+        200: {
+            "description": "Curseforge Games info",
+            "content": {
+                "application/json": {
+                    "example": {"status": "success", "data": [curseforge_game_example]}
+                }
+            },
+        }
+    },
+    description="Curseforge 的全部 Game 信息",
+    tags=["Curseforge"],
+)
 @api_json_middleware
 async def curseforge_games():
     with Session(bind=sql_engine) as session:
         all_data = []
         t = tables.curseforge_game_info
-        sql_games_result = session.query(
-            t, t.c.time, t.c.status, t.c.data).all()
+        sql_games_result = session.query(t, t.c.time, t.c.status, t.c.data).all()
         for result in sql_games_result:
             if result is None or result == () or result[1] != 200:
                 break
@@ -285,31 +398,61 @@ async def curseforge_games():
                     break
             all_data.append(data)
         else:
-            return JSONResponse(content={"status": "success", "data": all_data}, headers={"Cache-Control": "max-age=300, public"})
+            return JSONResponse(
+                content={"status": "success", "data": all_data},
+                headers={"Cache-Control": "max-age=300, public"},
+            )
         # sync
-        return JSONResponse(content={"status": "success", "data": await _sync_curseforge_games(sess=session)}, headers={"Cache-Control": "max-age=300, public"})
+        return JSONResponse(
+            content={
+                "status": "success",
+                "data": await _sync_curseforge_games(sess=session),
+            },
+            headers={"Cache-Control": "max-age=300, public"},
+        )
 
 
-curseforge_category_example = {"id": 0, "gameId": 0, "name": "string", "slug": "string", "url": "string",
-                               "iconUrl": "string", "dateModified": "2019-08-24T14:15:22Z", "isClass": True,
-                               "classId": 0, "parentCategoryId": 0, "displayIndex": 0}
+curseforge_category_example = {
+    "id": 0,
+    "gameId": 0,
+    "name": "string",
+    "slug": "string",
+    "url": "string",
+    "iconUrl": "string",
+    "dateModified": "2019-08-24T14:15:22Z",
+    "isClass": True,
+    "classId": 0,
+    "parentCategoryId": 0,
+    "displayIndex": 0,
+}
 
 
-@api.get("/curseforge/categories",
-         responses={
-             200: {
-                 "description": "Curseforge category info",
-                 "content": {
-                     "application/json": {
-                         "example": {"status": "success", "data": [curseforge_category_example]}
-                     }
-                 }
-             }
-         }, description="Curseforge 的 Category 信息", tags=["Curseforge"])
+@api.get(
+    "/curseforge/categories",
+    responses={
+        200: {
+            "description": "Curseforge category info",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "success",
+                        "data": [curseforge_category_example],
+                    }
+                }
+            },
+        }
+    },
+    description="Curseforge 的 Category 信息",
+    tags=["Curseforge"],
+)
 @api_json_middleware
 async def curseforge_categories(gameid: int = 432, classid: int = None):
     data = await cf_api.get_categories(gameid=gameid, classid=classid)
-    return JSONResponse({"status": "success", "data": data["data"]}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        {"status": "success", "data": data["data"]},
+        headers={"Cache-Control": "max-age=300, public"},
+    )
+
 
 # mod 请求后台拉取 file_info 和 description，以及对应 file 的 changelog
 
@@ -328,8 +471,9 @@ async def curseforge_mod_background_task(modid: int):
         cachetime = int(time.time())
         description = (await cf_api.get_mod_description(modid=modid))["data"]
         t = tables.curseforge_mod_description
-        sql_replace(sess, t, modid=modid, status=200,
-                    time=cachetime, description=description)
+        sql_replace(
+            sess, t, modid=modid, status=200, time=cachetime, description=description
+        )
         sess.commit()
 
 
@@ -340,34 +484,54 @@ async def _curseforge_sync_mod(sess: Session, modid: int):
     time_now = int(time.time())
     cache_data = data["data"]
     cache_data["cachetime"] = time_now
-    sql_replace(sess, t, modid=modid,
-                slug=cache_data["slug"], status=200, time=time_now, data=cache_data)
+    sql_replace(
+        sess,
+        t,
+        modid=modid,
+        slug=cache_data["slug"],
+        status=200,
+        time=time_now,
+        data=cache_data,
+    )
     sess.commit()
-    log(f'Sync curseforge mod {modid}')
+    log(f"Sync curseforge mod {modid}")
     return cache_data
 
 
-async def _curseforge_get_mod(modid: int = None, slug: str = None, background_tasks=None):
+async def _curseforge_get_mod(
+    modid: int = None, slug: str = None, background_tasks=None
+):
     with Session(sql_engine) as sess:
         t = tables.curseforge_mod_info
         if slug is not None:
             query = "slug"
-            result = sess.query(t.c.time, t.c.status, t.c.data).where(
-                t.c.slug == slug).first()
+            result = (
+                sess.query(t.c.time, t.c.status, t.c.data)
+                .where(t.c.slug == slug)
+                .first()
+            )
         elif modid is not None:
             query = "modid"
-            result = sess.query(t.c.time, t.c.status, t.c.data).where(
-                t.c.modid == modid).first()
+            result = (
+                sess.query(t.c.time, t.c.status, t.c.data)
+                .where(t.c.modid == modid)
+                .first()
+            )
         else:
             # return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"status": "failed", "error": "Neither slug and modid is not None"})
-            return 500, {"status": "failed", "error": "Neither slug and modid is not None"}
+            return 500, {
+                "status": "failed",
+                "error": "Neither slug and modid is not None",
+            }
         if result is None or len(result) == 0 or result[1] != 200:
             if query == "slug":
                 # return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"status": "failed", "error": f"Can't found {slug} in cache database, please request by modid it first"})
-                return 404, {"status": "failed", "error": f"Can't found {slug} in cache database, please request by modid it first"}
+                return 404, {
+                    "status": "failed",
+                    "error": f"Can't found {slug} in cache database, please request by modid it first",
+                }
             data = await _curseforge_sync_mod(sess, modid)
-            background_tasks.add_task(
-                curseforge_mod_background_task, sess, modid)
+            background_tasks.add_task(curseforge_mod_background_task, sess, modid)
         else:
             data = result[2]
             if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
@@ -381,49 +545,138 @@ async def _curseforge_get_mod(modid: int = None, slug: str = None, background_ta
     return 200, data
 
 
-curseforge_mod_example = {"id": 0, "gameId": 0, "name": "string", "slug": "string",
-                          "links": {"websiteUrl": "string", "wikiUrl": "string", "issuesUrl": "string",
-                                    "sourceUrl": "string"}, "summary": "string", "status": 1, "downloadCount": 0,
-                          "isFeatured": True, "primaryCategoryId": 0, "categories": [
-                              {"id": 0, "gameId": 0, "name": "string", "slug": "string", "url": "string", "iconUrl": "string",
-                               "dateModified": "2019-08-24T14:15:22Z", "isClass": True, "classId": 0, "parentCategoryId": 0,
-                               "displayIndex": 0}], "classId": 0, "authors": [{"id": 0, "name": "string", "url": "string"}],
-                          "logo": {"id": 0, "modId": 0, "title": "string", "description": "string",
-                                   "thumbnailUrl": "string", "url": "string"}, "screenshots": [
-                              {"id": 0, "modId": 0, "title": "string", "description": "string", "thumbnailUrl": "string", "url": "string"}],
-                          "mainFileId": 0, "latestFiles": [
-                              {"id": 0, "gameId": 0, "modId": 0, "isAvailable": True, "displayName": "string", "fileName": "string",
-                               "releaseType": 1, "fileStatus": 1, "hashes": [{"value": "string", "algo": 1}],
-                               "fileDate": "2019-08-24T14:15:22Z", "fileLength": 0, "downloadCount": 0, "downloadUrl": "string",
-                               "gameVersions": ["string"], "sortableGameVersions": [
-                                   {"gameVersionName": "string", "gameVersionPadded": "string", "gameVersion": "string",
-                                    "gameVersionReleaseDate": "2019-08-24T14:15:22Z", "gameVersionTypeId": 0}],
-                                  "dependencies": [{"modId": 0, "relationType": 1}], "exposeAsAlternative": True, "parentProjectFileId": 0,
-                                  "alternateFileId": 0, "isServerPack": True, "serverPackFileId": 0, "fileFingerprint": 0,
-                                  "modules": [{"name": "string", "fingerprint": 0}]}], "latestFilesIndexes": [
-                              {"gameVersion": "string", "fileId": 0, "filename": "string", "releaseType": 1, "gameVersionTypeId": 0,
-                               "modLoader": 0}], "dateCreated": "2019-08-24T14:15:22Z", "dateModified": "2019-08-24T14:15:22Z",
-                          "dateReleased": "2019-08-24T14:15:22Z", "allowModDistribution": True, "gamePopularityRank": 0,
-                          "isAvailable": True, "thumbsUpCount": 0}
+curseforge_mod_example = {
+    "id": 0,
+    "gameId": 0,
+    "name": "string",
+    "slug": "string",
+    "links": {
+        "websiteUrl": "string",
+        "wikiUrl": "string",
+        "issuesUrl": "string",
+        "sourceUrl": "string",
+    },
+    "summary": "string",
+    "status": 1,
+    "downloadCount": 0,
+    "isFeatured": True,
+    "primaryCategoryId": 0,
+    "categories": [
+        {
+            "id": 0,
+            "gameId": 0,
+            "name": "string",
+            "slug": "string",
+            "url": "string",
+            "iconUrl": "string",
+            "dateModified": "2019-08-24T14:15:22Z",
+            "isClass": True,
+            "classId": 0,
+            "parentCategoryId": 0,
+            "displayIndex": 0,
+        }
+    ],
+    "classId": 0,
+    "authors": [{"id": 0, "name": "string", "url": "string"}],
+    "logo": {
+        "id": 0,
+        "modId": 0,
+        "title": "string",
+        "description": "string",
+        "thumbnailUrl": "string",
+        "url": "string",
+    },
+    "screenshots": [
+        {
+            "id": 0,
+            "modId": 0,
+            "title": "string",
+            "description": "string",
+            "thumbnailUrl": "string",
+            "url": "string",
+        }
+    ],
+    "mainFileId": 0,
+    "latestFiles": [
+        {
+            "id": 0,
+            "gameId": 0,
+            "modId": 0,
+            "isAvailable": True,
+            "displayName": "string",
+            "fileName": "string",
+            "releaseType": 1,
+            "fileStatus": 1,
+            "hashes": [{"value": "string", "algo": 1}],
+            "fileDate": "2019-08-24T14:15:22Z",
+            "fileLength": 0,
+            "downloadCount": 0,
+            "downloadUrl": "string",
+            "gameVersions": ["string"],
+            "sortableGameVersions": [
+                {
+                    "gameVersionName": "string",
+                    "gameVersionPadded": "string",
+                    "gameVersion": "string",
+                    "gameVersionReleaseDate": "2019-08-24T14:15:22Z",
+                    "gameVersionTypeId": 0,
+                }
+            ],
+            "dependencies": [{"modId": 0, "relationType": 1}],
+            "exposeAsAlternative": True,
+            "parentProjectFileId": 0,
+            "alternateFileId": 0,
+            "isServerPack": True,
+            "serverPackFileId": 0,
+            "fileFingerprint": 0,
+            "modules": [{"name": "string", "fingerprint": 0}],
+        }
+    ],
+    "latestFilesIndexes": [
+        {
+            "gameVersion": "string",
+            "fileId": 0,
+            "filename": "string",
+            "releaseType": 1,
+            "gameVersionTypeId": 0,
+            "modLoader": 0,
+        }
+    ],
+    "dateCreated": "2019-08-24T14:15:22Z",
+    "dateModified": "2019-08-24T14:15:22Z",
+    "dateReleased": "2019-08-24T14:15:22Z",
+    "allowModDistribution": True,
+    "gamePopularityRank": 0,
+    "isAvailable": True,
+    "thumbsUpCount": 0,
+}
 
 
-@api.get("/curseforge/mod/{modid_slug}",
-         responses={
-             200: {
-                 "description": "Curseforge mod info",
-                 "content": {
-                     "application/json": {
-                         "example": {"status": "success", "data": curseforge_mod_example}
-                     }
-                 }
-             }
-         }, description="Curseforge Mod 信息；可以传入modid，不建议使用此处的 slug 参数，因为将从缓存数据库查询", tags=["Curseforge"])
+@api.get(
+    "/curseforge/mod/{modid_slug}",
+    responses={
+        200: {
+            "description": "Curseforge mod info",
+            "content": {
+                "application/json": {
+                    "example": {"status": "success", "data": curseforge_mod_example}
+                }
+            },
+        }
+    },
+    description="Curseforge Mod 信息；可以传入modid，不建议使用此处的 slug 参数，因为将从缓存数据库查询",
+    tags=["Curseforge"],
+)
 @api_json_middleware
 async def get_mod(modid_slug: int | str, background_tasks: BackgroundTasks):
     if type(modid_slug) is str:
-        status_code, data = await _curseforge_get_mod(slug=modid_slug, background_tasks=background_tasks)
+        status_code, data = await _curseforge_get_mod(
+            slug=modid_slug, background_tasks=background_tasks
+        )
     else:
-        status_code, data = await _curseforge_get_mod(modid=modid_slug, background_tasks=background_tasks)
+        status_code, data = await _curseforge_get_mod(
+            modid=modid_slug, background_tasks=background_tasks
+        )
 
     if status_code == 200:
         content = {"status": "success", "data": data}
@@ -446,17 +699,21 @@ class ModItemModel(BaseModel):
     modid: list[int]
 
 
-@api.post('/curseforge/mods',
-          responses={
-              200: {
-                  "description": "Curseforge mods info",
-                  "content": {
-                      "application/json": {
-                          "example": {"status": "success", "data": [curseforge_mod_example]}
-                      }
-                  }
-              }
-          }, description="批量获取 Curseforge Mods 信息", tags=["Curseforge"])
+@api.post(
+    "/curseforge/mods",
+    responses={
+        200: {
+            "description": "Curseforge mods info",
+            "content": {
+                "application/json": {
+                    "example": {"status": "success", "data": [curseforge_mod_example]}
+                }
+            },
+        }
+    },
+    description="批量获取 Curseforge Mods 信息",
+    tags=["Curseforge"],
+)
 @api_json_middleware
 async def get_mods(item: ModItemModel):
     modids_data = []
@@ -464,26 +721,40 @@ async def get_mods(item: ModItemModel):
         data = await _curseforge_get_mod(modid)
         modids_data.append(data)
 
-    return JSONResponse({"status": "success", "data": modids_data}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        {"status": "success", "data": modids_data},
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
-@api.get("/curseforge/mod/{modid}/description",
-         responses={
-             200: {
-                 "description": "Curseforge mod description",
-                 "content": {
-                     "application/json": {
-                         "example": {"status": "success", "description": "string", "cachetime": "integer"}
-                     }
-                 }
-             }
-         }, description="Curseforge Mod 的描述信息", tags=["Curseforge"])
+@api.get(
+    "/curseforge/mod/{modid}/description",
+    responses={
+        200: {
+            "description": "Curseforge mod description",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "success",
+                        "description": "string",
+                        "cachetime": "integer",
+                    }
+                }
+            },
+        }
+    },
+    description="Curseforge Mod 的描述信息",
+    tags=["Curseforge"],
+)
 @api_json_middleware
 async def get_mod_description(modid: int):
     with Session(sql_engine) as sess:
         t = tables.curseforge_mod_description
-        result = sess.query(t.c.time, t.c.status, t.c.description).where(
-            t.c.modid == modid).first()
+        result = (
+            sess.query(t.c.time, t.c.status, t.c.description)
+            .where(t.c.modid == modid)
+            .first()
+        )
         # result = db.queryone(select(
         #     "curseforge_mod_description", ["modid", "time", "status", "description"]).where("modid", modid).done())
         if result is None or len(result) == 0:
@@ -491,53 +762,199 @@ async def get_mod_description(modid: int):
             description = (await cf_api.get_mod_description(modid=modid))["data"]
             # db.exe(insert("curseforge_mod_description", dict(
             #     modid=modid, status=200, time=cachetime, description=description), replace=True))
-            sql_replace(sess, t, modid=modid, time=int(
-                time.time()), status=200, description=description)
+            sql_replace(
+                sess,
+                t,
+                modid=modid,
+                time=int(time.time()),
+                status=200,
+                description=description,
+            )
             sess.commit()
         elif result[2] != 200:
             cachetime = int(time.time())
             description = (await cf_api.get_mod_description(modid=modid))["data"]
-            sql_replace(sess, t, modid=modid, time=int(
-                time.time()), status=200, description=description)
+            sql_replace(
+                sess,
+                t,
+                modid=modid,
+                time=int(time.time()),
+                status=200,
+                description=description,
+            )
             sess.commit()
         else:
             description = result[3]
             cachetime = result[1]
-    return JSONResponse({"status": "success", "data": description, "cachetime": cachetime}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        {"status": "success", "data": description, "cachetime": cachetime},
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
 curseforge_search_example = {
-    'data': [
-        {'id': 0, 'gameId': 0, 'name': 'string', 'slug': 'string', 'links': {'websiteUrl': 'string', 'wikiUrl': 'string', 'issuesUrl': 'string', 'sourceUrl': 'string'}, 'summary': 'string', 'status': 1, 'downloadCount': 0, 'isFeatured': True, 'primaryCategoryId': 0, 'categories': [{'id': 0, 'gameId': 0, 'name': 'string', 'slug': 'string', 'url': 'string', 'iconUrl': 'string', 'dateModified': '2019-08-24T14:15:22Z', 'isClass': True, 'classId': 0, 'parentCategoryId': 0, 'displayIndex': 0}], 'classId': 0, 'authors': [{'id': 0, 'name': 'string', 'url': 'string'}], 'logo': {'id': 0, 'modId': 0, 'title': 'string', 'description': 'string', 'thumbnailUrl': 'string', 'url': 'string'}, 'screenshots': [{'id': 0, 'modId': 0, 'title': 'string', 'description': 'string', 'thumbnailUrl': 'string', 'url': 'string'}], 'mainFileId': 0, 'latestFiles': [{'id': 0, 'gameId': 0, 'modId': 0, 'isAvailable': True, 'displayName': 'string', 'fileName': 'string', 'releaseType': 1, 'fileStatus': 1, 'hashes': [
-            {'value': 'string', 'algo': 1}], 'fileDate': '2019-08-24T14:15:22Z', 'fileLength': 0, 'downloadCount': 0, 'downloadUrl': 'string', 'gameVersions': ['string'], 'sortableGameVersions': [{'gameVersionName': 'string', 'gameVersionPadded': 'string', 'gameVersion': 'string', 'gameVersionReleaseDate': '2019-08-24T14:15:22Z', 'gameVersionTypeId': 0}], 'dependencies': [{'modId': 0, 'relationType': 1}], 'exposeAsAlternative': True, 'parentProjectFileId': 0, 'alternateFileId': 0, 'isServerPack': True, 'serverPackFileId': 0, 'fileFingerprint': 0, 'modules': [{'name': 'string', 'fingerprint': 0}]}], 'latestFilesIndexes': [{'gameVersion': 'string', 'fileId': 0, 'filename': 'string', 'releaseType': 1, 'gameVersionTypeId': 0, 'modLoader': 0}], 'dateCreated': '2019-08-24T14:15:22Z', 'dateModified': '2019-08-24T14:15:22Z', 'dateReleased': '2019-08-24T14:15:22Z', 'allowModDistribution': True, 'gamePopularityRank': 0, 'isAvailable': True, 'thumbsUpCount': 0}
+    "data": [
+        {
+            "id": 0,
+            "gameId": 0,
+            "name": "string",
+            "slug": "string",
+            "links": {
+                "websiteUrl": "string",
+                "wikiUrl": "string",
+                "issuesUrl": "string",
+                "sourceUrl": "string",
+            },
+            "summary": "string",
+            "status": 1,
+            "downloadCount": 0,
+            "isFeatured": True,
+            "primaryCategoryId": 0,
+            "categories": [
+                {
+                    "id": 0,
+                    "gameId": 0,
+                    "name": "string",
+                    "slug": "string",
+                    "url": "string",
+                    "iconUrl": "string",
+                    "dateModified": "2019-08-24T14:15:22Z",
+                    "isClass": True,
+                    "classId": 0,
+                    "parentCategoryId": 0,
+                    "displayIndex": 0,
+                }
+            ],
+            "classId": 0,
+            "authors": [{"id": 0, "name": "string", "url": "string"}],
+            "logo": {
+                "id": 0,
+                "modId": 0,
+                "title": "string",
+                "description": "string",
+                "thumbnailUrl": "string",
+                "url": "string",
+            },
+            "screenshots": [
+                {
+                    "id": 0,
+                    "modId": 0,
+                    "title": "string",
+                    "description": "string",
+                    "thumbnailUrl": "string",
+                    "url": "string",
+                }
+            ],
+            "mainFileId": 0,
+            "latestFiles": [
+                {
+                    "id": 0,
+                    "gameId": 0,
+                    "modId": 0,
+                    "isAvailable": True,
+                    "displayName": "string",
+                    "fileName": "string",
+                    "releaseType": 1,
+                    "fileStatus": 1,
+                    "hashes": [{"value": "string", "algo": 1}],
+                    "fileDate": "2019-08-24T14:15:22Z",
+                    "fileLength": 0,
+                    "downloadCount": 0,
+                    "downloadUrl": "string",
+                    "gameVersions": ["string"],
+                    "sortableGameVersions": [
+                        {
+                            "gameVersionName": "string",
+                            "gameVersionPadded": "string",
+                            "gameVersion": "string",
+                            "gameVersionReleaseDate": "2019-08-24T14:15:22Z",
+                            "gameVersionTypeId": 0,
+                        }
+                    ],
+                    "dependencies": [{"modId": 0, "relationType": 1}],
+                    "exposeAsAlternative": True,
+                    "parentProjectFileId": 0,
+                    "alternateFileId": 0,
+                    "isServerPack": True,
+                    "serverPackFileId": 0,
+                    "fileFingerprint": 0,
+                    "modules": [{"name": "string", "fingerprint": 0}],
+                }
+            ],
+            "latestFilesIndexes": [
+                {
+                    "gameVersion": "string",
+                    "fileId": 0,
+                    "filename": "string",
+                    "releaseType": 1,
+                    "gameVersionTypeId": 0,
+                    "modLoader": 0,
+                }
+            ],
+            "dateCreated": "2019-08-24T14:15:22Z",
+            "dateModified": "2019-08-24T14:15:22Z",
+            "dateReleased": "2019-08-24T14:15:22Z",
+            "allowModDistribution": True,
+            "gamePopularityRank": 0,
+            "isAvailable": True,
+            "thumbsUpCount": 0,
+        }
     ],
-    'pagination': {'index': 0, 'pageSize': 0, 'resultCount': 0, 'totalCount': 0}
+    "pagination": {"index": 0, "pageSize": 0, "resultCount": 0, "totalCount": 0},
 }
 
 
-@api.get("/curseforge/search",
-         responses={
-             200: {
-                 "description": "Curseforge search",
-                 "content": {
-                     "application/json": {
-                         "example": {"status": "success", "data": curseforge_search_example}
-                     }
-                 }
-             }
-         }, description="Curseforge 搜索", tags=["Curseforge"])
+@api.get(
+    "/curseforge/search",
+    responses={
+        200: {
+            "description": "Curseforge search",
+            "content": {
+                "application/json": {
+                    "example": {"status": "success", "data": curseforge_search_example}
+                }
+            },
+        }
+    },
+    description="Curseforge 搜索",
+    tags=["Curseforge"],
+)
 @api_json_middleware
-async def curseforge_search(gameId: int, classId: int = None, categoryId: int = None, gameVersion: str = None,
-                            searchFilter: str = None, sortField=None, sortOrder: str = None, modLoaderType: int = None,
-                            gameVersionTypeId: int = None, slug: str = None, index: int = None, pageSize: int = 50, background_tasks: BackgroundTasks = None):
+async def curseforge_search(
+    gameId: int,
+    classId: int = None,
+    categoryId: int = None,
+    gameVersion: str = None,
+    searchFilter: str = None,
+    sortField=None,
+    sortOrder: str = None,
+    modLoaderType: int = None,
+    gameVersionTypeId: int = None,
+    slug: str = None,
+    index: int = None,
+    pageSize: int = 50,
+    background_tasks: BackgroundTasks = None,
+):
     # TODO 在数据库中搜索
     data = await cf_api.search(
-        gameid=gameId, classid=classId, categoryid=categoryId, gameversion=gameVersion,
-        searchfilter=searchFilter, sortfield=sortField, sortorder=sortOrder,
-        modloadertype=modLoaderType, gameversiontypeid=gameVersionTypeId, slug=slug, index=index,
-        pagesize=pageSize)
+        gameid=gameId,
+        classid=classId,
+        categoryid=categoryId,
+        game_version=gameVersion,
+        searchfilter=searchFilter,
+        sort_field=sortField,
+        sort_order=sortOrder,
+        modloader_type=modLoaderType,
+        game_version_typeid=gameVersionTypeId,
+        slug=slug,
+        index=index,
+        pagesize=pageSize,
+    )
     background_tasks.add_task(curseforge_search_background_task, data["data"])
-    return JSONResponse({"status": "success", "data": data["data"]}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        {"status": "success", "data": data["data"]},
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
 async def curseforge_search_background_task(data: List):
@@ -548,8 +965,7 @@ async def curseforge_search_background_task(data: List):
             # add cachetime
             time_now = int(time.time())
             mod["cachetime"] = time_now
-            sql_replace(sess, t, modid=modid, status=200,
-                        time=time_now, data=mod)
+            sql_replace(sess, t, modid=modid, status=200, time=time_now, data=mod)
         sess.commit()
 
 
@@ -557,147 +973,265 @@ async def _curseforge_sync_file_info(sess: Session, modid: int, fileid: int):
     t = tables.curseforge_file_info
     cache_data = (await cf_api.get_file(modid=modid, fileid=fileid))["data"]
     cache_data["cachetime"] = int(time.time())
-    sql_replace(sess, t, modid=modid, fileid=fileid, status=200,
-                time=int(time.time()), data=cache_data)
+    sql_replace(
+        sess,
+        t,
+        modid=modid,
+        fileid=fileid,
+        status=200,
+        time=int(time.time()),
+        data=cache_data,
+    )
     sess.commit()
-    log(f'Sync curseforge file {fileid}')
+    log(f"Sync curseforge file {fileid}")
     return cache_data
 
 
 async def _curseforge_get_file_info(modid: int, fileid: int):
     with Session(sql_engine) as sess:
         t = tables.curseforge_file_info
-        query = sess.query(t.c.time, t.c.status, t.c.data).where(
-            t.c.modid == modid, t.c.fileid == fileid).first()
+        query = (
+            sess.query(t.c.time, t.c.status, t.c.data)
+            .where(t.c.modid == modid, t.c.fileid == fileid)
+            .first()
+        )
         if query is None or query[1] != 200:
             data = await _curseforge_sync_file_info(sess, modid=modid, fileid=fileid)
             cachetime = data["cachetime"]
         else:
             data = query[2]
             if int(time.time()) - int(data["cachetime"]) > 60 * 60 * 4:
-                data = await _curseforge_sync_file_info(sess, modid=modid, fileid=fileid)
+                data = await _curseforge_sync_file_info(
+                    sess, modid=modid, fileid=fileid
+                )
                 cachetime = data["cachetime"]
             else:
                 cachetime = query[0]
     return JSONResponse({"status": "success", "data": data, "cachetime": cachetime})
 
 
-async def _curseforge_get_files_info(modid: int, gameVersion: str = None, modLoaderType: int = None,
-                                     gameVersionTypeId: int = None,  index: int = 0, pageSize: int = 20):
-    return (await cf_api.get_files(modid=modid, gameVersion=gameVersion, modLoaderType=modLoaderType,
-                                   gameVersionTypeId=gameVersionTypeId, index=index, pageSize=pageSize
-                                   ))["data"]
+async def _curseforge_get_files_info(
+    modid: int,
+    gameVersion: str = None,
+    modLoaderType: int = None,
+    gameVersionTypeId: int = None,
+    index: int = 0,
+    pageSize: int = 20,
+):
+    return (
+        await cf_api.get_files(
+            modid=modid,
+            game_version=gameVersion,
+            modLoader_Type=modLoaderType,
+            game_version_typeid=gameVersionTypeId,
+            index=index,
+            pageSize=pageSize,
+        )
+    )["data"]
 
 
 curseforge_file_info_example = {
-    "id": 0, "gameId": 0, "modId": 0, "isAvailable": True, "displayName": "string",
-    "fileName": "string", "releaseType": 1, "fileStatus": 1,
-    "hashes": [{"value": "string", "algo": 1}], "fileDate": "2019-08-24T14:15:22Z",
-    "fileLength": 0, "downloadCount": 0, "downloadUrl": "string",
-    "gameVersions": ["string"], "sortableGameVersions": [{
-        "gameVersionName": "string", "gameVersionPadded": "string", "gameVersion": "string",
-        "gameVersionReleaseDate": "2019-08-24T14:15:22Z", "gameVersionTypeId": 0
-    }],
-    "dependencies": [{"modId": 0, "relationType": 1}], "exposeAsAlternative": True,
-    "parentProjectFileId": 0, "alternateFileId": 0, "isServerPack": True,
-    "serverPackFileId": 0, "fileFingerprint": 0,
-    "modules": [{"name": "string", "fingerprint": 0}]
+    "id": 0,
+    "gameId": 0,
+    "modId": 0,
+    "isAvailable": True,
+    "displayName": "string",
+    "fileName": "string",
+    "releaseType": 1,
+    "fileStatus": 1,
+    "hashes": [{"value": "string", "algo": 1}],
+    "fileDate": "2019-08-24T14:15:22Z",
+    "fileLength": 0,
+    "downloadCount": 0,
+    "downloadUrl": "string",
+    "gameVersions": ["string"],
+    "sortableGameVersions": [
+        {
+            "gameVersionName": "string",
+            "gameVersionPadded": "string",
+            "gameVersion": "string",
+            "gameVersionReleaseDate": "2019-08-24T14:15:22Z",
+            "gameVersionTypeId": 0,
+        }
+    ],
+    "dependencies": [{"modId": 0, "relationType": 1}],
+    "exposeAsAlternative": True,
+    "parentProjectFileId": 0,
+    "alternateFileId": 0,
+    "isServerPack": True,
+    "serverPackFileId": 0,
+    "fileFingerprint": 0,
+    "modules": [{"name": "string", "fingerprint": 0}],
 }
 
 
-@api.get("/curseforge/mod/{modId}/file/{fileId}",
-         responses={
-             200: {
-                 "description": "Curseforge mod file info", "content": {
-                     "application/json": {
-                         "example": {"status": "success", "data": curseforge_file_info_example}
-                     }
-                 }
-             }
-         }, description="Curseforge Mod 的文件信息", tags=["Curseforge"])
+@api.get(
+    "/curseforge/mod/{modId}/file/{fileId}",
+    responses={
+        200: {
+            "description": "Curseforge mod file info",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "success",
+                        "data": curseforge_file_info_example,
+                    }
+                }
+            },
+        }
+    },
+    description="Curseforge Mod 的文件信息",
+    tags=["Curseforge"],
+)
 @api_json_middleware
 async def curseforge_mod_file(modId: int, fileId: int):
     return await _curseforge_get_file_info(modid=modId, fileid=fileId)
 
 
-@api.get("/curseforge/mod/{modId}/files",
-         responses={
-             200: {
-                 "description": "Curseforge mod files info", "content": {
-                     "application/json": {
-                         "example": {"status": "success", "data": [curseforge_file_info_example]}
-                     }
-                 }
-             }
-         }, description="Curseforge Mod 的全部文件信息", tags=["Curseforge"])
+@api.get(
+    "/curseforge/mod/{modId}/files",
+    responses={
+        200: {
+            "description": "Curseforge mod files info",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "success",
+                        "data": [curseforge_file_info_example],
+                    }
+                }
+            },
+        }
+    },
+    description="Curseforge Mod 的全部文件信息",
+    tags=["Curseforge"],
+)
 @api_json_middleware
-async def curseforge_mod_files(modId: int, gameVersion: str = None, modLoaderType: int = None, 
-                               gameVersionTypeId: int = None,  index: int = None, pageSize: int = 20):
+async def curseforge_mod_files(
+    modId: int,
+    gameVersion: str = None,
+    modLoaderType: int = None,
+    gameVersionTypeId: int = None,
+    index: int = None,
+    pageSize: int = 20,
+):
     # TODO 待缓存...background_tasks
-    return JSONResponse({"status": "success", "data": await _curseforge_get_files_info(modid=modId,
-                                                                                       gameVersion=gameVersion,
-                                                                                       modLoaderType=modLoaderType,
-                                                                                       gameVersionTypeId=gameVersionTypeId, 
-                                                                                       index=index, 
-                                                                                       pageSize=pageSize)},
-                        headers={"Cache-Control": "max-age=300, public"}
-                        )
+    return JSONResponse(
+        {
+            "status": "success",
+            "data": await _curseforge_get_files_info(
+                modid=modId,
+                gameVersion=gameVersion,
+                modLoaderType=modLoaderType,
+                gameVersionTypeId=gameVersionTypeId,
+                index=index,
+                pageSize=pageSize,
+            ),
+        },
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
 async def _curseforge_sync_mod_file_changelog(sess: Session, modid: int, fileid: int):
     t = tables.curseforge_file_changelog
-    change_log = (await cf_api.get_mod_file_changelog(modid=modid, fileid=fileid))["data"]
-    sql_replace(sess, t, modid=modid, fileid=fileid, status=200,
-                time=int(time.time()), change_log=change_log)
+    change_log = (await cf_api.get_mod_file_changelog(modid=modid, fileid=fileid))[
+        "data"
+    ]
+    sql_replace(
+        sess,
+        t,
+        modid=modid,
+        fileid=fileid,
+        status=200,
+        time=int(time.time()),
+        change_log=change_log,
+    )
     sess.commit()
-    log(f'Sync curseforge file changelog {fileid}')
+    log(f"Sync curseforge file changelog {fileid}")
     return change_log
 
 
 async def _curseforge_get_mod_file_changelog(modid: int, fileid: int):
     with Session(sql_engine) as sess:
         t = tables.curseforge_file_changelog
-        query = sess.query(t.c.time, t.c.status, t.c.change_log).where(
-            t.c.modid == modid, t.c.fileid == fileid).first()
+        query = (
+            sess.query(t.c.time, t.c.status, t.c.change_log)
+            .where(t.c.modid == modid, t.c.fileid == fileid)
+            .first()
+        )
         if query is None or query[1] != 200:
-            data = await _curseforge_sync_mod_file_changelog(sess, modid=modid, fileid=fileid)
+            data = await _curseforge_sync_mod_file_changelog(
+                sess, modid=modid, fileid=fileid
+            )
             cachetime = int(time.time())
         else:
             data = str(query[2])
             cachetime = int(query[0])
             if int(time.time()) - cachetime > 60 * 60 * 4:
-                data = await _curseforge_sync_file_info(sess, modid=modid, fileid=fileid)
+                data = await _curseforge_sync_file_info(
+                    sess, modid=modid, fileid=fileid
+                )
                 cachetime = int(time.time())
             else:
                 cachetime = query[0]
-    return JSONResponse({"status": "success", "changelog": data, "cachetime": cachetime}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        {"status": "success", "changelog": data, "cachetime": cachetime},
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
-@api.get("/curseforge/mod/{modId}/file/{fileId}/changelog",
-         responses={200: {"description": "Curseforge mod file changelog", "content": {
-             "application/json": {"example":
-                                  {"status": "success", "changelog": "string",
-                                   "cachetime": "integer"}
-                                  }}}
-                    }, description="Curseforge Mod 的文件 Changelog", tags=["Curseforge"])
+@api.get(
+    "/curseforge/mod/{modId}/file/{fileId}/changelog",
+    responses={
+        200: {
+            "description": "Curseforge mod file changelog",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "success",
+                        "changelog": "string",
+                        "cachetime": "integer",
+                    }
+                }
+            },
+        }
+    },
+    description="Curseforge Mod 的文件 Changelog",
+    tags=["Curseforge"],
+)
 @api_json_middleware
 async def curseforge_mod_file_changelog(modId: int, fileId: int):
     return await _curseforge_get_mod_file_changelog(modid=modId, fileid=fileId)
 
 
-@api.get("/curseforge/mod/{modid}/file/{fileid}/download-url",
-         responses={200: {"description": "Curseforge mod file download url", "content": {
-             "application/json": {"example":
-                                  {"status": "success", "url": "string",
-                                   "cachetime": "integer"}
-                                  }}}
-                    }, description="Curseforge Mod 的文件下载地址", tags=["Curseforge"])
+@api.get(
+    "/curseforge/mod/{modid}/file/{fileid}/download-url",
+    responses={
+        200: {
+            "description": "Curseforge mod file download url",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "success",
+                        "url": "string",
+                        "cachetime": "integer",
+                    }
+                }
+            },
+        }
+    },
+    description="Curseforge Mod 的文件下载地址",
+    tags=["Curseforge"],
+)
 @api_json_middleware
 async def curseforge_get_mod_file_download_url(modid: int, fileid: int):
     with Session(sql_engine) as sess:
         t = tables.curseforge_file_info
-    query = sess.query(t.c.time, t.c.status, t.c.data).where(
-        t.c.modid == modid, t.c.fileid == fileid).first()
+    query = (
+        sess.query(t.c.time, t.c.status, t.c.data)
+        .where(t.c.modid == modid, t.c.fileid == fileid)
+        .first()
+    )
     if query is None:
         data = await _curseforge_sync_file_info(sess, modid=modid, fileid=fileid)
         cachetime = int(time.time())
@@ -712,7 +1246,11 @@ async def curseforge_get_mod_file_download_url(modid: int, fileid: int):
             cachetime = int(time.time())
         else:
             cachetime = query[0]
-    return JSONResponse({"status": "success", "url": data["downloadUrl"], "cachetime": cachetime}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        {"status": "success", "url": data["downloadUrl"], "cachetime": cachetime},
+        headers={"Cache-Control": "max-age=300, public"},
+    )
+
 
 # 仍未能够了解 fingerprint 到底是如何工作的...尤其是 fuzzy fingerprint
 # 暂时不缓存 fingerprint 信息
@@ -733,67 +1271,360 @@ class Fuzzy_FingerprintModel(BaseModel):
     fingerprints: List[Fuzzy_Fingerprint]
 
 
-curseforge_fingerprint_example = {"data": {"isCacheBuilt": true, "exactMatches": [{"id": 0, "file": {"id": 0, "gameId": 0, "modId": 0, "isAvailable": true, "displayName": "string", "fileName": "string", "releaseType": 1, "fileStatus": 1, "hashes": [{"value": "string", "algo": 1}], "fileDate": "2019-08-24T14:15:22Z", "fileLength": 0, "downloadCount": 0, "downloadUrl": "string", "gameVersions": ["string"], "sortableGameVersions":[{"gameVersionName": "string", "gameVersionPadded": "string", "gameVersion": "string", "gameVersionReleaseDate": "2019-08-24T14:15:22Z", "gameVersionTypeId": 0}], "dependencies": [{"modId": 0, "relationType": 1}], "exposeAsAlternative": true, "parentProjectFileId": 0, "alternateFileId": 0, "isServerPack": true, "serverPackFileId": 0, "fileFingerprint": 0, "modules": [{"name": "string", "fingerprint": 0}]}, "latestFiles": [{"id": 0, "gameId": 0, "modId": 0, "isAvailable": true, "displayName": "string", "fileName": "string", "releaseType": 1, "fileStatus": 1, "hashes": [{"value": "string", "algo": 1}], "fileDate": "2019-08-24T14:15:22Z", "fileLength": 0, "downloadCount": 0, "downloadUrl": "string", "gameVersions": ["string"], "sortableGameVersions":[{"gameVersionName": "string", "gameVersionPadded": "string", "gameVersion": "string", "gameVersionReleaseDate": "2019-08-24T14:15:22Z", "gameVersionTypeId": 0}], "dependencies": [{"modId": 0, "relationType": 1}], "exposeAsAlternative": true, "parentProjectFileId": 0, "alternateFileId": 0, "isServerPack": true, "serverPackFileId": 0, "fileFingerprint": 0, "modules": [{"name": "string", "fingerprint": 0}]}]}], "exactFingerprints": [0], "partialMatches": [
-    {"id": 0, "file": {"id": 0, "gameId": 0, "modId": 0, "isAvailable": true, "displayName": "string", "fileName": "string", "releaseType": 1, "fileStatus": 1, "hashes": [{"value": "string", "algo": 1}], "fileDate": "2019-08-24T14:15:22Z", "fileLength": 0, "downloadCount": 0, "downloadUrl": "string", "gameVersions": ["string"], "sortableGameVersions":[{"gameVersionName": "string", "gameVersionPadded": "string", "gameVersion": "string", "gameVersionReleaseDate": "2019-08-24T14:15:22Z", "gameVersionTypeId": 0}], "dependencies": [{"modId": 0, "relationType": 1}], "exposeAsAlternative": true, "parentProjectFileId": 0, "alternateFileId": 0, "isServerPack": true, "serverPackFileId": 0, "fileFingerprint": 0, "modules": [{"name": "string", "fingerprint": 0}]}, "latestFiles": [{"id": 0, "gameId": 0, "modId": 0, "isAvailable": true, "displayName": "string", "fileName": "string", "releaseType": 1, "fileStatus": 1, "hashes": [{"value": "string", "algo": 1}], "fileDate": "2019-08-24T14:15:22Z", "fileLength": 0, "downloadCount": 0, "downloadUrl": "string", "gameVersions": ["string"], "sortableGameVersions":[{"gameVersionName": "string", "gameVersionPadded": "string", "gameVersion": "string", "gameVersionReleaseDate": "2019-08-24T14:15:22Z", "gameVersionTypeId": 0}], "dependencies": [{"modId": 0, "relationType": 1}], "exposeAsAlternative": true, "parentProjectFileId": 0, "alternateFileId": 0, "isServerPack": true, "serverPackFileId": 0, "fileFingerprint": 0, "modules": [{"name": "string", "fingerprint": 0}]}]}], "partialMatchFingerprints": {"property1": [0], "property2": [0]}, "installedFingerprints": [0], "unmatchedFingerprints": [0]}}
-curseforge_fuzzy_fingerprint_example = {"data": {"fuzzyMatches": [{"id": 0, "file": {"id": 0, "gameId": 0, "modId": 0, "isAvailable": true, "displayName": "string", "fileName": "string", "releaseType": 1, "fileStatus": 1, "hashes": [{"value": "string", "algo": 1}], "fileDate": "2019-08-24T14:15:22Z", "fileLength": 0, "downloadCount": 0, "downloadUrl": "string", "gameVersions": ["string"], "sortableGameVersions":[{"gameVersionName": "string", "gameVersionPadded": "string", "gameVersion": "string", "gameVersionReleaseDate": "2019-08-24T14:15:22Z", "gameVersionTypeId": 0}], "dependencies": [{"modId": 0, "relationType": 1}], "exposeAsAlternative": true, "parentProjectFileId": 0, "alternateFileId": 0, "isServerPack": true, "serverPackFileId": 0, "fileFingerprint": 0, "modules": [
-    {"name": "string", "fingerprint": 0}]}, "latestFiles": [{"id": 0, "gameId": 0, "modId": 0, "isAvailable": true, "displayName": "string", "fileName": "string", "releaseType": 1, "fileStatus": 1, "hashes": [{"value": "string", "algo": 1}], "fileDate": "2019-08-24T14:15:22Z", "fileLength": 0, "downloadCount": 0, "downloadUrl": "string", "gameVersions": ["string"], "sortableGameVersions":[{"gameVersionName": "string", "gameVersionPadded": "string", "gameVersion": "string", "gameVersionReleaseDate": "2019-08-24T14:15:22Z", "gameVersionTypeId": 0}], "dependencies": [{"modId": 0, "relationType": 1}], "exposeAsAlternative": true, "parentProjectFileId": 0, "alternateFileId": 0, "isServerPack": true, "serverPackFileId": 0, "fileFingerprint": 0, "modules": [{"name": "string", "fingerprint": 0}]}], "fingerprints": [0]}]}}
+curseforge_fingerprint_example = {
+    "data": {
+        "isCacheBuilt": true,
+        "exactMatches": [
+            {
+                "id": 0,
+                "file": {
+                    "id": 0,
+                    "gameId": 0,
+                    "modId": 0,
+                    "isAvailable": true,
+                    "displayName": "string",
+                    "fileName": "string",
+                    "releaseType": 1,
+                    "fileStatus": 1,
+                    "hashes": [{"value": "string", "algo": 1}],
+                    "fileDate": "2019-08-24T14:15:22Z",
+                    "fileLength": 0,
+                    "downloadCount": 0,
+                    "downloadUrl": "string",
+                    "gameVersions": ["string"],
+                    "sortableGameVersions": [
+                        {
+                            "gameVersionName": "string",
+                            "gameVersionPadded": "string",
+                            "gameVersion": "string",
+                            "gameVersionReleaseDate": "2019-08-24T14:15:22Z",
+                            "gameVersionTypeId": 0,
+                        }
+                    ],
+                    "dependencies": [{"modId": 0, "relationType": 1}],
+                    "exposeAsAlternative": true,
+                    "parentProjectFileId": 0,
+                    "alternateFileId": 0,
+                    "isServerPack": true,
+                    "serverPackFileId": 0,
+                    "fileFingerprint": 0,
+                    "modules": [{"name": "string", "fingerprint": 0}],
+                },
+                "latestFiles": [
+                    {
+                        "id": 0,
+                        "gameId": 0,
+                        "modId": 0,
+                        "isAvailable": true,
+                        "displayName": "string",
+                        "fileName": "string",
+                        "releaseType": 1,
+                        "fileStatus": 1,
+                        "hashes": [{"value": "string", "algo": 1}],
+                        "fileDate": "2019-08-24T14:15:22Z",
+                        "fileLength": 0,
+                        "downloadCount": 0,
+                        "downloadUrl": "string",
+                        "gameVersions": ["string"],
+                        "sortableGameVersions": [
+                            {
+                                "gameVersionName": "string",
+                                "gameVersionPadded": "string",
+                                "gameVersion": "string",
+                                "gameVersionReleaseDate": "2019-08-24T14:15:22Z",
+                                "gameVersionTypeId": 0,
+                            }
+                        ],
+                        "dependencies": [{"modId": 0, "relationType": 1}],
+                        "exposeAsAlternative": true,
+                        "parentProjectFileId": 0,
+                        "alternateFileId": 0,
+                        "isServerPack": true,
+                        "serverPackFileId": 0,
+                        "fileFingerprint": 0,
+                        "modules": [{"name": "string", "fingerprint": 0}],
+                    }
+                ],
+            }
+        ],
+        "exactFingerprints": [0],
+        "partialMatches": [
+            {
+                "id": 0,
+                "file": {
+                    "id": 0,
+                    "gameId": 0,
+                    "modId": 0,
+                    "isAvailable": true,
+                    "displayName": "string",
+                    "fileName": "string",
+                    "releaseType": 1,
+                    "fileStatus": 1,
+                    "hashes": [{"value": "string", "algo": 1}],
+                    "fileDate": "2019-08-24T14:15:22Z",
+                    "fileLength": 0,
+                    "downloadCount": 0,
+                    "downloadUrl": "string",
+                    "gameVersions": ["string"],
+                    "sortableGameVersions": [
+                        {
+                            "gameVersionName": "string",
+                            "gameVersionPadded": "string",
+                            "gameVersion": "string",
+                            "gameVersionReleaseDate": "2019-08-24T14:15:22Z",
+                            "gameVersionTypeId": 0,
+                        }
+                    ],
+                    "dependencies": [{"modId": 0, "relationType": 1}],
+                    "exposeAsAlternative": true,
+                    "parentProjectFileId": 0,
+                    "alternateFileId": 0,
+                    "isServerPack": true,
+                    "serverPackFileId": 0,
+                    "fileFingerprint": 0,
+                    "modules": [{"name": "string", "fingerprint": 0}],
+                },
+                "latestFiles": [
+                    {
+                        "id": 0,
+                        "gameId": 0,
+                        "modId": 0,
+                        "isAvailable": true,
+                        "displayName": "string",
+                        "fileName": "string",
+                        "releaseType": 1,
+                        "fileStatus": 1,
+                        "hashes": [{"value": "string", "algo": 1}],
+                        "fileDate": "2019-08-24T14:15:22Z",
+                        "fileLength": 0,
+                        "downloadCount": 0,
+                        "downloadUrl": "string",
+                        "gameVersions": ["string"],
+                        "sortableGameVersions": [
+                            {
+                                "gameVersionName": "string",
+                                "gameVersionPadded": "string",
+                                "gameVersion": "string",
+                                "gameVersionReleaseDate": "2019-08-24T14:15:22Z",
+                                "gameVersionTypeId": 0,
+                            }
+                        ],
+                        "dependencies": [{"modId": 0, "relationType": 1}],
+                        "exposeAsAlternative": true,
+                        "parentProjectFileId": 0,
+                        "alternateFileId": 0,
+                        "isServerPack": true,
+                        "serverPackFileId": 0,
+                        "fileFingerprint": 0,
+                        "modules": [{"name": "string", "fingerprint": 0}],
+                    }
+                ],
+            }
+        ],
+        "partialMatchFingerprints": {"property1": [0], "property2": [0]},
+        "installedFingerprints": [0],
+        "unmatchedFingerprints": [0],
+    }
+}
+curseforge_fuzzy_fingerprint_example = {
+    "data": {
+        "fuzzyMatches": [
+            {
+                "id": 0,
+                "file": {
+                    "id": 0,
+                    "gameId": 0,
+                    "modId": 0,
+                    "isAvailable": true,
+                    "displayName": "string",
+                    "fileName": "string",
+                    "releaseType": 1,
+                    "fileStatus": 1,
+                    "hashes": [{"value": "string", "algo": 1}],
+                    "fileDate": "2019-08-24T14:15:22Z",
+                    "fileLength": 0,
+                    "downloadCount": 0,
+                    "downloadUrl": "string",
+                    "gameVersions": ["string"],
+                    "sortableGameVersions": [
+                        {
+                            "gameVersionName": "string",
+                            "gameVersionPadded": "string",
+                            "gameVersion": "string",
+                            "gameVersionReleaseDate": "2019-08-24T14:15:22Z",
+                            "gameVersionTypeId": 0,
+                        }
+                    ],
+                    "dependencies": [{"modId": 0, "relationType": 1}],
+                    "exposeAsAlternative": true,
+                    "parentProjectFileId": 0,
+                    "alternateFileId": 0,
+                    "isServerPack": true,
+                    "serverPackFileId": 0,
+                    "fileFingerprint": 0,
+                    "modules": [{"name": "string", "fingerprint": 0}],
+                },
+                "latestFiles": [
+                    {
+                        "id": 0,
+                        "gameId": 0,
+                        "modId": 0,
+                        "isAvailable": true,
+                        "displayName": "string",
+                        "fileName": "string",
+                        "releaseType": 1,
+                        "fileStatus": 1,
+                        "hashes": [{"value": "string", "algo": 1}],
+                        "fileDate": "2019-08-24T14:15:22Z",
+                        "fileLength": 0,
+                        "downloadCount": 0,
+                        "downloadUrl": "string",
+                        "gameVersions": ["string"],
+                        "sortableGameVersions": [
+                            {
+                                "gameVersionName": "string",
+                                "gameVersionPadded": "string",
+                                "gameVersion": "string",
+                                "gameVersionReleaseDate": "2019-08-24T14:15:22Z",
+                                "gameVersionTypeId": 0,
+                            }
+                        ],
+                        "dependencies": [{"modId": 0, "relationType": 1}],
+                        "exposeAsAlternative": true,
+                        "parentProjectFileId": 0,
+                        "alternateFileId": 0,
+                        "isServerPack": true,
+                        "serverPackFileId": 0,
+                        "fileFingerprint": 0,
+                        "modules": [{"name": "string", "fingerprint": 0}],
+                    }
+                ],
+                "fingerprints": [0],
+            }
+        ]
+    }
+}
 
 
-@api.post("/curseforge/fingerprints",
-          responses={200: {"description": "Curseforge fingerprint", "content": {
-              "application/json": {"example": curseforge_fingerprint_example}}}
-          }, description="Curseforge Fingerprints", tags=["Curseforge"])
+@api.post(
+    "/curseforge/fingerprints",
+    responses={
+        200: {
+            "description": "Curseforge fingerprint",
+            "content": {
+                "application/json": {"example": curseforge_fingerprint_example}
+            },
+        }
+    },
+    description="Curseforge Fingerprints",
+    tags=["Curseforge"],
+)
 @api_json_middleware
 async def get_curseforge_fingerprints(item: FingerprintsItemModel):
     result = (await cf_api.get_fingerprint(item.fingerprints))["data"]
-    return JSONResponse({"status": "success", "data": result}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        {"status": "success", "data": result},
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
-@api.post("/curseforge/fingerprints/fuzzy",
-          responses={200: {"description": "Curseforge fuzzy fingerprint", "content": {
-              "application/json": {"example": curseforge_fuzzy_fingerprint_example}}}
-          }, description="Curseforge Fuzzy Fingerprints", tags=["Curseforge"])
+@api.post(
+    "/curseforge/fingerprints/fuzzy",
+    responses={
+        200: {
+            "description": "Curseforge fuzzy fingerprint",
+            "content": {
+                "application/json": {"example": curseforge_fuzzy_fingerprint_example}
+            },
+        }
+    },
+    description="Curseforge Fuzzy Fingerprints",
+    tags=["Curseforge"],
+)
 @api_json_middleware
 async def get_curseforge_fuzzy_fingerprints(item: Fuzzy_FingerprintModel):
-    result = (await cf_api.get_fuzzy_fingerprnt(gameid=item.gameId, fingerprints=item.fingerprints))["data"]
-    return JSONResponse({"status": "success", "data": result}, headers={"Cache-Control": "max-age=300, public"})
+    result = (
+        await cf_api.get_fuzzy_fingerprnt(
+            gameid=item.gameId, fingerprints=item.fingerprints
+        )
+    )["data"]
+    return JSONResponse(
+        {"status": "success", "data": result},
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
-@api.get("/modrinth",
-         responses={200: {"description": "Modrinth API", "content": {
-             "application/json": {"example":
-                                  {
-                                      "about": "Welcome traveler!",
-                                      "documentation": "https://docs.modrinth.com",
-                                      "name": "modrinth-labrinth",
-                                      "version": "2.5.0"
-                                  }
-                                  }}}
-                    }, description="Modrinth API", tags=["Modrinth"])
+@api.get(
+    "/modrinth",
+    responses={
+        200: {
+            "description": "Modrinth API",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "about": "Welcome traveler!",
+                        "documentation": "https://docs.modrinth.com",
+                        "name": "modrinth-labrinth",
+                        "version": "2.5.0",
+                    }
+                }
+            },
+        }
+    },
+    description="Modrinth API",
+    tags=["Modrinth"],
+)
 @api_json_middleware
 async def modrinth():
     return await mr_api.end_point()
 
-modrinth_mod_example = {"slug": "my_project", "title": "My Project", "description": "A short description",
-                        "categories": ["technology", "adventure", "fabric"], "client_side": "required",
-                        "server_side": "optional", "body": "A long body describing my project in detail",
-                        "issues_url": "https://github.com/my_user/my_project/issues",
-                        "source_url": "https://github.com/my_user/my_project",
-                        "wiki_url": "https://github.com/my_user/my_project/wiki",
-                        "discord_url": "https://discord.gg/AaBbCcDd", "donation_urls": [
-                            {"id": "patreon", "platform": "Patreon", "url": "https://www.patreon.com/my_user"}], "project_type": "mod",
-                        "downloads": 0,
-                        "icon_url": "https://cdn.modrinth.com/data/AABBCCDD/b46513nd83hb4792a9a0e1fn28fgi6090c1842639.png",
-                        "id": "AABBCCDD", "team": "MMNNOOPP", "body_url": None, "moderator_message": None,
-                        "published": "2019-08-24T14:15:22Z", "updated": "2019-08-24T14:15:22Z", "followers": 0,
-                        "status": "approved",
-                        "license": {"id": "lgpl-3", "name": "GNU Lesser General Public License v3",
-                                    "url": "https://cdn.modrinth.com/licenses/lgpl-3.txt"},
-                        "versions": ["IIJJKKLL", "QQRRSSTT"], "gallery": [
-                            {"url": "https://cdn.modrinth.com/data/AABBCCDD/images/009b7d8d6e8bf04968a29421117c59b3efe2351a.png",
-                             "featured": True, "title": "My awesome screenshot!",
-                             "description": "This awesome screenshot shows all of the blocks in my mod!",
-                             "created": "2019-08-24T14:15:22Z"}]}
+
+modrinth_mod_example = {
+    "slug": "my_project",
+    "title": "My Project",
+    "description": "A short description",
+    "categories": ["technology", "adventure", "fabric"],
+    "client_side": "required",
+    "server_side": "optional",
+    "body": "A long body describing my project in detail",
+    "issues_url": "https://github.com/my_user/my_project/issues",
+    "source_url": "https://github.com/my_user/my_project",
+    "wiki_url": "https://github.com/my_user/my_project/wiki",
+    "discord_url": "https://discord.gg/AaBbCcDd",
+    "donation_urls": [
+        {
+            "id": "patreon",
+            "platform": "Patreon",
+            "url": "https://www.patreon.com/my_user",
+        }
+    ],
+    "project_type": "mod",
+    "downloads": 0,
+    "icon_url": "https://cdn.modrinth.com/data/AABBCCDD/b46513nd83hb4792a9a0e1fn28fgi6090c1842639.png",
+    "id": "AABBCCDD",
+    "team": "MMNNOOPP",
+    "body_url": None,
+    "moderator_message": None,
+    "published": "2019-08-24T14:15:22Z",
+    "updated": "2019-08-24T14:15:22Z",
+    "followers": 0,
+    "status": "approved",
+    "license": {
+        "id": "lgpl-3",
+        "name": "GNU Lesser General Public License v3",
+        "url": "https://cdn.modrinth.com/licenses/lgpl-3.txt",
+    },
+    "versions": ["IIJJKKLL", "QQRRSSTT"],
+    "gallery": [
+        {
+            "url": "https://cdn.modrinth.com/data/AABBCCDD/images/009b7d8d6e8bf04968a29421117c59b3efe2351a.png",
+            "featured": True,
+            "title": "My awesome screenshot!",
+            "description": "This awesome screenshot shows all of the blocks in my mod!",
+            "created": "2019-08-24T14:15:22Z",
+        }
+    ],
+}
 
 
 async def _modrinth_background_task_sync_version(project_id: str):
@@ -804,25 +1635,40 @@ async def _modrinth_background_task_sync_version(project_id: str):
             project_id = version["project_id"]
             version_id = version["id"]
             version["cachetime"] = int(time.time())
-            sql_replace(sess, t, project_id=project_id, version_id=version_id,
-                        status=200, time=version["cachetime"], data=version)
-            log(f'Sync modrinth version {version_id}')
+            sql_replace(
+                sess,
+                t,
+                project_id=project_id,
+                version_id=version_id,
+                status=200,
+                time=version["cachetime"],
+                data=version,
+            )
+            log(f"Sync modrinth version {version_id}")
         sess.commit()
 
 
-async def _modrinth_sync_project(sess: Session, idslug: str, background_tasks: BackgroundTasks = None):  # 优先采用 slug
+async def _modrinth_sync_project(
+    sess: Session, idslug: str, background_tasks: BackgroundTasks = None
+):  # 优先采用 slug
     t = tables.modrinth_project_info
     cache_data = await mr_api.get_project(slug=idslug)
     slug = cache_data["slug"]
     project_id = cache_data["id"]
     cache_data["cachetime"] = int(time.time())
-    sql_replace(sess, t, project_id=project_id, slug=slug,
-                status=200, time=int(time.time()), data=cache_data)
-    log(f'Sync modrinth project {project_id}')
+    sql_replace(
+        sess,
+        t,
+        project_id=project_id,
+        slug=slug,
+        status=200,
+        time=int(time.time()),
+        data=cache_data,
+    )
+    log(f"Sync modrinth project {project_id}")
     sess.commit()
     if background_tasks is not None:
-        background_tasks.add_task(
-            _modrinth_sync_project_versions, sess, idslug)
+        background_tasks.add_task(_modrinth_sync_project_versions, sess, idslug)
     return cache_data
 
 
@@ -831,20 +1677,32 @@ async def _modrinth_get_project(idslug: str, background_tasks=None):
         cachetime, status, data = query
         if status == 200:
             if int(time.time()) - data["cachetime"] > 60 * 60 * 4:
-                data = await _modrinth_sync_project(sess, idslug=idslug, background_tasks=background_tasks)
+                data = await _modrinth_sync_project(
+                    sess, idslug=idslug, background_tasks=background_tasks
+                )
         else:
-            data = await _modrinth_sync_project(sess, idslug=idslug, background_tasks=background_tasks)
+            data = await _modrinth_sync_project(
+                sess, idslug=idslug, background_tasks=background_tasks
+            )
         return data
 
     with Session(sql_engine) as sess:
         t = tables.modrinth_project_info
-        query = sess.query(t.c.time, t.c.status, t.c.data).where(
-            t.c.project_id == idslug).first()
+        query = (
+            sess.query(t.c.time, t.c.status, t.c.data)
+            .where(t.c.project_id == idslug)
+            .first()
+        )
         if query is None:
-            query = sess.query(t.c.time, t.c.status, t.c.data).where(
-                t.c.slug == idslug).first()
+            query = (
+                sess.query(t.c.time, t.c.status, t.c.data)
+                .where(t.c.slug == idslug)
+                .first()
+            )
             if query is None:
-                data = await _modrinth_sync_project(sess, idslug=idslug, background_tasks=background_tasks)
+                data = await _modrinth_sync_project(
+                    sess, idslug=idslug, background_tasks=background_tasks
+                )
             else:
                 data = await _modrinth_sync_project_response(query=query)
         else:
@@ -852,46 +1710,60 @@ async def _modrinth_get_project(idslug: str, background_tasks=None):
 
         if background_tasks is not None:
             background_tasks.add_task(
-                _modrinth_background_task_sync_version, data["id"])
+                _modrinth_background_task_sync_version, data["id"]
+            )
 
         return data
 
 
-@api.get("/modrinth/project/{idslug}",
-         responses={
-             200: {
-                 "description": "Modrinth project info",
-                 "content": {
-                     "application/json": {
-                         "example": modrinth_mod_example
-                     }
-                 }
-             }
-         }, description="Modrinth project info", tags=["Modrinth"])
+@api.get(
+    "/modrinth/project/{idslug}",
+    responses={
+        200: {
+            "description": "Modrinth project info",
+            "content": {"application/json": {"example": modrinth_mod_example}},
+        }
+    },
+    description="Modrinth project info",
+    tags=["Modrinth"],
+)
 @api_json_middleware
 async def get_modrinth_project(idslug: str, background_tasks: BackgroundTasks):
-    return JSONResponse({"status": "success", "data": await _modrinth_get_project(idslug, background_tasks=background_tasks)}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        {
+            "status": "success",
+            "data": await _modrinth_get_project(
+                idslug, background_tasks=background_tasks
+            ),
+        },
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
-@api.get("/modrinth/projects",
-         responses={
-             200: {
-                 "description": "Modrinth projects info",
-                 "content": {
-                     "application/json": {
-                         "example": [modrinth_mod_example]
-                     }
-                 }
-             }
-         }, description="Modrinth project list", tags=["Modrinth"])
+@api.get(
+    "/modrinth/projects",
+    responses={
+        200: {
+            "description": "Modrinth projects info",
+            "content": {"application/json": {"example": [modrinth_mod_example]}},
+        }
+    },
+    description="Modrinth project list",
+    tags=["Modrinth"],
+)
 @api_json_middleware
 async def get_modrinth_projects(ids: str, background_tasks: BackgroundTasks):
     ids = str_to_list(ids)
     projects_data = []
     for project_id in ids:
-        project_data = await _modrinth_get_project(idslug=project_id, background_tasks=background_tasks)
+        project_data = await _modrinth_get_project(
+            idslug=project_id, background_tasks=background_tasks
+        )
         projects_data.append(project_data)
-    return JSONResponse({"status": "success", "data": projects_data},  headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        {"status": "success", "data": projects_data},
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
 modrinth_search_example = {
@@ -902,18 +1774,12 @@ modrinth_search_example = {
         {
             "version_id": "IIJJKKLL",
             "project_id": "QQRRSSTT",
-            "dependency_type": "required"
+            "dependency_type": "required",
         }
     ],
-    "game_versions": [
-        "1.16.5",
-        "1.17.1"
-    ],
+    "game_versions": ["1.16.5", "1.17.1"],
     "version_type": "release",
-    "loaders": [
-        "fabric",
-        "forge"
-    ],
+    "loaders": ["fabric", "forge"],
     "featured": True,
     "id": "IIJJKKLL",
     "project_id": "AABBCCDD",
@@ -925,29 +1791,44 @@ modrinth_search_example = {
         {
             "hashes": {
                 "sha512": "93ecf5fe02914fb53d94aa3d28c1fb562e23985f8e4d48b9038422798618761fe208a31ca9b723667a4e05de0d91a3f86bcd8d018f6a686c39550e21b198d96f",
-                "sha1": "c84dd4b3580c02b79958a0590afd5783d80ef504"
+                "sha1": "c84dd4b3580c02b79958a0590afd5783d80ef504",
             },
             "url": "https://cdn.modrinth.com/data/AABBCCDD/versions/1.0.0/my_file.jar",
             "filename": "my_file.jar",
             "primary": False,
-            "size": 1097270
+            "size": 1097270,
         }
-    ]
+    ],
 }
 
 
-@api.get("/modrinth/search",
-         responses={200: {"description": "Modrinth search", "content": {
-             "application/json": {"example":
-                                  [modrinth_search_example]
-                                  }}}
-                    }, description="Modrinth search", tags=["Modrinth"])
+@api.get(
+    "/modrinth/search",
+    responses={
+        200: {
+            "description": "Modrinth search",
+            "content": {"application/json": {"example": [modrinth_search_example]}},
+        }
+    },
+    description="Modrinth search",
+    tags=["Modrinth"],
+)
 @api_json_middleware
-async def modrinth_search(query: str = None, facets: str = None, limit: int = 20, offset: int = 0,
-                          index: str = "relevance"):
-    search_result = await mr_api.search(query=query, facets=facets, limit=limit, offset=offset, index=index)
+async def modrinth_search(
+    query: str = None,
+    facets: str = None,
+    limit: int = 20,
+    offset: int = 0,
+    index: str = "relevance",
+):
+    search_result = await mr_api.search(
+        query=query, facets=facets, limit=limit, offset=offset, index=index
+    )
     # TODO 在数据库中搜索
-    return JSONResponse({"status": "success", "data": search_result}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        {"status": "success", "data": search_result},
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
 modrinth_version_example = {
@@ -958,18 +1839,12 @@ modrinth_version_example = {
         {
             "version_id": "IIJJKKLL",
             "project_id": "QQRRSSTT",
-            "dependency_type": "required"
+            "dependency_type": "required",
         }
     ],
-    "game_versions": [
-        "1.16.5",
-        "1.17.1"
-    ],
+    "game_versions": ["1.16.5", "1.17.1"],
     "version_type": "release",
-    "loaders": [
-        "fabric",
-        "forge"
-    ],
+    "loaders": ["fabric", "forge"],
     "featured": True,
     "id": "IIJJKKLL",
     "project_id": "AABBCCDD",
@@ -981,14 +1856,14 @@ modrinth_version_example = {
         {
             "hashes": {
                 "sha512": "93ecf5fe02914fb53d94aa3d28c1fb562e23985f8e4d48b9038422798618761fe208a31ca9b723667a4e05de0d91a3f86bcd8d018f6a686c39550e21b198d96f",
-                "sha1": "c84dd4b3580c02b79958a0590afd5783d80ef504"
+                "sha1": "c84dd4b3580c02b79958a0590afd5783d80ef504",
             },
             "url": "https://cdn.modrinth.com/data/AABBCCDD/versions/1.0.0/my_file.jar",
             "filename": "my_file.jar",
             "primary": False,
-            "size": 1097270
+            "size": 1097270,
         }
-    ]
+    ],
 }
 
 
@@ -997,10 +1872,17 @@ async def _modrinth_sync_version(sess: Session, version_id: str):
     cache_data = await mr_api.get_project_version(version_id=version_id)
     project_id = cache_data["project_id"]
     cache_data["cachetime"] = int(time.time())
-    sql_replace(sess, t, project_id=project_id, version_id=version_id,
-                status=200, time=cache_data["cachetime"], data=cache_data)
+    sql_replace(
+        sess,
+        t,
+        project_id=project_id,
+        version_id=version_id,
+        status=200,
+        time=cache_data["cachetime"],
+        data=cache_data,
+    )
     sess.commit()
-    log(f'Sync modrinth version {version_id}')
+    log(f"Sync modrinth version {version_id}")
     return cache_data
 
 
@@ -1009,18 +1891,28 @@ async def _modrinth_sync_project_versions(sess: Session, project_id: str):
     versions = await mr_api.get_project_versions(project_id=project_id)
     for version in versions:
         version["cachetime"] = int(time.time())
-        sql_replace(sess, t, project_id=project_id,
-                    version_id=version["id"], status=200, time=version["cachetime"], data=version)
+        sql_replace(
+            sess,
+            t,
+            project_id=project_id,
+            version_id=version["id"],
+            status=200,
+            time=version["cachetime"],
+            data=version,
+        )
         sess.commit()
-    log(f'Sync modrinth project {project_id} versions')
+    log(f"Sync modrinth project {project_id} versions")
     return versions
 
 
 async def _modrinth_get_version(version_id: str):
     with Session(sql_engine) as sess:
         t = tables.modrinth_version_info
-        query = sess.query(t.c.time, t.c.status, t.c.data).filter(
-            t.c.version_id == version_id).first()
+        query = (
+            sess.query(t.c.time, t.c.status, t.c.data)
+            .filter(t.c.version_id == version_id)
+            .first()
+        )
         if query is None:
             data = await _modrinth_sync_version(sess, version_id=version_id)
         else:
@@ -1030,23 +1922,44 @@ async def _modrinth_get_version(version_id: str):
                     data = await _modrinth_sync_version(sess, version_id=version_id)
             else:
                 data = await _modrinth_sync_version(sess, version_id=version_id)
-        return JSONResponse({"status": "success", "data": data},  headers={"Cache-Control": "max-age=300, public"})
+        return JSONResponse(
+            {"status": "success", "data": data},
+            headers={"Cache-Control": "max-age=300, public"},
+        )
 
 
-@api.get("/modrinth/version/{version_id}",
-         responses={200: {"description": "Modrinth version info", "content": {
-             "application/json": {"example":
-                                  modrinth_version_example
-                                  }}}
-                    }, description="Modrinth version info", tags=["Modrinth"])
+@api.get(
+    "/modrinth/version/{version_id}",
+    responses={
+        200: {
+            "description": "Modrinth version info",
+            "content": {"application/json": {"example": modrinth_version_example}},
+        }
+    },
+    description="Modrinth version info",
+    tags=["Modrinth"],
+)
 @api_json_middleware
 async def get_modrinth_version(version_id: str):
     return await _modrinth_get_version(version_id)
 
 
-async def _modrinth_get_project_versions(idslug: str, game_versions: list = None, loaders: list = None, featured: bool = None, background_tasks: BackgroundTasks = None):
-    async def _sync_modrinth_project_versions(project_id: str, game_versions: list = None, loaders: list = None, featured: bool = None):
-        raw_versions_info = await _modrinth_sync_project_versions(sess, project_id=project_id)
+async def _modrinth_get_project_versions(
+    idslug: str,
+    game_versions: list = None,
+    loaders: list = None,
+    featured: bool = None,
+    background_tasks: BackgroundTasks = None,
+):
+    async def _sync_modrinth_project_versions(
+        project_id: str,
+        game_versions: list = None,
+        loaders: list = None,
+        featured: bool = None,
+    ):
+        raw_versions_info = await _modrinth_sync_project_versions(
+            sess, project_id=project_id
+        )
         versions = []
         for version_info in raw_versions_info:
             if featured:
@@ -1056,7 +1969,10 @@ async def _modrinth_get_project_versions(idslug: str, game_versions: list = None
                 if len(list(set(loaders) & set(version_info["loaders"]))) == 0:
                     continue
             if game_versions:
-                if len(list(set(game_versions) & set(version_info["game_versions"]))) == 0:
+                if (
+                    len(list(set(game_versions) & set(version_info["game_versions"])))
+                    == 0
+                ):
                     continue
             versions.append(version_info)
         return raw_versions_info, versions
@@ -1066,8 +1982,15 @@ async def _modrinth_get_project_versions(idslug: str, game_versions: list = None
             t = tables.modrinth_version_info
             for version_info in versions:
                 version_info["cachetime"] = int(time.time())
-                sql_replace(sess, t, project_id=project_id,
-                            version_id=version_info["id"], status=200, time=version_info["cachetime"], data=version_info)
+                sql_replace(
+                    sess,
+                    t,
+                    project_id=project_id,
+                    version_id=version_info["id"],
+                    status=200,
+                    time=version_info["cachetime"],
+                    data=version_info,
+                )
             sess.commit()
 
     with Session(sql_engine) as sess:
@@ -1078,10 +2001,15 @@ async def _modrinth_get_project_versions(idslug: str, game_versions: list = None
             game_versions = str_to_list(game_versions)
         project_data = await _modrinth_get_project(idslug)  # 获取 project_id
         project_id = project_data["id"]
-        query = sess.query(t.c.time, t.c.status, t.c.data).filter(
-            t.c.project_id == project_id).all()
+        query = (
+            sess.query(t.c.time, t.c.status, t.c.data)
+            .filter(t.c.project_id == project_id)
+            .all()
+        )
         if len(query) == 0:
-            raw_versions_info, versions = await _sync_modrinth_project_versions(project_id)
+            raw_versions_info, versions = await _sync_modrinth_project_versions(
+                project_id
+            )
         else:
             versions = []
             for version_info in query:
@@ -1095,38 +2023,77 @@ async def _modrinth_get_project_versions(idslug: str, game_versions: list = None
                             if len(list(set(loaders) & set(data["loaders"]))) == 0:
                                 continue
                         if game_versions:
-                            if len(list(set(game_versions) & set(data["game_versions"]))) == 0:
+                            if (
+                                len(
+                                    list(
+                                        set(game_versions) & set(data["game_versions"])
+                                    )
+                                )
+                                == 0
+                            ):
                                 continue
                     else:
-                        raw_versions_info, versions = await _sync_modrinth_project_versions(project_id)
+                        raw_versions_info, versions = (
+                            await _sync_modrinth_project_versions(project_id)
+                        )
                         break
                 else:
-                    raw_versions_info, versions = await _sync_modrinth_project_versions(project_id)
+                    raw_versions_info, versions = await _sync_modrinth_project_versions(
+                        project_id
+                    )
                     break
                 versions.append(data)
 
     if background_tasks is not None:
         background_tasks.add_task(
-            _sync_modrinth_project_versions_background_task, raw_versions_info)
+            _sync_modrinth_project_versions_background_task, raw_versions_info
+        )
 
-    return JSONResponse({"status": "success", "data": versions}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        {"status": "success", "data": versions},
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
-@api.get("/modrinth/project/{idslug}/versions",
-         responses={200: {"description": "Modrinth project versions info", "content": {
-             "application/json": {"example":
-                                  [modrinth_version_example]
-                                  }}}
-                    }, description="Modrint project versions info", tags=["Modrinth"])
+@api.get(
+    "/modrinth/project/{idslug}/versions",
+    responses={
+        200: {
+            "description": "Modrinth project versions info",
+            "content": {"application/json": {"example": [modrinth_version_example]}},
+        }
+    },
+    description="Modrint project versions info",
+    tags=["Modrinth"],
+)
 @api_json_middleware
-async def get_modrinth_project_versions(idslug: str, loaders: str = None, game_versions: str = None, featured: bool = None, background_tasks: BackgroundTasks = None):
-    return JSONResponse({"status": "success", "data": await _modrinth_get_project_versions(idslug, loaders=loaders, game_versions=game_versions, featured=featured, background_tasks=background_tasks)}, headers={"Cache-Control": "max-age=300, public"})
+async def get_modrinth_project_versions(
+    idslug: str,
+    loaders: str = None,
+    game_versions: str = None,
+    featured: bool = None,
+    background_tasks: BackgroundTasks = None,
+):
+    return JSONResponse(
+        {
+            "status": "success",
+            "data": await _modrinth_get_project_versions(
+                idslug,
+                loaders=loaders,
+                game_versions=game_versions,
+                featured=featured,
+                background_tasks=background_tasks,
+            ),
+        },
+        headers={"Cache-Control": "max-age=300, public"},
+    )
+
 
 example_modrinth_category = [
     {
-        "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><polygon points=\"16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76\"/></svg>",
+        "icon": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
         "name": "adventure",
-        "project_type": "mod"
+        "project_type": "mod",
     }
 ]
 
@@ -1134,20 +2101,17 @@ example_modrinth_category = [
 async def _modrinth_sync_tag_category(sess: Session):
     t = tables.modrinth_tag_info
     data = await mr_api.get_categories()
-    sql_replace(sess, t, slug="category", status=200,
-                time=int(time.time()), data=data)
+    sql_replace(sess, t, slug="category", status=200, time=int(time.time()), data=data)
     sess.commit()
-    log(f'Sync modrinth tag category')
+    log(f"Sync modrinth tag category")
     return data
+
 
 example_modrinth_loader = [
     {
-        "icon": "<svg viewBox=\"0 0 276 288\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"23\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><g transform=\"matrix(1,0,0,1,-3302.43,-67.3276)\"><g transform=\"matrix(0.564163,0,0,1.70346,1629.87,0)\"><g transform=\"matrix(1.97801,-0.0501803,0.151517,0.655089,1678.7,-354.14)\"><g><path d=\"M820.011,761.092C798.277,738.875 754.809,694.442 734.36,673.389C729.774,668.668 723.992,663.75 708.535,674.369C688.629,688.043 700.073,696.251 703.288,699.785C711.508,708.824 787.411,788.803 800.523,803.818C802.95,806.597 780.243,781.318 793.957,764.065C799.444,757.163 811.985,752.043 820.011,761.092C826.534,768.447 830.658,779.178 816.559,790.826C791.91,811.191 714.618,873.211 689.659,893.792C677.105,904.144 661.053,896.143 653.827,887.719C646.269,878.908 623.211,853.212 602.539,829.646C596.999,823.332 598.393,810.031 604.753,804.545C639.873,774.253 696.704,730.787 716.673,713.831\"/></g></g></g></g></svg>",
+        "icon": '<svg viewBox="0 0 276 288" fill="none" stroke="currentColor" stroke-width="23" stroke-linecap="round" stroke-linejoin="round"><g transform="matrix(1,0,0,1,-3302.43,-67.3276)"><g transform="matrix(0.564163,0,0,1.70346,1629.87,0)"><g transform="matrix(1.97801,-0.0501803,0.151517,0.655089,1678.7,-354.14)"><g><path d="M820.011,761.092C798.277,738.875 754.809,694.442 734.36,673.389C729.774,668.668 723.992,663.75 708.535,674.369C688.629,688.043 700.073,696.251 703.288,699.785C711.508,708.824 787.411,788.803 800.523,803.818C802.95,806.597 780.243,781.318 793.957,764.065C799.444,757.163 811.985,752.043 820.011,761.092C826.534,768.447 830.658,779.178 816.559,790.826C791.91,811.191 714.618,873.211 689.659,893.792C677.105,904.144 661.053,896.143 653.827,887.719C646.269,878.908 623.211,853.212 602.539,829.646C596.999,823.332 598.393,810.031 604.753,804.545C639.873,774.253 696.704,730.787 716.673,713.831"/></g></g></g></g></svg>',
         "name": "fabric",
-        "supported_project_types": [
-            "mod",
-            "modpack"
-        ]
+        "supported_project_types": ["mod", "modpack"],
     }
 ]
 
@@ -1155,18 +2119,18 @@ example_modrinth_loader = [
 async def _modrinth_sync_tag_loader(sess: Session):
     t = tables.modrinth_tag_info
     data = await mr_api.get_loaders()
-    sql_replace(sess, t, slug="loader", status=200,
-                time=int(time.time()), data=data)
+    sql_replace(sess, t, slug="loader", status=200, time=int(time.time()), data=data)
     sess.commit()
-    log(f'Sync modrinth tag loader')
+    log(f"Sync modrinth tag loader")
     return data
+
 
 example_modrinth_game_version = [
     {
         "version": "1.18.1",
         "version_type": "release",
         "date": "2019-08-24T14:15:22Z",
-        "major": True
+        "major": True,
     }
 ]
 
@@ -1174,40 +2138,47 @@ example_modrinth_game_version = [
 async def _modrinth_sync_tag_game_version(sess: Session):
     t = tables.modrinth_tag_info
     data = await mr_api.get_game_versions()
-    sql_replace(sess, t, slug="game_version", status=200,
-                time=int(time.time()), data=data)
+    sql_replace(
+        sess, t, slug="game_version", status=200, time=int(time.time()), data=data
+    )
     sess.commit()
-    log(f'Sync modrinth tag game_version')
+    log(f"Sync modrinth tag game_version")
     return data
 
+
 example_modrinth_license = [
-    {
-        "short": "lgpl-3",
-        "name": "GNU Lesser General Public License v3"
-    }
+    {"short": "lgpl-3", "name": "GNU Lesser General Public License v3"}
 ]
 
 
 async def _modrinth_sync_tag_license(sess: Session):
     t = tables.modrinth_tag_info
     data = await mr_api.get_licenses()
-    sql_replace(sess, t, slug="license", status=200,
-                time=int(time.time()), data=data)
+    sql_replace(sess, t, slug="license", status=200, time=int(time.time()), data=data)
     sess.commit()
-    log(f'Sync modrinth tag license')
+    log(f"Sync modrinth tag license")
     return data
 
 
-@api.get("/modrinth/tag/category", responses={200: {"description": "Modrinth tag catrgory", "content": {
-    "application/json": {"example":
-                         example_modrinth_category
-                         }}}
-}, description="Modrinth tag category", tags=["Modrinth"])
+@api.get(
+    "/modrinth/tag/category",
+    responses={
+        200: {
+            "description": "Modrinth tag catrgory",
+            "content": {"application/json": {"example": example_modrinth_category}},
+        }
+    },
+    description="Modrinth tag category",
+    tags=["Modrinth"],
+)
 async def get_modrinth_tag_category():
     with Session(sql_engine) as sess:
         t = tables.modrinth_tag_info
-        query = sess.query(t.c.time, t.c.status, t.c.data).filter(
-            t.c.slug == "category").first()
+        query = (
+            sess.query(t.c.time, t.c.status, t.c.data)
+            .filter(t.c.slug == "category")
+            .first()
+        )
         if query is None:
             data = await _modrinth_sync_tag_category(sess)
             cachetime = int(time.time())
@@ -1215,19 +2186,31 @@ async def get_modrinth_tag_category():
             cachetime, status, data = query
             if cachetime - int(time.time()) > 60 * 60 * 4 or status == 200:
                 data = await _modrinth_sync_tag_category(sess)
-    return JSONResponse({"status": "success", "cachetime": cachetime, "data": data}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        {"status": "success", "cachetime": cachetime, "data": data},
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
-@api.get("/modrinth/tag/loader", responses={200: {"description": "Modrinth tag loader", "content": {
-    "application/json": {"example":
-                         example_modrinth_loader
-                         }}}
-}, description="Modrinth tag loader", tags=["Modrinth"])
+@api.get(
+    "/modrinth/tag/loader",
+    responses={
+        200: {
+            "description": "Modrinth tag loader",
+            "content": {"application/json": {"example": example_modrinth_loader}},
+        }
+    },
+    description="Modrinth tag loader",
+    tags=["Modrinth"],
+)
 async def get_modrinth_tag_loader():
     t = tables.modrinth_tag_info
     with Session(sql_engine) as sess:
-        query = sess.query(t.c.time, t.c.status, t.c.data).filter(
-            t.c.slug == "loader").first()
+        query = (
+            sess.query(t.c.time, t.c.status, t.c.data)
+            .filter(t.c.slug == "loader")
+            .first()
+        )
         if query is None:
             data = await _modrinth_sync_tag_loader(sess)
             cachetime = int(time.time())
@@ -1235,19 +2218,31 @@ async def get_modrinth_tag_loader():
             cachetime, status, data = query
             if cachetime - int(time.time()) > 60 * 60 * 4 or status == 200:
                 data = await _modrinth_sync_tag_loader(sess)
-    return JSONResponse({"status": "success", "cachetime": cachetime, "data": data}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        {"status": "success", "cachetime": cachetime, "data": data},
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
-@api.get("/modrinth/tag/game_version", responses={200: {"description": "Modrinth tag game version", "content": {
-    "application/json": {"example":
-                         example_modrinth_game_version
-                         }}}
-}, description="Modrinth tag game version", tags=["Modrinth"])
+@api.get(
+    "/modrinth/tag/game_version",
+    responses={
+        200: {
+            "description": "Modrinth tag game version",
+            "content": {"application/json": {"example": example_modrinth_game_version}},
+        }
+    },
+    description="Modrinth tag game version",
+    tags=["Modrinth"],
+)
 async def get_modrinth_tag_game_version():
     t = tables.modrinth_tag_info
     with Session(sql_engine) as sess:
-        query = sess.query(t.c.time, t.c.status, t.c.data).filter(
-            t.c.slug == "game_version").first()
+        query = (
+            sess.query(t.c.time, t.c.status, t.c.data)
+            .filter(t.c.slug == "game_version")
+            .first()
+        )
         if query is None:
             data = await _modrinth_sync_tag_game_version(sess)
             cachetime = int(time.time())
@@ -1255,19 +2250,31 @@ async def get_modrinth_tag_game_version():
             cachetime, status, data = query
             if cachetime - int(time.time()) > 60 * 60 * 4 or status == 200:
                 data = await _modrinth_sync_tag_game_version(sess)
-    return JSONResponse({"status": "success", "cachetime": cachetime, "data": data}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        {"status": "success", "cachetime": cachetime, "data": data},
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
-@api.get("/modrinth/tag/license", responses={200: {"description": "Modrinth tag license", "content": {
-    "application/json": {"example":
-                         example_modrinth_license
-                         }}}
-}, description="Modrinth tag license", tags=["Modrinth"])
+@api.get(
+    "/modrinth/tag/license",
+    responses={
+        200: {
+            "description": "Modrinth tag license",
+            "content": {"application/json": {"example": example_modrinth_license}},
+        }
+    },
+    description="Modrinth tag license",
+    tags=["Modrinth"],
+)
 async def get_modrinth_tag_license():
     t = tables.modrinth_tag_info
     with Session(sql_engine) as sess:
-        query = sess.query(t.c.time, t.c.status, t.c.data).filter(
-            t.c.slug == "license").first()
+        query = (
+            sess.query(t.c.time, t.c.status, t.c.data)
+            .filter(t.c.slug == "license")
+            .first()
+        )
         if query is None:
             data = await _modrinth_sync_tag_license(sess)
             cachetime = int(time.time())
@@ -1275,7 +2282,10 @@ async def get_modrinth_tag_license():
             cachetime, status, data = query
             if cachetime - int(time.time()) > 60 * 60 * 4 or status == 200:
                 data = await _modrinth_sync_tag_license(sess)
-    return JSONResponse({"status": "success", "cachetime": cachetime, "data": data}, headers={"Cache-Control": "max-age=300, public"})
+    return JSONResponse(
+        {"status": "success", "cachetime": cachetime, "data": data},
+        headers={"Cache-Control": "max-age=300, public"},
+    )
 
 
 LOGGING_CONFIG = {
@@ -1290,19 +2300,19 @@ LOGGING_CONFIG = {
         "access": {
             "()": "uvicorn.logging.AccessFormatter",
             "fmt": '%(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s',
-            "use_colors": False
+            "use_colors": False,
         },
     },
     "handlers": {
         "default": {
             "formatter": "default",
             "class": "logging.handlers.TimedRotatingFileHandler",
-            "filename": "logs/web/latest.log"
+            "filename": "logs/web/latest.log",
         },
         "access": {
             "formatter": "access",
             "class": "logging.handlers.TimedRotatingFileHandler",
-            "filename": "logs/web/latest.log"
+            "filename": "logs/web/latest.log",
         },
     },
     "loggers": {
@@ -1316,6 +2326,6 @@ if __name__ == "__main__":
     host, port = "0.0.0.0", 8000
     try:
         getLogFile(basedir="logs/web")
-        uvicorn.run(api, host=host, port=port)
+        uvicorn.run(api, host=host, port=port, )
     except KeyboardInterrupt:
         print("~~ BYE ~~")
