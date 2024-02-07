@@ -1,4 +1,5 @@
 from typing import Union
+from datetime import datetime
 
 from .network import Api
 
@@ -33,4 +34,5 @@ class CurseForgeCli(Api):
         """
         异步获取请求结果
         """
-        return await self.request(raw=raw, **kwargs)
+        data = self.request(raw=raw, **kwargs)
+        return await data

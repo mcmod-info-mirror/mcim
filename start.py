@@ -10,4 +10,4 @@ from app import APP
 mcim_config = MCIMConfig.load()
 
 if __name__ == "__main__":
-    uvicorn.run(APP, host=mcim_config.host, port=mcim_config.port, reload=True)
+    uvicorn.run(APP, host=mcim_config.host, port=mcim_config.port)

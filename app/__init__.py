@@ -3,23 +3,28 @@ from fastapi.responses import JSONResponse, Response, RedirectResponse
 from fastapi import FastAPI, APIRouter
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
 
 from .controller.v1 import v1_router
-from .docs import docs_router
+from .middleware.resp import RespMiddleware
 from .config.mcim import MCIMConfig
+from .database.mongodb import start_async_mongodb, close_async_mongodb
 
 mcim_config = MCIMConfig.load()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await start_async_mongodb()
+    yield
+    await close_async_mongodb()
+
+
 APP = FastAPI(
-    docs_url=None,
-    redoc_url=None,
-    title="MCIM",
-    description="这是一个为 Mod 信息加速的 API",
+    title="MCIM", description="这是一个为 Mod 信息加速的 API", lifespan=lifespan
 )
 
-APP.include_router(docs_router)
 APP.include_router(v1_router, prefix="/v1")
-APP.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 APP.add_middleware(
     CORSMiddleware,

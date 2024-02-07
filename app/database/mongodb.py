@@ -1,6 +1,6 @@
 from beanie import init_beanie
 from loguru import logger
-from motor.core import (  # bad idea to use these three here,
+from motor.core import (
     AgnosticClient,
     AgnosticCollection,
     AgnosticDatabase,
@@ -11,24 +11,26 @@ import sys
 
 
 from app.config import MongodbConfig
+from app.models.database.curseforge import ModInfo, FileInfo, ModFilesSyncInfo, FingerprintInfo
 
 
 mongodb_config = MongodbConfig.load()
 
-async_mongodb_client: AgnosticClient = None
+dbcli: AgnosticClient = None # async motor client
 
 
-def get_async_mongodb_client() -> AgnosticClient:
+
+def get_amcli() -> AgnosticClient:
     """
     Raw Motor client handler, use it when beanie cannot work
     :return:
     """
-    global async_mongodb_client
-    if async_mongodb_client is None:
-        async_mongodb_client = AsyncIOMotorClient(
-            f"mongodb://{mongodb_config.user}:{mongodb_config.password}@{mongodb_config.host}:{mongodb_config.port}/{mongodb_config.database}",
+    global dbcli
+    if dbcli is None:
+        dbcli = AsyncIOMotorClient(
+            f"mongodb://{mongodb_config.user}:{mongodb_config.password}@{mongodb_config.host}:{mongodb_config.port}",
         )
-    return async_mongodb_client
+    return dbcli
 
 
 def get_async_mongodb_database(db_name: Optional[str] = None) -> AgnosticDatabase:
@@ -39,7 +41,7 @@ def get_async_mongodb_database(db_name: Optional[str] = None) -> AgnosticDatabas
     """
     if db_name is None:
         db_name = mongodb_config.database
-    client = get_async_mongodb_client()
+    client = get_amcli()
     return client[db_name]
 
 
@@ -58,15 +60,31 @@ async def start_async_mongodb() -> None:
     Start beanie when process started.
     :return:
     """
-    try:
-        async_mongodb_database = get_async_mongodb_database()
-        await init_beanie(
-            database=async_mongodb_database,
-            document_models=[
-                # Models
-            ],
-        )
-        logger.success("started mongodb connection")
-    except Exception as e:
-        logger.error(f"Failed to start mongodb. {e}")
-        sys.exit(1)
+    # try:
+    async_mongodb_database = get_async_mongodb_database(mongodb_config.database)
+    await init_beanie(
+        database=async_mongodb_database,
+        document_models=[
+            ModInfo,
+            FileInfo,
+            ModFilesSyncInfo,
+            FingerprintInfo
+        ],
+    )
+    logger.success("started mongodb connection")
+    # except Exception as e:
+    #     logger.error(f"Failed to start mongodb. {e}")
+    #     sys.exit(1)
+
+async def close_async_mongodb() -> None:
+    """
+    Close beanie when process stopped.
+    :return:
+    """
+    global dbcli
+    if dbcli is not None:
+        dbcli.close()
+        logger.success("closed mongodb connection")
+    else:
+        logger.warning("no mongodb connection to close")
+    dbcli = None

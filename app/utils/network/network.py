@@ -103,6 +103,7 @@ class Api:
             "params": self.params,
             "headers": HEADERS.copy() if len(self.headers) == 0 else self.headers,
             "timeout": TIMEOUT,
+            
         }
         config.update(kwargs)
 
