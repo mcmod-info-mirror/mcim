@@ -17,6 +17,7 @@ mcim_config = MCIMConfig.load()
 
 API = mcim_config.modrinth_api
 
+EXPIRE_STATUS_CODE = mcim_config.expire_status_code
 modrinth_router = APIRouter(prefix="/modrinth", tags=["modrinth"])
 
 @modrinth_router.get("/")
@@ -146,7 +147,7 @@ async def modrinth_files(items: HashesQuery):
     response_model=List,
 )
 async def modrinth_tag_categories():
-    category = await aio_redis_engine.hget("tags", "categories")
+    category = await aio_redis_engine.hget("modrinth", "categories")
     return JSONResponse(content=json.loads(category))
 
 @modrinth_router.get(
@@ -155,7 +156,7 @@ async def modrinth_tag_categories():
     response_model=List,
 )
 async def modrinth_tag_loaders():
-    loader = await aio_redis_engine.hget("tags", "loaders")
+    loader = await aio_redis_engine.hget("modrinth", "loaders")
     return JSONResponse(content=json.loads(loader))
 
 @modrinth_router.get(
@@ -164,7 +165,7 @@ async def modrinth_tag_loaders():
     response_model=List,
 )
 async def modrinth_tag_game_versions():
-    game_version = await aio_redis_engine.hget("tags", "game_versions")
+    game_version = await aio_redis_engine.hget("modrinth", "game_versions")
     return JSONResponse(content=json.loads(game_version))
 
 @modrinth_router.get(
@@ -173,7 +174,7 @@ async def modrinth_tag_game_versions():
     response_model=List,
 )
 async def modrinth_tag_donation_platforms():
-    donation_platform = await aio_redis_engine.hget("tags", "donation_platform")
+    donation_platform = await aio_redis_engine.hget("modrinth", "donation_platform")
     return JSONResponse(content=json.loads(donation_platform))
 
 @modrinth_router.get(
@@ -182,7 +183,7 @@ async def modrinth_tag_donation_platforms():
     response_model=List,
 )
 async def modrinth_tag_project_types():
-    project_type = await aio_redis_engine.hget("tags", "project_type")
+    project_type = await aio_redis_engine.hget("modrinth", "project_type")
     return JSONResponse(content=json.loads(project_type))
 
 @modrinth_router.get(
@@ -191,5 +192,5 @@ async def modrinth_tag_project_types():
     response_model=List,
 )
 async def modrinth_tag_side_types():
-    side_type = await aio_redis_engine.hget("tags", "side_type")
+    side_type = await aio_redis_engine.hget("modrinth", "side_type")
     return JSONResponse(content=json.loads(side_type))

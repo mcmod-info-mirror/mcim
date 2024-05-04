@@ -7,6 +7,14 @@ from .constants import CONFIG_PATH
 # MCIM config path
 MICM_CONFIG_PATH = os.path.join(CONFIG_PATH, "mcim.json")
 
+class ExpireSecond(BaseModel):
+    class Curseforge:
+        mod: int = 86400
+        file: int = 86400
+    
+    class Modrinth:
+        mod: int = 86400
+        version: int = 86400
 
 class MCIMConfigModel(BaseModel):
     host: str = "127.0.0.1"
@@ -19,6 +27,10 @@ class MCIMConfigModel(BaseModel):
     proxies: str = None
     sync_interval: int = 3600  # seconds
     async_timeout: int = 60  # seconds
+
+    
+    expire_second: ExpireSecond = ExpireSecond()
+    expire_status_code: int = 404
 
     favicon_url: str = (
         "https://thirdqq.qlogo.cn/g?b=sdk&k=ABmaVOlfKKPceB5qfiajxqg&s=640"

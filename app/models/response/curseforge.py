@@ -75,3 +75,29 @@ class FingerprintResponse(BaseModel):
     exactFingerprints: List[int]
     installedFingerprints: List[int]
     unmatchedFingerprints: List[int]
+
+{
+    "id": 0,
+    "gameId": 0,
+    "name": "string",
+    "slug": "string",
+    "url": "string",
+    "iconUrl": "string",
+    "dateModified": "2019-08-24T14:15:22Z",
+    "isClass": True,
+    "classId": 0,
+    "parentCategoryId": 0,
+    "displayIndex": 0
+}
+class Category(BaseModel):
+    id: int
+    gameId: int
+    name: str
+    slug: str
+    url: str
+    iconUrl: str
+    dateModified: str
+    isClass: bool
+    classId: int
+    parentCategoryId: int
+    displayIndex: int

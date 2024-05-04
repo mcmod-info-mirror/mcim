@@ -1,5 +1,6 @@
 from typing import List, Optional, Union
 from dramatiq import actor
+import json
 
 from ..sync.worker import sync_mongo_engine as mongodb_engine
 from ..sync.worker import sync_redis_engine as redis_engine
@@ -126,3 +127,8 @@ def sync_fingerprints(fingerprints: List[int]):
             )
         )
     sync_multi_projects_all_files([model.file.modId for model in models], models)
+
+@actor
+def sync_categories():
+    res = request(f"{API}/v1/categories", headers=headers).json()["data"]
+    redis_engine.hset("curseforge", "categories", json.dumps(res))
