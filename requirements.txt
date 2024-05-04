@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 aiohttp==3.8.1
 fastapi==0.79.0
 pydantic==1.9.1
@@ -5,3 +6,16 @@ PyMySQL==1.0.2
 requests==2.27.1
 uvicorn==0.17.6
 sqlalchemy==1.4.40
+=======
+# beanie==1.25.0
+dramatiq==1.16.0
+odmantic==1.0.2
+fastapi==0.109.0
+httpx==0.26.0
+loguru==0.7.2
+motor==3.3.2
+pydantic==2.6.0
+pydantic_core==2.16.1
+python-multipart==0.0.7
+uvicorn==0.27.0
+>>>>>>> Stashed changes
