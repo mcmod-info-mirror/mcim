@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from .controller.v1 import v1_router
-from .middleware.resp import RespMiddleware
+# from .middleware.resp import RespMiddleware
 from .config.mcim import MCIMConfig
 from .database.mongodb import setup_async_mongodb, init_mongodb_aioengine
 from .database._redis import init_redis_aioengine, close_aio_redis_engine

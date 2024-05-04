@@ -1,7 +1,7 @@
 import uvicorn
 
 
-from app.config.mcim import MCIMConfig
+from app.config import MCIMConfig
 from app.config import MCIMConfig
 from app.database.mongodb import init_mongodb_aioengine
 from app.database._redis import init_redis_aioengine
