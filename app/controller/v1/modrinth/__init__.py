@@ -9,7 +9,7 @@ import json
 
 from app.sync import *
 from app.models.database.modrinth import Project, Version, File
-from app.sync.modrinth import sync_project, sync_version, sync_multi_projects, sync_multi_projects
+from app.sync.modrinth import sync_project, sync_version, sync_multi_projects, sync_multi_projects, sync_multi_versions, sync_hash, sync_multi_hashes
 from app.database.mongodb import aio_mongo_engine
 from app.database._redis import aio_redis_engine
 from app.config.mcim import MCIMConfig
@@ -36,7 +36,7 @@ async def modrinth_project(idslug: str):
     model = await aio_mongo_engine.find_one(Project, query.or_(Project.id == idslug, Project.slug == idslug))
     if model is None:
         sync_project.send(idslug)
-        return Response(status_code=EXPIRE_STATUS_CODE)
+        return Response(status_code=UNCACHE_STATUS_CODE)
     return JSONResponse(content=model.model_dump())
 
 @modrinth_router.get(
@@ -47,9 +47,10 @@ async def modrinth_project(idslug: str):
 async def modrinth_projects(Ids: List[int]):
     models = await aio_mongo_engine.find(Project, query.in_(Project.id, Ids))
     if models is None:
-        pass
+        sync_multi_projects.send(Ids=Ids)
+        return Response(status_code=UNCACHE_STATUS_CODE)
     elif len(models) != len(Ids):
-        pass
+        return Response(status_code=UNCACHE_STATUS_CODE)
     return JSONResponse(content=[model.model_dump() for model in models])
 
 @modrinth_router.get(
@@ -60,7 +61,8 @@ async def modrinth_projects(Ids: List[int]):
 async def modrinth_project_versions(idslug: str):
     model = await aio_mongo_engine.find(Version, query.or_(Version.project_id == idslug, Version.slug == idslug))
     if model is None:
-        pass
+        sync_version.send(idslug)
+        return Response(status_code=UNCACHE_STATUS_CODE)
     return JSONResponse(content=[version.model_dump() for version in model])
 
 @modrinth_router.get(
@@ -83,7 +85,8 @@ async def modrinth_search_projects(query: str):
 async def modrinth_version(version_id: Annotated[str, Query(alias="id")]):
     model = await aio_mongo_engine.find_one(Version, query.or_(Version.id == version_id, Version.slug == version_id))
     if model is None:
-        pass
+        sync_version.send(version_id=version_id)
+        return Response(status_code=UNCACHE_STATUS_CODE)
     return JSONResponse(content=model.model_dump())
 
 @modrinth_router.get(
@@ -95,9 +98,11 @@ async def modrinth_versions(ids: str):
     ids_list = json.loads(ids)
     models = await aio_mongo_engine.find(Version, query.in_(Version.id, ids_list))
     if models is None:
-        pass
+        sync_multi_versions.send(ids_list=ids_list)
+        return Response(status_code=UNCACHE_STATUS_CODE)
     elif len(models) != len(ids_list):
-        pass
+        sync_multi_versions.send(ids_list=ids_list)
+        return Response(status_code=UNCACHE_STATUS_CODE)
     return JSONResponse(content=[model.model_dump() for model in models])
 
 
@@ -115,7 +120,13 @@ async def modrinth_file(hash: str, algorithm: Optional[Algorithm] = Algorithm.sh
         file_model = await aio_mongo_engine.find_one(File, File.hashes.sha1 == hash)
     elif algorithm == Algorithm.sha512:
         file_model = await aio_mongo_engine.find_one(File, File.hashes.sha512 == hash)
+    if file_model is None:
+        sync_hash.send(hash=hash, algorithm=algorithm)
+        return Response(status_code=UNCACHE_STATUS_CODE)
     version_model = await aio_mongo_engine.find_one(Version, Version.id == file_model.version_id)
+    if version_model is None:
+        sync_version.send(version_id=file_model.version_id)
+        return Response(status_code=UNCACHE_STATUS_CODE)
     return JSONResponse(content=version_model.model_dump())
 
 class HashesQuery(BaseModel):
@@ -133,16 +144,20 @@ async def modrinth_files(items: HashesQuery):
     elif items.algorithm == Algorithm.sha512:
         files_models = await aio_mongo_engine.find(File, query.in_(File.hashes.sha512, items.hashes))
     if files_models is None:
-        pass
+        sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm)
+        return Response(status_code=UNCACHE_STATUS_CODE)
     elif len(files_models) != len(items.hashes):
-        pass
-    version_models = await aio_mongo_engine.find(Version, query.in_(Version.id, [file.version_id for file in files_models]))
+        sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm)
+        return Response(status_code=UNCACHE_STATUS_CODE)
+    version_ids = [file.version_id for file in files_models]
+    version_models = await aio_mongo_engine.find(Version, query.in_(Version.id, version_ids))
     
-    if files_models is None:
-        pass
+    if version_models is None:
+        sync_multi_versions.send(ids_list=version_ids)
+        return Response(status_code=UNCACHE_STATUS_CODE)
     elif len(version_models) != len(files_models):
-        pass
-    
+        sync_multi_versions.send(ids_list=version_ids)
+        return Response(status_code=UNCACHE_STATUS_CODE)
     return JSONResponse(content=[model.model_dump() for model in version_models])
 
 @modrinth_router.get(

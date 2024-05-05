@@ -32,7 +32,6 @@ async def get_curseforge():
 async def curseforge_mod(modId: int):
     mod_model = await aio_mongo_engine.find_one(Mod, Mod.id == modId)
     if mod_model is None:
-        # return RedirectResponse(url=f"{API}/v1/mods/{modId}")
         return Response(status_code=UNCACHE_STATUS_CODE)
     elif mod_model.sync_at.timestamp() + mcim_config.expire_second.Curseforge.mod < time.time():
         sync_mod.send(modId=modId)
