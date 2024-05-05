@@ -7,8 +7,8 @@ import httpx
 from dataclasses import field, dataclass
 from typing import Any, Dict, Union
 
-from ..log import logger
-from ...exceptions import ApiException, NetworkException, ResponseException
+# from ..log import logger
+# from ...exceptions import ApiException, NetworkException, ResponseException
 from ...config import MCIMConfig
 
 mcim_config = MCIMConfig.load()
@@ -103,5 +103,5 @@ def request(url: str, method: str = "GET", **kwargs) -> httpx.Response:
     """
     res = httpx.request(method, url, proxies=PROXY, **kwargs)
     if res.status_code != 200:
-        raise ResponseCodeException(res.status_code, f'{res.url} {res.headers}')
+        raise ResponseCodeException(res.status_code, f'url:{res.url} headers:{res.headers} text:{res.text}')
     return res

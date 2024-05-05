@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from typing_extensions import Annotated
 from typing import List, Optional, Union
 from enum import Enum
@@ -9,6 +9,7 @@ import json
 
 from app.sync import *
 from app.models.database.modrinth import Project, Version, File
+from app.sync.modrinth import sync_project, sync_version, sync_multi_projects, sync_multi_projects
 from app.database.mongodb import aio_mongo_engine
 from app.database._redis import aio_redis_engine
 from app.config.mcim import MCIMConfig
@@ -18,6 +19,8 @@ mcim_config = MCIMConfig.load()
 API = mcim_config.modrinth_api
 
 EXPIRE_STATUS_CODE = mcim_config.expire_status_code
+UNCACHE_STATUS_CODE = mcim_config.uncache_status_code
+
 modrinth_router = APIRouter(prefix="/modrinth", tags=["modrinth"])
 
 @modrinth_router.get("/")
@@ -32,7 +35,8 @@ async def get_curseforge():
 async def modrinth_project(idslug: str):
     model = await aio_mongo_engine.find_one(Project, query.or_(Project.id == idslug, Project.slug == idslug))
     if model is None:
-        pass
+        sync_project.send(idslug)
+        return Response(status_code=EXPIRE_STATUS_CODE)
     return JSONResponse(content=model.model_dump())
 
 @modrinth_router.get(

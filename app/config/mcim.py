@@ -31,6 +31,7 @@ class MCIMConfigModel(BaseModel):
     
     expire_second: ExpireSecond = ExpireSecond()
     expire_status_code: int = 404
+    uncache_status_code: int = 404
 
     favicon_url: str = (
         "https://thirdqq.qlogo.cn/g?b=sdk&k=ABmaVOlfKKPceB5qfiajxqg&s=640"

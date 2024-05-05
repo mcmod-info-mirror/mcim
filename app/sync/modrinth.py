@@ -36,8 +36,7 @@ def submit_models(models: List[Union[Project, File, Version]]):
 @actor
 def check_alive():
     res = request("https://api.modrinth.com")
-    if res.status_code == 200:
-        return res.json()
+    return res.json()
 
 
 @actor
@@ -46,17 +45,15 @@ def sync_project_all_version(
     models: Optional[List[Union[Project, File, Version]]] = [],
     submit: Optional[bool] = True,
 ):
-    res = request(f"{API}/project/{project_id}/version")
-    if res.status_code == 200:
-        res = res.json()
-        for version in res:
-            for file in version["files"]:
-                file["version_id"] = version["id"]
-                models.append(File(**file))
-            models.append(Version(**version))
-        if submit:
-            submit_models(models)
-        return models
+    res = request(f"{API}/project/{project_id}/version").json()
+    for version in res:
+        for file in version["files"]:
+            file["version_id"] = version["id"]
+            models.append(File(**file))
+        models.append(Version(**version))
+    if submit:
+        submit_models(models)
+    return models
 
 
 def sync_multi_projects_all_version(
@@ -69,21 +66,17 @@ def sync_multi_projects_all_version(
 
 @actor
 def sync_project(project_id: str):
-    res = request(f"{API}/project/{project_id}")
-    if res.status_code == 200:
-        res = res.json()
-        sync_project_all_version(project_id, models=[Project(**res)])
+    res = request(f"{API}/project/{project_id}").json()
+    sync_project_all_version(project_id, models=[Project(**res)])
 
 
 @actor
 def sync_multi_projects(project_ids: List[str]):
-    res = request(f"{API}/projects", params={"ids": json.dumps(project_ids)})
-    if res.status_code == 200:
-        res = res.json()
-        models = []
-        for project in res:
-            models.append(Project(**project))
-        sync_multi_projects_all_version(project_ids, models=models)
+    res = request(f"{API}/projects", params={"ids": json.dumps(project_ids)}).json()
+    models = []
+    for project in res:
+        models.append(Project(**project))
+    sync_multi_projects_all_version(project_ids, models=models)
 
 
 def process_version_resp(
@@ -97,12 +90,10 @@ def process_version_resp(
 
 @actor
 def sync_version(version_id: str):
-    res = request(f"{API}/version/{version_id}")
-    if res.status_code == 200:
-        res = res.json()
-        models = []
-        process_version_resp(res, models)
-        sync_project_all_version(res["project_id"], models=models)
+    res = request(f"{API}/version/{version_id}").json()
+    models = []
+    process_version_resp(res, models)
+    sync_project_all_version(res["project_id"], models=models)
 
 
 def process_multi_versions(
@@ -118,13 +109,13 @@ def process_multi_versions(
 @actor
 def sync_multi_versions(version_ids: List[str]):
     res = request(f"{API}/versions", params={"ids": json.dumps(version_ids)})
-    if res.status_code == 200:
-        res = res.json()
-        models = []
-        process_multi_versions(res, models)
-        sync_multi_projects_all_version(
-            [version["project_id"] for version in res], models=models
-        )
+
+    res = res.json()
+    models = []
+    process_multi_versions(res, models)
+    sync_multi_projects_all_version(
+        [version["project_id"] for version in res], models=models
+    )
 
 
 @actor
