@@ -177,17 +177,6 @@ class File(Model):
     model_config = {
         "collection": "curseforge_files",
     }
-
-    # class Settings:
-    #     name = "curseforge_files"
-    #     indexes = [
-    #         IndexModel([("fileId", 1)], unique=True),
-    #         IndexModel([("modId", 1)], unique=False),
-    #         IndexModel(
-    #             [("sync_at", ASCENDING)], expireAfterSeconds=expireAfterSeconds
-    #         ),  # auto expire
-    #     ]
-
 class FileInfo(BaseModel):
     id: int = Field(primary_field=True)
     gameId: int
@@ -258,17 +247,6 @@ class Mod(Model):
         "collection": "curseforge_mods",
     }
 
-    # class Settings:
-    #     name = "curseforge_mods"
-    #     indexes = [
-    #         IndexModel([("modId", 1)], unique=True),
-    #         IndexModel([("gameId", 1)], unique=False),
-    #         IndexModel([("slug", 1)], unique=True),
-    #         IndexModel(
-    #             [("sync_at", ASCENDING)], expireAfterSeconds=expireAfterSeconds
-    #         ),  # auto expire
-    #     ]
-
 
 {"pagination": {"index": 0, "pageSize": 0, "resultCount": 0, "totalCount": 0}}
 
@@ -280,21 +258,7 @@ class Pagination(BaseModel):
     totalCount: int
 
 
-# class ModFilesSync(Model):
-#     modId: int
-
-#     sync_at: datetime = Field(default_factory=datetime.utcnow)
-
-    # class Settings:
-    #     name = "curseforge_mod_files_sync"
-    #     indexes = [
-    #         IndexModel([("modId", 1)], unique=True),
-    #         IndexModel(
-    #             [("sync_at", ASCENDING)], expireAfterSeconds=expireAfterSeconds
-    #         ),  # auto expire
-    #     ]
-
-
+# TODO: add latestFiles Mod reference but not refresh while refreshing File
 class Fingerprint(Model):
     id: int = Field(primary_field=True)
     file: FileInfo

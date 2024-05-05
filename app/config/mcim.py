@@ -13,7 +13,7 @@ class ExpireSecond(BaseModel):
         file: int = 86400
     
     class Modrinth:
-        mod: int = 86400
+        project: int = 86400
         version: int = 86400
 
 class MCIMConfigModel(BaseModel):

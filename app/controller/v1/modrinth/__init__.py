@@ -6,6 +6,7 @@ from enum import Enum
 from pydantic import BaseModel
 from odmantic import query
 import json
+import time
 
 from app.sync import *
 from app.models.database.modrinth import Project, Version, File
@@ -37,6 +38,9 @@ async def modrinth_project(idslug: str):
     if model is None:
         sync_project.send(idslug)
         return Response(status_code=UNCACHE_STATUS_CODE)
+    elif model.sync_at.timestamp() + mcim_config.expire_second.Modrinth.project< time.time():
+        sync_project.send(idslug)
+        return Response(status_code=EXPIRE_STATUS_CODE)
     return JSONResponse(content=model.model_dump())
 
 @modrinth_router.get(
@@ -51,6 +55,7 @@ async def modrinth_projects(Ids: List[int]):
         return Response(status_code=UNCACHE_STATUS_CODE)
     elif len(models) != len(Ids):
         return Response(status_code=UNCACHE_STATUS_CODE)
+    # TODO: check expire
     return JSONResponse(content=[model.model_dump() for model in models])
 
 @modrinth_router.get(
@@ -63,6 +68,7 @@ async def modrinth_project_versions(idslug: str):
     if model is None:
         sync_version.send(idslug)
         return Response(status_code=UNCACHE_STATUS_CODE)
+    # TODO: check expire
     return JSONResponse(content=[version.model_dump() for version in model])
 
 @modrinth_router.get(
@@ -87,6 +93,9 @@ async def modrinth_version(version_id: Annotated[str, Query(alias="id")]):
     if model is None:
         sync_version.send(version_id=version_id)
         return Response(status_code=UNCACHE_STATUS_CODE)
+    elif model.sync_at.timestamp() + mcim_config.expire_second.Modrinth.version < time.time():
+        sync_version.send(version_id=version_id)
+        return Response(status_code=EXPIRE_STATUS_CODE)
     return JSONResponse(content=model.model_dump())
 
 @modrinth_router.get(
@@ -103,6 +112,7 @@ async def modrinth_versions(ids: str):
     elif len(models) != len(ids_list):
         sync_multi_versions.send(ids_list=ids_list)
         return Response(status_code=UNCACHE_STATUS_CODE)
+    # TODO: check expire
     return JSONResponse(content=[model.model_dump() for model in models])
 
 
@@ -123,10 +133,17 @@ async def modrinth_file(hash: str, algorithm: Optional[Algorithm] = Algorithm.sh
     if file_model is None:
         sync_hash.send(hash=hash, algorithm=algorithm)
         return Response(status_code=UNCACHE_STATUS_CODE)
+    elif file_model.sync_at.timestamp() + mcim_config.expire_second.Modrinth.file < time.time():
+        sync_hash.send(hash=hash, algorithm=algorithm)
+        return Response(status_code=EXPIRE_STATUS_CODE)
+    # TODO: Add Version reference directly but not query File again
     version_model = await aio_mongo_engine.find_one(Version, Version.id == file_model.version_id)
     if version_model is None:
         sync_version.send(version_id=file_model.version_id)
         return Response(status_code=UNCACHE_STATUS_CODE)
+    elif version_model.sync_at.timestamp() + mcim_config.expire_second.Modrinth.version < time.time():
+        sync_version.send(version_id=file_model.version_id)
+        return Response(status_code=EXPIRE_STATUS_CODE)
     return JSONResponse(content=version_model.model_dump())
 
 class HashesQuery(BaseModel):
@@ -149,9 +166,9 @@ async def modrinth_files(items: HashesQuery):
     elif len(files_models) != len(items.hashes):
         sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm)
         return Response(status_code=UNCACHE_STATUS_CODE)
+    # TODO: check expire
     version_ids = [file.version_id for file in files_models]
     version_models = await aio_mongo_engine.find(Version, query.in_(Version.id, version_ids))
-    
     if version_models is None:
         sync_multi_versions.send(ids_list=version_ids)
         return Response(status_code=UNCACHE_STATUS_CODE)

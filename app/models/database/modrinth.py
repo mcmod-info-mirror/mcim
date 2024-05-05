@@ -64,6 +64,7 @@ class Hashes(EmbeddedModel):
     sha512: str
     sha1: str
 
+# TODO: Add Version reference directly but not query File again
 class File(Model):
     hashes: Hashes = Field(primary_field=True)
     version_id: str
