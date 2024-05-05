@@ -1,5 +1,5 @@
 from odmantic import Model, Field, EmbeddedModel
-from pydantic import BaseModel, field_serializer, model_validator
+from pydantic import BaseModel, field_serializer, model_serializer
 
 from typing import List, Optional
 from datetime import datetime
@@ -38,6 +38,7 @@ class Project(Model):
     loaders: Optional[List[str]] = None
     gallery: Optional[List[Gallery]] = None
 
+    found: bool = Field(default=True, exclude=True)
     sync_at: datetime = Field(default_factory=datetime.utcnow)
     
     model_config = {
@@ -54,12 +55,6 @@ class Dependencies(BaseModel):
     file_name: Optional[str] = None
     dependency_type: Optional[str] = None
 
-    @model_validator(mode='after')
-    def check_a_or_b(self):
-        if not self.version_id and not self.project_id:
-            raise ValueError('either version_id or project_id is required')
-        return self
-
 class Hashes(EmbeddedModel):
     sha512: str
     sha1: str
@@ -74,6 +69,7 @@ class File(Model):
     size: Optional[int] = None
     file_type: Optional[Optional[str]] = None
 
+    found: bool = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -84,7 +80,7 @@ class File(Model):
     @field_serializer("sync_at")
     def serialize_sync_Date(self, value: datetime, _info):
         return value.strftime("%Y-%m-%dT%H:%M:%SZ")
-
+    
 class Version(Model):
     id: str = Field(primary_field=True)
     project_id: str
@@ -105,10 +101,7 @@ class Version(Model):
     changelog_url: Optional[str] = None # Deprecated
     files: List[File]
 
-    # sha1: Optional[str] = None
-    # sha256: Optional[str] = None
-
-    
+    found: bool = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)
 
     model_config = {
@@ -118,18 +111,3 @@ class Version(Model):
     @field_serializer("sync_at")
     def serialize_sync_Date(self, value: datetime, _info):
         return value.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-# class ProjectVersionSync(Model):
-#     project_id: str
-#     slug: str
-#     version_id: str = Field(unique=True, primary_field=True)
-
-#     sync_at: datetime = Field(default_factory=datetime.utcnow)
-
-#     model_config = {
-#         "collection": "modrinth_project_version_sync"
-#     }
-    
-#     @field_serializer("sync_at")
-#     def serialize_sync_Date(self, value: datetime, _info):
-#         return value.strftime("%Y-%m-%dT%H:%M:%SZ")

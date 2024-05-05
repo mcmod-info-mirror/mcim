@@ -19,11 +19,12 @@ from typing import List, Optional, Union
 from dramatiq import actor
 import json
 
-from ..database.mongodb import sync_mongo_engine as mongodb_engine
-from ..database._redis import sync_redis_engine as redis_engine
-from ..models.database.modrinth import Project, File, Version
-from ..utils.network.network import request
-from ..config.mcim import MCIMConfig
+from app.database.mongodb import sync_mongo_engine as mongodb_engine
+from app.database._redis import sync_redis_engine as redis_engine
+from app.models.database.modrinth import Project, File, Version
+from app.utils.network.network import request
+from app.exceptions import ResponseCodeException
+from app.config.mcim import MCIMConfig
 
 mcim_config = MCIMConfig.load()
 
@@ -45,12 +46,17 @@ def sync_project_all_version(
     models: Optional[List[Union[Project, File, Version]]] = [],
     submit: Optional[bool] = True,
 ):
-    res = request(f"{API}/project/{project_id}/version").json()
+    try:
+        res = request(f"{API}/project/{project_id}/version").json()
+    except ResponseCodeException as e:
+        if e.status_code == 404:
+            models.append(Project(success=False, id=project_id))
+            return
     for version in res:
         for file in version["files"]:
             file["version_id"] = version["id"]
-            models.append(File(**file))
-        models.append(Version(**version))
+            models.append(File(found=True, **file))
+        models.append(Version(found=True, **version))
     if submit:
         submit_models(models)
     return models
@@ -67,15 +73,23 @@ def sync_multi_projects_all_version(
 @actor
 def sync_project(project_id: str):
     res = request(f"{API}/project/{project_id}").json()
-    sync_project_all_version(project_id, models=[Project(**res)])
+    sync_project_all_version(project_id, models=[Project(found=True, **res)])
 
 
 @actor
 def sync_multi_projects(project_ids: List[str]):
-    res = request(f"{API}/projects", params={"ids": json.dumps(project_ids)}).json()
+    try:
+        res = request(f"{API}/projects", params={"ids": json.dumps(project_ids)}).json()
+    except ResponseCodeException as e:
+        if e.status_code == 404:
+            models = []
+            for project_id in project_ids:
+                models.append(Project(success=False, id=project_id))
+            submit_models(models)
+            return
     models = []
     for project in res:
-        models.append(Project(**project))
+        models.append(Project(found=True, **project))
     sync_multi_projects_all_version(project_ids, models=models)
 
 
@@ -84,13 +98,20 @@ def process_version_resp(
 ):
     for file in res["files"]:
         file["version_id"] = res["id"]
-        models.append(File(**file))
-    models.append(Version(**res))
+        models.append(File(found=True, **file))
+    models.append(Version(found=True, **res))
 
 
 @actor
 def sync_version(version_id: str):
-    res = request(f"{API}/version/{version_id}").json()
+    try:
+        res = request(f"{API}/version/{version_id}").json()
+    except ResponseCodeException as e:
+        if e.status_code == 404:
+            models = [Version(success=False, id=version_id)]
+            submit_models(models)
+            return
+
     models = []
     process_version_resp(res, models)
     sync_project_all_version(res["project_id"], models=models)
@@ -102,15 +123,21 @@ def process_multi_versions(
     for version in res:
         for file in version["files"]:
             file["version_id"] = version["id"]
-            models.append(File(**file))
-        models.append(Version(**version))
+            models.append(File(found=True, **file))
+        models.append(Version(found=True, **version))
 
 
 @actor
 def sync_multi_versions(version_ids: List[str]):
-    res = request(f"{API}/versions", params={"ids": json.dumps(version_ids)})
-
-    res = res.json()
+    try:
+        res = request(f"{API}/versions", params={"ids": json.dumps(version_ids)}).json()
+    except ResponseCodeException as e:
+        if e.status_code == 404:
+            models = []
+            for version_id in version_ids:
+                models.append(Version(success=False, id=version_id))
+            submit_models(models)
+            return
     models = []
     process_multi_versions(res, models)
     sync_multi_projects_all_version(
@@ -120,14 +147,16 @@ def sync_multi_versions(version_ids: List[str]):
 
 @actor
 def sync_hash(hash: str, algorithm: str):
-    res = request(f"{API}/version_file/{hash}", params={"algorithm": algorithm})
-    if res.status_code == 404:
-        return None
-    elif res.status_code == 200:
-        res = res.json()
-        models = []
-        process_version_resp(res, models)
-        sync_project_all_version(res["project_id"], models=models)
+    try:
+        res = request(f"{API}/version_file/{hash}", params={"algorithm": algorithm}).json()
+    except ResponseCodeException as e:
+        if e.status_code == 404:
+            models = [File(success=False, hash=hash)]
+            submit_models(models)
+            return
+    models = []
+    process_version_resp(res, models)
+    sync_project_all_version(res["project_id"], models=models)
 
 
 def process_multi_hashes(
@@ -136,18 +165,25 @@ def process_multi_hashes(
     for version in res.values():
         for file in version["files"]:
             file["version_id"] = version["id"]
-            models.append(File(**file))
-        models.append(Version(**version))
+            models.append(File(found=True, **file))
+        models.append(Version(found=True, **version))
 
 
 @actor
 def sync_multi_hashes(hashes: List[str], algorithm: str):
-    res = request(
-        method="POST",
-        url=f"{API}/version_files",
-        json={"hashes": hashes, "algorithm": algorithm},
-    )
-    res = res.json()
+    try:
+        res = request(
+            method="POST",
+            url=f"{API}/version_files",
+            json={"hashes": hashes, "algorithm": algorithm},
+        ).json()
+    except ResponseCodeException as e:
+        if e.status_code == 404:
+            models = []
+            for hash in hashes:
+                models.append(File(success=False, hash=hash))
+            submit_models(models)
+            return
     models = []
     process_multi_hashes(res, models)
     sync_multi_projects_all_version(

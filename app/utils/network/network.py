@@ -8,8 +8,8 @@ from dataclasses import field, dataclass
 from typing import Any, Dict, Union
 
 # from ..log import logger
-# from ...exceptions import ApiException, NetworkException, ResponseException
-from ...config import MCIMConfig
+from app.exceptions import ApiException, ResponseCodeException
+from app.config.mcim import MCIMConfig
 
 mcim_config = MCIMConfig.load()
 
@@ -23,38 +23,6 @@ HEADERS = {
 TIMEOUT = 5
 RETRY_TIMES = 3
 REQUEST_LOG = True
-
-class ApiException(Exception):
-    """
-    API 基类异常。
-    """
-
-    def __init__(self, msg: str = "出现了错误，但是未说明具体原因。"):
-        super().__init__(msg)
-        self.msg = msg
-
-    def __str__(self):
-        return self.msg
-    
-class ResponseCodeException(ApiException):
-    """
-    API 返回 code 错误。
-    """
-
-    def __init__(self, status_code: int, msg: str):
-        """
-
-        Args:
-            status_code (int):             错误代码。
-
-            msg (str):              错误信息。
-        """
-        super().__init__(msg)
-        self.msg = msg
-        self.status_code = status_code
-
-    def __str__(self):
-        return f"HTTP {self.status_code}，信息：{self.msg}。"
 
 def retry(times: int = RETRY_TIMES):
     """
@@ -78,7 +46,7 @@ def retry(times: int = RETRY_TIMES):
                 except json.decoder.JSONDecodeError:
                     continue
                 except ResponseCodeException as e:
-                    raise
+                    raise e
                 # TIMEOUT
             raise ApiException("重试达到最大次数")
 
@@ -87,7 +55,7 @@ def retry(times: int = RETRY_TIMES):
     return wrapper
 
 @retry()
-def request(url: str, method: str = "GET", **kwargs) -> httpx.Response:
+def request(url: str, method: str = "GET", data=None, params=None, json=None, **kwargs) -> httpx.Response:
     """
     HTTPX 请求函数
 
@@ -101,7 +69,10 @@ def request(url: str, method: str = "GET", **kwargs) -> httpx.Response:
     Returns:
         Any: 请求结果
     """
-    res = httpx.request(method, url, proxies=PROXY, **kwargs)
+    if json is not None:
+        res = httpx.request(method, url, proxies=PROXY, json=json, params=params, **kwargs)
+    else:
+        res = httpx.request(method, url, proxies=PROXY, data=data, params=params, **kwargs)
     if res.status_code != 200:
-        raise ResponseCodeException(res.status_code, f'url:{res.url} headers:{res.headers} text:{res.text}')
+        raise ResponseCodeException(status_code=res.status_code, method=method, url=url, data=data if data is None else json, params=params)
     return res

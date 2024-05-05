@@ -167,6 +167,7 @@ class File(Model):
     dependencies: Optional[List[FileDependencies]] = None 
     fileFingerprint: Optional[int] = None
 
+    found: bool = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)
 
     @field_serializer("sync_at")
@@ -237,6 +238,7 @@ class Mod(Model):
     gamePopularityRank: Optional[int] = None
     thumbsUpCount: Optional[int] = None
 
+    found: bool = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)
 
     @field_serializer("sync_at")
@@ -264,6 +266,7 @@ class Fingerprint(Model):
     file: FileInfo
     latestFiles: List[FileInfo]
 
+    found: bool = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)
 
     model_config = {
