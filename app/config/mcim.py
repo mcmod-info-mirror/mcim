@@ -8,11 +8,11 @@ from .constants import CONFIG_PATH
 # MCIM config path
 MICM_CONFIG_PATH = os.path.join(CONFIG_PATH, "mcim.json")
 
-class Curseforge:
+class Curseforge(BaseModel):
     mod: int = 86400
     file: int = 86400
 
-class Modrinth:
+class Modrinth(BaseModel):
     project: int = 86400
     version: int = 86400
 
