@@ -50,7 +50,7 @@ def sync_project_all_version(
         res = request(f"{API}/project/{project_id}/version").json()
     except ResponseCodeException as e:
         if e.status_code == 404:
-            models.append(Project(success=False, id=project_id))
+            models.append(Project(success=False, id=project_id, slug=project_id))
             return
     for version in res:
         for file in version["files"]:
@@ -72,7 +72,13 @@ def sync_multi_projects_all_version(
 
 @actor
 def sync_project(project_id: str):
-    res = request(f"{API}/project/{project_id}").json()
+    try:
+        res = request(f"{API}/project/{project_id}").json()
+    except ResponseCodeException as e:
+        if e.status_code == 404:
+            models = [Project(success=False, id=project_id, slug=project_id)]
+            submit_models(models)
+            return
     sync_project_all_version(project_id, models=[Project(found=True, **res)])
 
 
@@ -84,7 +90,7 @@ def sync_multi_projects(project_ids: List[str]):
         if e.status_code == 404:
             models = []
             for project_id in project_ids:
-                models.append(Project(success=False, id=project_id))
+                models.append(Project(success=False, id=project_id, slug=project_id))
             submit_models(models)
             return
     models = []

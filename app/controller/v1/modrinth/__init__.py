@@ -53,7 +53,7 @@ async def modrinth_project(idslug: str):
 async def modrinth_projects(Ids: List[int]):
     trustable = True
     models = await aio_mongo_engine.find(Project, query.in_(Project.id, Ids))
-    if models is None:
+    if not models:
         sync_multi_projects.send(Ids=Ids)
         return UncachedResponse()
     elif len(models) != len(Ids):
@@ -76,7 +76,7 @@ async def modrinth_projects(Ids: List[int]):
 async def modrinth_project_versions(idslug: str):
     trustable = True
     model = await aio_mongo_engine.find(Version, query.or_(Version.project_id == idslug, Version.slug == idslug))
-    if model is None:
+    if not model:
         sync_version.send(idslug)
         return UncachedResponse()
     for version in model:
@@ -122,7 +122,7 @@ async def modrinth_versions(ids: str):
     trustable = True
     ids_list = json.loads(ids)
     models = await aio_mongo_engine.find(Version, query.in_(Version.id, ids_list))
-    if models is None:
+    if not model:
         sync_multi_versions.send(ids_list=ids_list)
         return UncachedResponse()
     elif len(models) != len(ids_list):
@@ -184,7 +184,7 @@ async def modrinth_files(items: HashesQuery):
         files_models = await aio_mongo_engine.find(File, query.in_(File.hashes.sha1, items.hashes))
     elif items.algorithm == Algorithm.sha512:
         files_models = await aio_mongo_engine.find(File, query.in_(File.hashes.sha512, items.hashes))
-    if files_models is None:
+    if not files_models:
         sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm)
         return UncachedResponse()
     elif len(files_models) != len(items.hashes):
@@ -194,7 +194,7 @@ async def modrinth_files(items: HashesQuery):
     
     version_ids = [file.version_id for file in files_models]
     version_models = await aio_mongo_engine.find(Version, query.in_(Version.id, version_ids))
-    if version_models is None:
+    if not version_models:
         sync_multi_versions.send(ids_list=version_ids)
         return UncachedResponse()
     elif len(version_models) != len(files_models):

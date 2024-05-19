@@ -50,7 +50,7 @@ async def curseforge_mod(modId: int):
 async def curseforge_mods(modIds: List[int], filterPcOnly: Optional[bool] = True):
     trustable: bool = True
     mod_models = await aio_mongo_engine.find(Mod, query.in_(Mod.id, modIds))
-    if mod_models is None:
+    if not mod_models:
         return UncachedResponse()
     elif len(mod_models) != len(modIds):
         sync_mutil_mods.send(modIds=modIds)
@@ -75,7 +75,7 @@ async def curseforge_mods(modIds: List[int], filterPcOnly: Optional[bool] = True
 )
 async def curseforge_mod_files(modId: int):
     mod_models = await aio_mongo_engine.find(File, File.modId == modId)
-    if mod_models is None:
+    if not mod_models:
         sync_mod.send(modId=modId)
         return UncachedResponse()
     return TrustableResponse(content=[model.model_dump() for model in mod_models])
@@ -140,7 +140,7 @@ async def curseforge_fingerprints(fingerprints: List[int]):
     fingerprints_models = await aio_mongo_engine.find(
         Fingerprint, query.in_(Fingerprint.id, fingerprints)
     )
-    if fingerprints_models is None:
+    if not fingerprints_models:
         sync_fingerprints.send(fingerprints=fingerprints)
         trustable = False
         return TrustableResponse(
