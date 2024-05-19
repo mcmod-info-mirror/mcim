@@ -11,3 +11,4 @@ python-multipart==0.0.7
 uvicorn==0.27.0
 redis==5.0.1
 gunicorn==22.0.0
+orjson==3.10.3
