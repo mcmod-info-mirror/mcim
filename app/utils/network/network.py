@@ -74,5 +74,5 @@ def request(url: str, method: str = "GET", data=None, params=None, json=None, **
     else:
         res = httpx.request(method, url, proxies=PROXY, data=data, params=params, **kwargs)
     if res.status_code != 200:
-        raise ResponseCodeException(status_code=res.status_code, method=method, url=url, data=data if data is None else json, params=params)
+        raise ResponseCodeException(status_code=res.status_code, method=method, url=url, data=data if data is None else json, params=params, msg=res.text)
     return res
