@@ -35,7 +35,7 @@ async def curseforge_mod(modId: int):
     mod_model = await aio_mongo_engine.find_one(Mod, Mod.id == modId)
     if mod_model is None:
         return UncachedResponse()
-    elif mod_model.sync_at.timestamp() + mcim_config.expire_second.Curseforge.mod < time.time():
+    elif mod_model.sync_at.timestamp() + mcim_config.expire_second.curseforge.mod < time.time():
         sync_mod.send(modId=modId)
         trustable = False
     return TrustableResponse(content=mod_model.model_dump(), trustable=trustable)
@@ -59,7 +59,7 @@ async def curseforge_mods(modIds: List[int], filterPcOnly: Optional[bool] = True
     expire_modid: List[int] = []
     for model in mod_models:
         # expire
-        if model.sync_at.timestamp() + mcim_config.expire_second.Curseforge.mod < time.time():
+        if model.sync_at.timestamp() + mcim_config.expire_second.curseforge.mod < time.time():
             expire_modid.append(model.id)
         content.append(model.model_dump())
     if expire_modid:
@@ -100,7 +100,7 @@ async def curseforge_mod_files(fileids: List[int]):
     expire_fileid: List[int] = []
     for model in file_models:
         # expire
-        if model.sync_at.timestamp() + mcim_config.expire_second.Curseforge.file < time.time():
+        if model.sync_at.timestamp() + mcim_config.expire_second.curseforge.file < time.time():
             expire_fileid.append(model.id)
         content.append(model.model_dump())
     if expire_fileid:
@@ -122,7 +122,7 @@ async def curseforge_mod_file(modid: int, fileid: int):
     if model is None:
         sync_file.send(modId=modid, fileId=fileid)
         return UncachedResponse()
-    elif model.sync_at.timestamp() + mcim_config.expire_second.Curseforge.file < time.time():
+    elif model.sync_at.timestamp() + mcim_config.expire_second.curseforge.file < time.time():
         sync_file.send(modId=modid, fileId=fileid)
         trustable = False
     return TrustableResponse(content=model.model_dump(), trustable=trustable)

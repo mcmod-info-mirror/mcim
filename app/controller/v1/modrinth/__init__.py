@@ -40,7 +40,7 @@ async def modrinth_project(idslug: str):
     if model is None:
         sync_project.send(idslug)
         return UncachedResponse()
-    elif model.sync_at.timestamp() + mcim_config.expire_second.Modrinth.project< time.time():
+    elif model.sync_at.timestamp() + mcim_config.expire_second.modrinth.project< time.time():
         sync_project.send(idslug)
         trustable = False
     return TrustableResponse(content=model.model_dump(), trustable=trustable)
@@ -61,7 +61,7 @@ async def modrinth_projects(Ids: List[int]):
         trustable = False
     expire_project_ids = []
     for model in models:
-        if model.sync_at.timestamp() + mcim_config.expire_second.Modrinth.project < time.time():
+        if model.sync_at.timestamp() + mcim_config.expire_second.modrinth.project < time.time():
             expire_project_ids.append(model.id)
     if expire_project_ids:
         sync_multi_projects.send(Ids=expire_project_ids)
@@ -80,7 +80,7 @@ async def modrinth_project_versions(idslug: str):
         sync_version.send(idslug)
         return UncachedResponse()
     for version in model:
-        if version.sync_at.timestamp() + mcim_config.expire_second.Modrinth.version < time.time():
+        if version.sync_at.timestamp() + mcim_config.expire_second.modrinth.version < time.time():
             sync_version.send(version_id=version.id)
             trustable = False
             break
@@ -108,7 +108,7 @@ async def modrinth_version(version_id: Annotated[str, Query(alias="id")]):
     if model is None:
         sync_version.send(version_id=version_id)
         return UncachedResponse()
-    elif model.sync_at.timestamp() + mcim_config.expire_second.Modrinth.version < time.time():
+    elif model.sync_at.timestamp() + mcim_config.expire_second.modrinth.version < time.time():
         sync_version.send(version_id=version_id)
         return Response(status_code=EXPIRE_STATUS_CODE)
     return TrustableResponse(content=model.model_dump())
@@ -130,7 +130,7 @@ async def modrinth_versions(ids: str):
         trustable = False
     expire_version_ids = []
     for model in models:
-        if model.sync_at.timestamp() + mcim_config.expire_second.Modrinth.version < time.time():
+        if model.sync_at.timestamp() + mcim_config.expire_second.modrinth.version < time.time():
             expire_version_ids.append(model.id)
     if expire_version_ids:
         sync_multi_versions.send(ids_list=expire_version_ids)
@@ -156,7 +156,7 @@ async def modrinth_file(hash: str, algorithm: Optional[Algorithm] = Algorithm.sh
     if file_model is None:
         sync_hash.send(hash=hash, algorithm=algorithm)
         return UncachedResponse()
-    elif file_model.sync_at.timestamp() + mcim_config.expire_second.Modrinth.file < time.time():
+    elif file_model.sync_at.timestamp() + mcim_config.expire_second.modrinth.file < time.time():
         sync_hash.send(hash=hash, algorithm=algorithm)
         trustable = False
     # TODO: Add Version reference directly but not query File again
@@ -164,7 +164,7 @@ async def modrinth_file(hash: str, algorithm: Optional[Algorithm] = Algorithm.sh
     if version_model is None:
         sync_version.send(version_id=file_model.version_id)
         return UncachedResponse()
-    elif version_model.sync_at.timestamp() + mcim_config.expire_second.Modrinth.version < time.time():
+    elif version_model.sync_at.timestamp() + mcim_config.expire_second.modrinth.version < time.time():
         sync_version.send(version_id=file_model.version_id)
         trustable = False
     return TrustableResponse(content=version_model.model_dump(), trustable=trustable)
