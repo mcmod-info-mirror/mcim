@@ -70,11 +70,11 @@ class FileInfo(BaseModel):
 
 
 class FingerprintResponse(BaseModel):
-    isCacheBuilt: bool
-    exactMatches: List[Fingerprint]
-    exactFingerprints: List[int]
-    installedFingerprints: List[int]
-    unmatchedFingerprints: List[int]
+    isCacheBuilt: bool = True
+    exactMatches: List[Fingerprint] = []
+    exactFingerprints: List[int] = []
+    installedFingerprints: List[int] = []
+    unmatchedFingerprints: List[int] = []
 
 {
     "id": 0,

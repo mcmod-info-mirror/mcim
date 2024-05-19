@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response
 from typing import List, Optional, Union
 from odmantic import query
 import time
@@ -11,6 +11,7 @@ from app.models.response.curseforge import FingerprintResponse, Category
 from app.database.mongodb import aio_mongo_engine
 from app.database._redis import aio_redis_engine
 from app.config.mcim import MCIMConfig
+from app.utils.response import TrustableResponse, UncachedResponse
 
 mcim_config = MCIMConfig.load()
 
@@ -30,12 +31,14 @@ async def get_curseforge():
     response_model=Mod,
 )
 async def curseforge_mod(modId: int):
+    trustable: bool = True
     mod_model = await aio_mongo_engine.find_one(Mod, Mod.id == modId)
     if mod_model is None:
-        return Response(status_code=UNCACHE_STATUS_CODE)
+        return UncachedResponse()
     elif mod_model.sync_at.timestamp() + mcim_config.expire_second.Curseforge.mod < time.time():
         sync_mod.send(modId=modId)
-    return JSONResponse(content=mod_model.model_dump())
+        trustable = False
+    return TrustableResponse(content=mod_model.model_dump(), trustable=trustable)
 
 
 # get mods
@@ -45,19 +48,24 @@ async def curseforge_mod(modId: int):
     response_model=List[Mod],
 )
 async def curseforge_mods(modIds: List[int], filterPcOnly: Optional[bool] = True):
+    trustable: bool = True
     mod_models = await aio_mongo_engine.find(Mod, query.in_(Mod.id, modIds))
     if mod_models is None:
-        return Response(status_code=UNCACHE_STATUS_CODE)
+        return UncachedResponse()
     elif len(mod_models) != len(modIds):
         sync_mutil_mods.send(modIds=modIds)
-        return Response(status_code=EXPIRE_STATUS_CODE)
+        trustable = False
     content = []
+    expire_modid: List[int] = []
     for model in mod_models:
         # expire
         if model.sync_at.timestamp() + mcim_config.expire_second.Curseforge.mod < time.time():
-            sync_mod.send(modId=model.id)
+            expire_modid.append(model.id)
         content.append(model.model_dump())
-    return JSONResponse(content=content)
+    if expire_modid:
+        trustable = False
+        sync_mutil_mods.send(modIds=expire_modid)
+    return TrustableResponse(content=content, trustable=trustable)
 
 
 @curseforge_router.get(
@@ -69,8 +77,8 @@ async def curseforge_mod_files(modId: int):
     mod_models = await aio_mongo_engine.find(File, File.modId == modId)
     if mod_models is None:
         sync_mod.send(modId=modId)
-        return Response(status_code=UNCACHE_STATUS_CODE)
-    return JSONResponse(content=[model.model_dump() for model in mod_models])
+        return UncachedResponse()
+    return TrustableResponse(content=[model.model_dump() for model in mod_models])
 
 
 # get files
@@ -80,20 +88,25 @@ async def curseforge_mod_files(modId: int):
     response_model=List[File],
 )
 async def curseforge_mod_files(fileids: List[int]):
+    trustable = True
     file_models = await aio_mongo_engine.find(File, query.in_(File.id, fileids))
     if not file_models:
         sync_mutil_files.send(fileIds=fileids)
-        return Response(status_code=UNCACHE_STATUS_CODE)
+        return UncachedResponse()
     elif len(file_models) != len(fileids):
         sync_mutil_files.send(fileIds=fileids)
-        return Response(status_code=UNCACHE_STATUS_CODE)
+        trustable = False
     content = []
+    expire_fileid: List[int] = []
     for model in file_models:
         # expire
         if model.sync_at.timestamp() + mcim_config.expire_second.Curseforge.file < time.time():
-            sync_file.send(modId=model.modId, fileId=model.id)
+            expire_fileid.append(model.id)
         content.append(model.model_dump())
-    return JSONResponse(content=content)
+    if expire_fileid:
+        sync_mutil_files.send(fileIds=expire_fileid)
+        trustable = False
+    return TrustableResponse(content=content, trustable=trustable)
 
 
 # get file
@@ -102,15 +115,17 @@ async def curseforge_mod_files(fileids: List[int]):
     description="Curseforge Mod 文件信息",
 )
 async def curseforge_mod_file(modid: int, fileid: int):
+    trustable = True
     model = await aio_mongo_engine.find_one(
         File, File.modId == modid, File.id == fileid
     )
     if model is None:
         sync_file.send(modId=modid, fileId=fileid)
-        return Response(status_code=UNCACHE_STATUS_CODE)
+        return UncachedResponse()
     elif model.sync_at.timestamp() + mcim_config.expire_second.Curseforge.file < time.time():
         sync_file.send(modId=modid, fileId=fileid)
-    return JSONResponse(content=model.model_dump())
+        trustable = False
+    return TrustableResponse(content=model.model_dump(), trustable=trustable)
 
 @curseforge_router.post(
     "/fingerprints/",
@@ -118,29 +133,38 @@ async def curseforge_mod_file(modid: int, fileid: int):
     response_model=FingerprintResponse,
 )
 async def curseforge_fingerprints(fingerprints: List[int]):
+    """
+    未找到所有 fingerprint 会视为不可信，因为不存在的 fingerprint 会被记录
+    """
+    trustable = True
     fingerprints_models = await aio_mongo_engine.find(
         Fingerprint, query.in_(Fingerprint.id, fingerprints)
     )
     if fingerprints_models is None:
         sync_fingerprints.send(fingerprints=fingerprints)
-        return Response(status_code=EXPIRE_STATUS_CODE)
+        trustable = False
+        return TrustableResponse(
+            content=FingerprintResponse(unmatchedFingerprints=fingerprints).model_dump(),
+            trustable=trustable
+            )
     elif len(fingerprints_models) != len(fingerprints):
         sync_fingerprints.send(fingerprints=fingerprints)
-        return Response(status_code=EXPIRE_STATUS_CODE)
+        trustable = False
     exactFingerprints = [fingerprint.id for fingerprint in fingerprints_models]
     unmatchedFingerprints = [
         fingerprint
         for fingerprint in fingerprints
         if fingerprint not in exactFingerprints
     ]
-    return JSONResponse(
+    return TrustableResponse(
         content=FingerprintResponse(
             isCacheBuilt=True,
             exactFingerprints=exactFingerprints,
             exactMatches=fingerprints_models,
             unmatchedFingerprints=unmatchedFingerprints,
             installedFingerprints=[],
-        ).model_dump()
+        ).model_dump(),
+        trustable=trustable,
     )
 
 @curseforge_router.get(
@@ -152,5 +176,5 @@ async def curseforge_categories():
     categories = await aio_redis_engine.hget("curseforge","categories")
     if categories is None:
         sync_categories.send()
-        return Response(status_code=404)
-    return JSONResponse(content=json.loads(categories))
+        return UncachedResponse()
+    return TrustableResponse(content=json.loads(categories))

@@ -59,6 +59,8 @@ def sync_mod_all_files(
 def sync_multi_projects_all_files(
     modIds: List[int], models: List[Union[File, Mod]] = [], submit: bool = True
 ):
+    # 去重
+    modIds = list(set(modIds))
     for modId in modIds:
         models.extend(sync_mod_all_files(modId, submit=False))
     if not submit:
@@ -76,6 +78,7 @@ def sync_mod(modId: int):
 
 @actor
 def sync_mutil_mods(modIds: List[int]):
+    modIds = list(set(modIds))
     data = {"modIds": modIds}
     res = request(
         method="POST", url=f"{API}/v1/mods", json=data, headers=headers

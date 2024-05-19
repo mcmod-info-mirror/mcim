@@ -38,7 +38,7 @@ class Project(Model):
     loaders: Optional[List[str]] = None
     gallery: Optional[List[Gallery]] = None
 
-    found: bool = Field(default=True, exclude=True)
+    found: bool = Field(default=True)
     sync_at: datetime = Field(default_factory=datetime.utcnow)
     
     model_config = {
