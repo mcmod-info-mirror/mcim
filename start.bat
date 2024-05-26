@@ -1,1 +1,1 @@
-uvicorn webapi:api --reload
+python start.py

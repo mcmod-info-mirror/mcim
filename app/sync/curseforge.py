@@ -4,7 +4,7 @@ import json
 
 from app.sync.worker import sync_mongo_engine as mongodb_engine
 from app.sync.worker import sync_redis_engine as redis_engine
-from app.models.database.curseforge import File, Mod, Pagination, Fingerprint
+from app.models.database.curseforge import File, Mod, Pagination, Fingerprint, FileInfo
 from app.exceptions import ResponseCodeException
 from app.utils.network.network import request
 from app.config.mcim import MCIMConfig
@@ -94,9 +94,10 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     res = request(f"{API}/v1/mods/{modId}/files/{fileId}", headers=headers).json()[
         "data"
     ]
-    models = [File(found=True, **res), Fingerprint(found=True, **res["fileFingerprint"])]
+    latestFiles = request(f"{API}/v1/mods/{modId}", headers=headers).json()["data"]["latestFiles"]
+    models = [File(found=True, **res), Fingerprint(found=True, id=res["fileFingerprint"], file=res, latestFiles=latestFiles)]
     if not expire:
-        sync_mod_all_files(modId, models, submit=False)
+        sync_mod_all_files(modId, models, submit=False, latestFiles=latestFiles)
     submit_models(models)
 
 

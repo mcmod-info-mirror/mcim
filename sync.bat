@@ -1,0 +1,1 @@
+python -m dramatiq app.sync.worker

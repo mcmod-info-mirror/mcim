@@ -43,9 +43,22 @@ def check_alive():
 @actor
 def sync_project_all_version(
     project_id: str,
+    slug: Optional[str] = None,
     models: Optional[List[Union[Project, File, Version]]] = [],
     submit: Optional[bool] = True,
 ):
+    if not slug:
+        project = mongodb_engine.find_one(Project, {"id": project_id})
+        if project:
+            slug = project.slug
+        else:
+            try:
+                res = request(f"{API}/project/{project_id}").json()
+            except ResponseCodeException as e:
+                if e.status_code == 404:
+                    models.append(Project(success=False, id=project_id, slug=project_id))
+                    return
+            slug = res["slug"]
     try:
         res = request(f"{API}/project/{project_id}/version").json()
     except ResponseCodeException as e:
@@ -55,18 +68,22 @@ def sync_project_all_version(
     for version in res:
         for file in version["files"]:
             file["version_id"] = version["id"]
-            models.append(File(found=True, **file))
-        models.append(Version(found=True, **version))
+            models.append(File(found=True, slug=slug, **file))
+        models.append(Version(found=True, slug=slug, **version))
     if submit:
         submit_models(models)
     return models
 
 
 def sync_multi_projects_all_version(
-    project_ids: List[str], models: Optional[List[Union[Project, File, Version]]] = []
+    project_ids: List[str], 
+    models: Optional[List[Union[Project, File, Version]]] = [],
+    slugs: Optional[dict] = None,
 ):
     for project_id in project_ids:
-        models.extend(sync_project_all_version(project_id, submit=False))
+        models.extend(sync_project_all_version(project_id, 
+                                                slug=slugs[project_id] if slugs else None, 
+                                                submit=False))
     submit_models(models)
 
 
@@ -79,7 +96,7 @@ def sync_project(project_id: str):
             models = [Project(success=False, id=project_id, slug=project_id)]
             submit_models(models)
             return
-    sync_project_all_version(project_id, models=[Project(found=True, **res)])
+    sync_project_all_version(project_id, slug=res["slug"], models=[Project(found=True, **res)])
 
 
 @actor
@@ -94,9 +111,11 @@ def sync_multi_projects(project_ids: List[str]):
             submit_models(models)
             return
     models = []
+    slugs = {}
     for project in res:
+        slugs[project["id"]] = project["slug"]
         models.append(Project(found=True, **project))
-    sync_multi_projects_all_version(project_ids, models=models)
+    sync_multi_projects_all_version(project_ids, slugs=slugs, models=models)
 
 
 def process_version_resp(

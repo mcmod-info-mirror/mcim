@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Path
 from fastapi.responses import Response
 from typing_extensions import Annotated
 from typing import List, Optional, Union
@@ -10,7 +10,7 @@ import time
 
 from app.sync import *
 from app.models.database.modrinth import Project, Version, File
-from app.sync.modrinth import sync_project, sync_version, sync_multi_projects, sync_multi_projects, sync_multi_versions, sync_hash, sync_multi_hashes
+from app.sync.modrinth import sync_project, sync_version, sync_multi_projects, sync_multi_projects, sync_multi_versions, sync_hash, sync_multi_hashes, sync_tags
 from app.database.mongodb import aio_mongo_engine
 from app.database._redis import aio_redis_engine
 from app.config.mcim import MCIMConfig
@@ -50,21 +50,23 @@ async def modrinth_project(idslug: str):
     description="Modrinth Projects 信息",
     response_model=List[Project],
 )
-async def modrinth_projects(Ids: List[int]):
+async def modrinth_projects(ids: str):
+    ids = json.loads(ids)
     trustable = True
-    models = await aio_mongo_engine.find(Project, query.in_(Project.id, Ids))
+    # id or slug
+    models = await aio_mongo_engine.find(Project, query.or_(query.in_(Project.id, ids), query.in_(Project.slug, ids)))
     if not models:
-        sync_multi_projects.send(Ids=Ids)
+        sync_multi_projects.send(project_ids=ids)
         return UncachedResponse()
-    elif len(models) != len(Ids):
-        sync_multi_projects.send(Ids=Ids)
+    elif len(models) != len(ids):
+        sync_multi_projects.send(project_ids=ids)
         trustable = False
     expire_project_ids = []
     for model in models:
         if model.sync_at.timestamp() + mcim_config.expire_second.modrinth.project < time.time():
             expire_project_ids.append(model.id)
     if expire_project_ids:
-        sync_multi_projects.send(Ids=expire_project_ids)
+        sync_multi_projects.send(project_ids=expire_project_ids)
         trustable = False
     return TrustableResponse(content=[model.model_dump() for model in models], trustable=trustable)
 
@@ -77,11 +79,11 @@ async def modrinth_project_versions(idslug: str):
     trustable = True
     model = await aio_mongo_engine.find(Version, query.or_(Version.project_id == idslug, Version.slug == idslug))
     if not model:
-        sync_version.send(idslug)
+        sync_project.send(idslug)
         return UncachedResponse()
     for version in model:
         if version.sync_at.timestamp() + mcim_config.expire_second.modrinth.version < time.time():
-            sync_version.send(version_id=version.id)
+            sync_project.send(idslug)
             trustable = False
             break
     return TrustableResponse(content=[version.model_dump() for version in model], trustable=trustable)
@@ -103,7 +105,7 @@ async def modrinth_search_projects(query: str):
     description="Modrinth Version 信息",
     response_model=Version,
 )
-async def modrinth_version(version_id: Annotated[str, Query(alias="id")]):
+async def modrinth_version(version_id: Annotated[str, Path(alias="id")]):
     model = await aio_mongo_engine.find_one(Version, query.or_(Version.id == version_id, Version.slug == version_id))
     if model is None:
         sync_version.send(version_id=version_id)
@@ -122,7 +124,7 @@ async def modrinth_versions(ids: str):
     trustable = True
     ids_list = json.loads(ids)
     models = await aio_mongo_engine.find(Version, query.in_(Version.id, ids_list))
-    if not model:
+    if not models:
         sync_multi_versions.send(ids_list=ids_list)
         return UncachedResponse()
     elif len(models) != len(ids_list):
@@ -156,9 +158,10 @@ async def modrinth_file(hash: str, algorithm: Optional[Algorithm] = Algorithm.sh
     if file_model is None:
         sync_hash.send(hash=hash, algorithm=algorithm)
         return UncachedResponse()
-    elif file_model.sync_at.timestamp() + mcim_config.expire_second.modrinth.file < time.time():
-        sync_hash.send(hash=hash, algorithm=algorithm)
-        trustable = False
+    # Don't check file model expire
+    # elif file_model.sync_at.timestamp() + mcim_config.expire_second.modrinth < time.time():
+    #     sync_hash.send(hash=hash, algorithm=algorithm)
+    #     trustable = False
     # TODO: Add Version reference directly but not query File again
     version_model = await aio_mongo_engine.find_one(Version, Version.id == file_model.version_id)
     if version_model is None:
@@ -209,6 +212,9 @@ async def modrinth_files(items: HashesQuery):
 )
 async def modrinth_tag_categories():
     category = await aio_redis_engine.hget("modrinth", "categories")
+    if category is None:
+        sync_tags.send()
+        return UncachedResponse()
     return TrustableResponse(content=json.loads(category))
 
 @modrinth_router.get(
@@ -218,6 +224,9 @@ async def modrinth_tag_categories():
 )
 async def modrinth_tag_loaders():
     loader = await aio_redis_engine.hget("modrinth", "loaders")
+    if loader is None:
+        sync_tags.send()
+        return UncachedResponse()
     return TrustableResponse(content=json.loads(loader))
 
 @modrinth_router.get(
@@ -227,6 +236,9 @@ async def modrinth_tag_loaders():
 )
 async def modrinth_tag_game_versions():
     game_version = await aio_redis_engine.hget("modrinth", "game_versions")
+    if game_version is None:
+        sync_tags.send()
+        return UncachedResponse()
     return TrustableResponse(content=json.loads(game_version))
 
 @modrinth_router.get(
@@ -236,6 +248,9 @@ async def modrinth_tag_game_versions():
 )
 async def modrinth_tag_donation_platforms():
     donation_platform = await aio_redis_engine.hget("modrinth", "donation_platform")
+    if donation_platform is None:
+        sync_tags.send()
+        return UncachedResponse()
     return TrustableResponse(content=json.loads(donation_platform))
 
 @modrinth_router.get(
@@ -245,6 +260,9 @@ async def modrinth_tag_donation_platforms():
 )
 async def modrinth_tag_project_types():
     project_type = await aio_redis_engine.hget("modrinth", "project_type")
+    if project_type is None:
+        sync_tags.send()
+        return UncachedResponse()
     return TrustableResponse(content=json.loads(project_type))
 
 @modrinth_router.get(
@@ -254,4 +272,7 @@ async def modrinth_tag_project_types():
 )
 async def modrinth_tag_side_types():
     side_type = await aio_redis_engine.hget("modrinth", "side_type")
+    if side_type is None:
+        sync_tags.send()
+        return UncachedResponse()
     return TrustableResponse(content=json.loads(side_type))

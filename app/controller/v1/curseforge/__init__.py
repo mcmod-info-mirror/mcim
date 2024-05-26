@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from fastapi.responses import Response
 from typing import List, Optional, Union
+from pydantic import BaseModel
 from odmantic import query
 import time
 import json
@@ -34,6 +35,7 @@ async def curseforge_mod(modId: int):
     trustable: bool = True
     mod_model = await aio_mongo_engine.find_one(Mod, Mod.id == modId)
     if mod_model is None:
+        sync_mod.send(modId=modId)
         return UncachedResponse()
     elif mod_model.sync_at.timestamp() + mcim_config.expire_second.curseforge.mod < time.time():
         sync_mod.send(modId=modId)
@@ -41,19 +43,24 @@ async def curseforge_mod(modId: int):
     return TrustableResponse(content=mod_model.model_dump(), trustable=trustable)
 
 
+class modIds_item(BaseModel):
+    modIds: List[int]
+    filterPcOnly: Optional[bool] = True
+
 # get mods
 @curseforge_router.post(
     "/mods",
     description="Curseforge Mods 信息",
     response_model=List[Mod],
 )
-async def curseforge_mods(modIds: List[int], filterPcOnly: Optional[bool] = True):
+async def curseforge_mods(item: modIds_item):
     trustable: bool = True
-    mod_models = await aio_mongo_engine.find(Mod, query.in_(Mod.id, modIds))
+    mod_models = await aio_mongo_engine.find(Mod, query.in_(Mod.id, item.modIds))
     if not mod_models:
+        sync_mutil_mods.send(modIds=item.modIds)
         return UncachedResponse()
-    elif len(mod_models) != len(modIds):
-        sync_mutil_mods.send(modIds=modIds)
+    elif len(mod_models) != len(item.modIds):
+        sync_mutil_mods.send(modIds=item.modIds)
         trustable = False
     content = []
     expire_modid: List[int] = []
@@ -80,21 +87,23 @@ async def curseforge_mod_files(modId: int):
         return UncachedResponse()
     return TrustableResponse(content=[model.model_dump() for model in mod_models])
 
+class fileIds_item(BaseModel):
+    fileIds: List[int]
 
 # get files
-@curseforge_router.get(
+@curseforge_router.post(
     "/mods/files",
     description="Curseforge Mod 文件信息",
     response_model=List[File],
 )
-async def curseforge_mod_files(fileids: List[int]):
+async def curseforge_mod_files(item: fileIds_item):
     trustable = True
-    file_models = await aio_mongo_engine.find(File, query.in_(File.id, fileids))
+    file_models = await aio_mongo_engine.find(File, query.in_(File.id, item.fileIds))
     if not file_models:
-        sync_mutil_files.send(fileIds=fileids)
+        sync_mutil_files.send(fileIds=item.fileIds)
         return UncachedResponse()
-    elif len(file_models) != len(fileids):
-        sync_mutil_files.send(fileIds=fileids)
+    elif len(file_models) != len(item.fileIds):
+        sync_mutil_files.send(fileIds=item.fileIds)
         trustable = False
     content = []
     expire_fileid: List[int] = []
@@ -114,46 +123,49 @@ async def curseforge_mod_files(fileids: List[int]):
     "/mods/{modId}/files/{fileId}",
     description="Curseforge Mod 文件信息",
 )
-async def curseforge_mod_file(modid: int, fileid: int):
+async def curseforge_mod_file(modId: int, fileId: int):
     trustable = True
     model = await aio_mongo_engine.find_one(
-        File, File.modId == modid, File.id == fileid
+        File, File.modId == modId, File.id == fileId
     )
     if model is None:
-        sync_file.send(modId=modid, fileId=fileid)
+        sync_file.send(modId=modId, fileId=fileId)
         return UncachedResponse()
     elif model.sync_at.timestamp() + mcim_config.expire_second.curseforge.file < time.time():
-        sync_file.send(modId=modid, fileId=fileid)
+        sync_file.send(modId=modId, fileId=fileId)
         trustable = False
     return TrustableResponse(content=model.model_dump(), trustable=trustable)
 
+class fingerprints_item(BaseModel):
+    fingerprints: List[int]
+
 @curseforge_router.post(
-    "/fingerprints/",
+    "/fingerprints",
     description="Curseforge Fingerprint 文件信息",
     response_model=FingerprintResponse,
 )
-async def curseforge_fingerprints(fingerprints: List[int]):
+async def curseforge_fingerprints(item: fingerprints_item):
     """
     未找到所有 fingerprint 会视为不可信，因为不存在的 fingerprint 会被记录
     """
     trustable = True
     fingerprints_models = await aio_mongo_engine.find(
-        Fingerprint, query.in_(Fingerprint.id, fingerprints)
+        Fingerprint, query.in_(Fingerprint.id, item.fingerprints)
     )
     if not fingerprints_models:
-        sync_fingerprints.send(fingerprints=fingerprints)
+        sync_fingerprints.send(fingerprints=item.fingerprints)
         trustable = False
         return TrustableResponse(
-            content=FingerprintResponse(unmatchedFingerprints=fingerprints).model_dump(),
+            content=FingerprintResponse(unmatchedFingerprints=item.fingerprints).model_dump(),
             trustable=trustable
             )
-    elif len(fingerprints_models) != len(fingerprints):
-        sync_fingerprints.send(fingerprints=fingerprints)
+    elif len(fingerprints_models) != len(item.fingerprints):
+        sync_fingerprints.send(fingerprints=item.fingerprints)
         trustable = False
     exactFingerprints = [fingerprint.id for fingerprint in fingerprints_models]
     unmatchedFingerprints = [
         fingerprint
-        for fingerprint in fingerprints
+        for fingerprint in item.fingerprints
         if fingerprint not in exactFingerprints
     ]
     return TrustableResponse(
