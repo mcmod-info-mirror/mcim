@@ -22,7 +22,7 @@ def init_mongodb_syncengine() -> SyncEngine:
     if sync_mongo_engine is None:
         sync_mongo_engine = SyncEngine(
             client=MongoClient(
-                f"mongodb://{_mongodb_config.host}:{_mongodb_config.port}" # {_mongodb_config.user}:{_mongodb_config.password}@
+                f"mongodb://{_mongodb_config.user}:{_mongodb_config.password}@{_mongodb_config.host}:{_mongodb_config.port}" # 
             ),
             database="mcim_backend",
         )
