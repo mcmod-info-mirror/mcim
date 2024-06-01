@@ -37,7 +37,7 @@ def init_mongodb_aioengine() -> AIOEngine:
     if aio_mongo_engine is None:
         aio_mongo_engine = AIOEngine(
             client=AsyncIOMotorClient(
-                f"mongodb://{_mongodb_config.host}:{_mongodb_config.port}" # {_mongodb_config.user}:{_mongodb_config.password}@
+                f"mongodb://{_mongodb_config.user}:{_mongodb_config.password}@{_mongodb_config.host}:{_mongodb_config.port}" # {_mongodb_config.user}:{_mongodb_config.password}@
             ),
             database="mcim_backend",
         )
