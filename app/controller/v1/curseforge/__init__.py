@@ -3,27 +3,145 @@ from fastapi.responses import Response
 from typing import List, Optional, Union
 from pydantic import BaseModel
 from odmantic import query
+from enum import Enum
 import time
 import json
 
-from app.sync.curseforge import sync_mod, sync_mutil_mods, sync_mutil_files, sync_file, sync_fingerprints, sync_categories
+from app.sync.curseforge import (
+    sync_mod,
+    sync_mutil_mods,
+    sync_mutil_files,
+    sync_file,
+    sync_fingerprints,
+    sync_categories,
+)
 from app.models.database.curseforge import Mod, File, Fingerprint
 from app.models.response.curseforge import FingerprintResponse, Category
 from app.database.mongodb import aio_mongo_engine
 from app.database._redis import aio_redis_engine
 from app.config.mcim import MCIMConfig
 from app.utils.response import TrustableResponse, UncachedResponse
+from app.utils.network.network import request
 
 mcim_config = MCIMConfig.load()
+
+API = mcim_config.curseforge_api
+
+x_api_key = mcim_config.curseforge_api_key
 
 curseforge_router = APIRouter(prefix="/curseforge", tags=["curseforge"])
 
 EXPIRE_STATUS_CODE = mcim_config.expire_status_code
 UNCACHE_STATUS_CODE = mcim_config.uncache_status_code
 
+
 @curseforge_router.get("/")
 async def get_curseforge():
     return {"message": "CurseForge"}
+
+
+
+"""
+ModsSearchSortField
+1=Featured
+2=Popularity
+3=LastUpdated
+4=Name
+5=Author
+6=TotalDownloads
+7=Category
+8=GameVersion
+9=EarlyAccess
+10=FeaturedReleased
+11=ReleasedDate
+12=Rating
+"""
+
+
+class ModsSearchSortField(int, Enum):
+    Featured = 1
+    Popularity = 2
+    LastUpdated = 3
+    Name = 4
+    Author = 5
+    TotalDownloads = 6
+    Category = 7
+    GameVersion = 8
+    EarlyAccess = 9
+    FeaturedReleased = 10
+    ReleasedDate = 11
+    Rating = 12
+
+
+"""
+ModLoaderType
+0=Any
+1=Forge
+2=Cauldron
+3=LiteLoader
+4=Fabric
+5=Quilt
+6=NeoForge
+"""
+
+
+class ModLoaderType(int, Enum):
+    Any = 0
+    Forge = 1
+    Cauldron = 2
+    LiteLoader = 3
+    Fabric = 4
+    Quilt = 5
+    NeoForge = 6
+
+
+@curseforge_router.get(
+    "/mods/search",
+    description="Curseforge Category 信息",
+    # response_model TODO
+)
+async def curseforge_search(
+    gameId: int = 432,
+    classId: Optional[int] = None,
+    categoryId: Optional[int] = None,
+    categoryIds: Optional[str] = None,
+    gameVersion: Optional[str] = None,
+    gameVersions: Optional[str] = None,
+    searchFilter: Optional[str] = None,
+    sortField: Optional[ModsSearchSortField] = None,
+    sortOrder: Optional[str] = None,
+    modLoaderType: Optional[ModLoaderType] = None,
+    modLoaderTypes: Optional[str] = None,
+    gameVersionTypeId: Optional[int] = None,
+    authorId: Optional[int] = None,
+    primaryAuthorId: Optional[int] = None,
+    slug: Optional[str] = None,
+    index: Optional[int] = None,
+    pageSize: Optional[int] = 50,
+):
+    params = {
+        "gameId": gameId,
+        "classId": classId,
+        "categoryId": categoryId,
+        "categoryIds": categoryIds,
+        "gameVersion": gameVersion,
+        "gameVersions": gameVersions,
+        "searchFilter": searchFilter,
+        "sortField": sortField.value if not sortField is None else None,
+        "sortOrder": sortOrder,
+        "modLoaderType": modLoaderType.value if not modLoaderType is None else None,
+        "modLoaderTypes": modLoaderTypes,
+        "gameVersionTypeId": gameVersionTypeId,
+        "authorId": authorId,
+        "primaryAuthorId": primaryAuthorId,
+        "slug": slug,
+        "index": index,
+        "pageSize": pageSize,
+    }
+    res = request(
+        f"{API}/v1/mods/search", params=params, headers={"x-api-key": x_api_key}
+    ).json()
+    return res
 
 
 @curseforge_router.get(
@@ -37,7 +155,10 @@ async def curseforge_mod(modId: int):
     if mod_model is None:
         sync_mod.send(modId=modId)
         return UncachedResponse()
-    elif mod_model.sync_at.timestamp() + mcim_config.expire_second.curseforge.mod < time.time():
+    elif (
+        mod_model.sync_at.timestamp() + mcim_config.expire_second.curseforge.mod
+        < time.time()
+    ):
         sync_mod.send(modId=modId)
         trustable = False
     return TrustableResponse(content=mod_model.model_dump(), trustable=trustable)
@@ -46,6 +167,7 @@ async def curseforge_mod(modId: int):
 class modIds_item(BaseModel):
     modIds: List[int]
     filterPcOnly: Optional[bool] = True
+
 
 # get mods
 @curseforge_router.post(
@@ -66,7 +188,10 @@ async def curseforge_mods(item: modIds_item):
     expire_modid: List[int] = []
     for model in mod_models:
         # expire
-        if model.sync_at.timestamp() + mcim_config.expire_second.curseforge.mod < time.time():
+        if (
+            model.sync_at.timestamp() + mcim_config.expire_second.curseforge.mod
+            < time.time()
+        ):
             expire_modid.append(model.id)
         content.append(model.model_dump())
     if expire_modid:
@@ -87,8 +212,10 @@ async def curseforge_mod_files(modId: int):
         return UncachedResponse()
     return TrustableResponse(content=[model.model_dump() for model in mod_models])
 
+
 class fileIds_item(BaseModel):
     fileIds: List[int]
+
 
 # get files
 @curseforge_router.post(
@@ -109,7 +236,10 @@ async def curseforge_mod_files(item: fileIds_item):
     expire_fileid: List[int] = []
     for model in file_models:
         # expire
-        if model.sync_at.timestamp() + mcim_config.expire_second.curseforge.file < time.time():
+        if (
+            model.sync_at.timestamp() + mcim_config.expire_second.curseforge.file
+            < time.time()
+        ):
             expire_fileid.append(model.id)
         content.append(model.model_dump())
     if expire_fileid:
@@ -131,13 +261,18 @@ async def curseforge_mod_file(modId: int, fileId: int):
     if model is None:
         sync_file.send(modId=modId, fileId=fileId)
         return UncachedResponse()
-    elif model.sync_at.timestamp() + mcim_config.expire_second.curseforge.file < time.time():
+    elif (
+        model.sync_at.timestamp() + mcim_config.expire_second.curseforge.file
+        < time.time()
+    ):
         sync_file.send(modId=modId, fileId=fileId)
         trustable = False
     return TrustableResponse(content=model.model_dump(), trustable=trustable)
 
+
 class fingerprints_item(BaseModel):
     fingerprints: List[int]
+
 
 @curseforge_router.post(
     "/fingerprints",
@@ -156,9 +291,11 @@ async def curseforge_fingerprints(item: fingerprints_item):
         sync_fingerprints.send(fingerprints=item.fingerprints)
         trustable = False
         return TrustableResponse(
-            content=FingerprintResponse(unmatchedFingerprints=item.fingerprints).model_dump(),
-            trustable=trustable
-            )
+            content=FingerprintResponse(
+                unmatchedFingerprints=item.fingerprints
+            ).model_dump(),
+            trustable=trustable,
+        )
     elif len(fingerprints_models) != len(item.fingerprints):
         sync_fingerprints.send(fingerprints=item.fingerprints)
         trustable = False
@@ -179,13 +316,14 @@ async def curseforge_fingerprints(item: fingerprints_item):
         trustable=trustable,
     )
 
+
 @curseforge_router.get(
     "/categories/",
     description="Curseforge Categories 信息",
     response_model=List[Category],
 )
 async def curseforge_categories():
-    categories = await aio_redis_engine.hget("curseforge","categories")
+    categories = await aio_redis_engine.hget("curseforge", "categories")
     if categories is None:
         sync_categories.send()
         return UncachedResponse()
