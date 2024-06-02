@@ -24,6 +24,7 @@ TIMEOUT = 5
 RETRY_TIMES = 3
 REQUEST_LOG = True
 
+
 def retry(times: int = RETRY_TIMES):
     """
     重试装饰器
@@ -54,8 +55,16 @@ def retry(times: int = RETRY_TIMES):
 
     return wrapper
 
+
 @retry()
-def request(url: str, method: str = "GET", data=None, params=None, json=None, **kwargs) -> httpx.Response:
+def request(
+    url: str,
+    method: str = "GET",
+    data: dict = None,
+    params: dict = None,
+    json: dict = None,
+    **kwargs
+) -> httpx.Response:
     """
     HTTPX 请求函数
 
@@ -69,10 +78,25 @@ def request(url: str, method: str = "GET", data=None, params=None, json=None, **
     Returns:
         Any: 请求结果
     """
+    # delete null query
+    if params is not None:
+        params = {k: v for k, v in params.items() if v is not None}
+
     if json is not None:
-        res = httpx.request(method, url, proxies=PROXY, json=json, params=params, **kwargs)
+        res = httpx.request(
+            method, url, proxies=PROXY, json=json, params=params, **kwargs
+        )
     else:
-        res = httpx.request(method, url, proxies=PROXY, data=data, params=params, **kwargs)
+        res = httpx.request(
+            method, url, proxies=PROXY, data=data, params=params, **kwargs
+        )
     if res.status_code != 200:
-        raise ResponseCodeException(status_code=res.status_code, method=method, url=url, data=data if data is None else json, params=params, msg=res.text)
+        raise ResponseCodeException(
+            status_code=res.status_code,
+            method=method,
+            url=url,
+            data=data if data is None else json,
+            params=params,
+            msg=res.text,
+        )
     return res

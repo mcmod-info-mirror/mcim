@@ -15,6 +15,7 @@ from app.database.mongodb import aio_mongo_engine
 from app.database._redis import aio_redis_engine
 from app.config.mcim import MCIMConfig
 from app.utils.response import TrustableResponse, UncachedResponse
+from app.utils.network.network import request
 
 mcim_config = MCIMConfig.load()
 
@@ -88,17 +89,27 @@ async def modrinth_project_versions(idslug: str):
             break
     return TrustableResponse(content=[version.model_dump() for version in model], trustable=trustable)
 
+class SearchIndex(str, Enum):
+    relevance = "relevance"
+    downloads = "downloads"
+    follows = "follows"
+    newest = "newest"
+    updated = "updated"
+
 @modrinth_router.get(
     "/search",
     description="Modrinth Projects 搜索",
-    response_model=List[Project],
+    # response_model=List[Project],
 )
-async def modrinth_search_projects(query: str):
-    # models = await aio_mongo_engine.find(Project, Project.title.contains(query))
-    # if models is None:
-    #     pass
-    # return TrustableResponse(content=[model.model_dump() for model in models])
-    pass
+async def modrinth_search_projects(query: str, facets: Optional[str] = None, offset: Optional[int] = 0, limit: Optional[int] = 10, index: Optional[SearchIndex] = SearchIndex.relevance):
+    # TODO: Search
+    res = request(f"{API}/search", params={"query": query,
+                                             "facets": facets,
+                                                "offset": offset,
+                                                "limit": limit,
+                                                "index": index.value
+                                           }).json()
+    return res
 
 @modrinth_router.get(
     "/version/{id}",
