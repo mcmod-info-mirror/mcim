@@ -16,7 +16,11 @@ from app.sync.curseforge import (
     sync_categories,
 )
 from app.models.database.curseforge import Mod, File, Fingerprint
-from app.models.response.curseforge import FingerprintResponse, Category
+from app.models.response.curseforge import (
+    FingerprintResponse,
+    Category,
+    CurseforgeBaseResponse,
+)
 from app.database.mongodb import aio_mongo_engine
 from app.database._redis import aio_redis_engine
 from app.config.mcim import MCIMConfig
@@ -38,7 +42,6 @@ UNCACHE_STATUS_CODE = mcim_config.uncache_status_code
 @curseforge_router.get("/")
 async def get_curseforge():
     return {"message": "CurseForge"}
-
 
 
 """
@@ -161,7 +164,9 @@ async def curseforge_mod(modId: int):
     ):
         sync_mod.send(modId=modId)
         trustable = False
-    return TrustableResponse(content=mod_model.model_dump(), trustable=trustable)
+    return TrustableResponse(
+        content=CurseforgeBaseResponse(data=mod_model).model_dump(), trustable=trustable
+    )
 
 
 class modIds_item(BaseModel):
@@ -197,7 +202,9 @@ async def curseforge_mods(item: modIds_item):
     if expire_modid:
         trustable = False
         sync_mutil_mods.send(modIds=expire_modid)
-    return TrustableResponse(content=content, trustable=trustable)
+    return TrustableResponse(
+        content=CurseforgeBaseResponse(content).model_dump(), trustable=trustable
+    )
 
 
 @curseforge_router.get(
@@ -210,7 +217,9 @@ async def curseforge_mod_files(modId: int):
     if not mod_models:
         sync_mod.send(modId=modId)
         return UncachedResponse()
-    return TrustableResponse(content=[model.model_dump() for model in mod_models])
+    return TrustableResponse(
+        content=CurseforgeBaseResponse([model for model in mod_models]).model_dump()
+    )
 
 
 class fileIds_item(BaseModel):
@@ -245,7 +254,9 @@ async def curseforge_mod_files(item: fileIds_item):
     if expire_fileid:
         sync_mutil_files.send(fileIds=expire_fileid)
         trustable = False
-    return TrustableResponse(content=content, trustable=trustable)
+    return TrustableResponse(
+        content=CurseforgeBaseResponse(content).model_dump(), trustable=trustable
+    )
 
 
 # get file
@@ -267,7 +278,9 @@ async def curseforge_mod_file(modId: int, fileId: int):
     ):
         sync_file.send(modId=modId, fileId=fileId)
         trustable = False
-    return TrustableResponse(content=model.model_dump(), trustable=trustable)
+    return TrustableResponse(
+        content=CurseforgeBaseResponse(model).model_dump(), trustable=trustable
+    )
 
 
 class fingerprints_item(BaseModel):
@@ -291,8 +304,8 @@ async def curseforge_fingerprints(item: fingerprints_item):
         sync_fingerprints.send(fingerprints=item.fingerprints)
         trustable = False
         return TrustableResponse(
-            content=FingerprintResponse(
-                unmatchedFingerprints=item.fingerprints
+            CurseforgeBaseResponse(
+                content=FingerprintResponse(unmatchedFingerprints=item.fingerprints)
             ).model_dump(),
             trustable=trustable,
         )
@@ -306,12 +319,14 @@ async def curseforge_fingerprints(item: fingerprints_item):
         if fingerprint not in exactFingerprints
     ]
     return TrustableResponse(
-        content=FingerprintResponse(
-            isCacheBuilt=True,
-            exactFingerprints=exactFingerprints,
-            exactMatches=fingerprints_models,
-            unmatchedFingerprints=unmatchedFingerprints,
-            installedFingerprints=[],
+        content=CurseforgeBaseResponse(
+            FingerprintResponse(
+                isCacheBuilt=True,
+                exactFingerprints=exactFingerprints,
+                exactMatches=fingerprints_models,
+                unmatchedFingerprints=unmatchedFingerprints,
+                installedFingerprints=[],
+            )
         ).model_dump(),
         trustable=trustable,
     )
@@ -327,4 +342,4 @@ async def curseforge_categories():
     if categories is None:
         sync_categories.send()
         return UncachedResponse()
-    return TrustableResponse(content=json.loads(categories))
+    return TrustableResponse(content=CurseforgeBaseResponse(json.loads(categories)))

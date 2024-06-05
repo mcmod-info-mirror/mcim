@@ -1,5 +1,7 @@
 from pydantic import Field, BaseModel
-from typing import List
+from typing import List, Union, Optional
+
+from app.models.database.curseforge import Mod, File, Pagination
 from app.models.database.curseforge import Fingerprint
 
 
@@ -101,3 +103,10 @@ class Category(BaseModel):
     classId: int
     parentCategoryId: int
     displayIndex: int
+
+class CurseforgeBaseResponse(BaseModel):
+    data: Union[Mod, File, dict, List]
+
+class CurseforgePageBaseResponse(BaseModel):
+    data: Union[Mod, File, dict, List]
+    pagination: Optional[Pagination] = Pagination()
