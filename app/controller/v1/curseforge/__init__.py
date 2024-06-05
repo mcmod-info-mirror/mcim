@@ -203,7 +203,7 @@ async def curseforge_mods(item: modIds_item):
         trustable = False
         sync_mutil_mods.send(modIds=expire_modid)
     return TrustableResponse(
-        content=CurseforgeBaseResponse(content).model_dump(), trustable=trustable
+        content=CurseforgeBaseResponse(data=content).model_dump(), trustable=trustable
     )
 
 
@@ -218,7 +218,9 @@ async def curseforge_mod_files(modId: int):
         sync_mod.send(modId=modId)
         return UncachedResponse()
     return TrustableResponse(
-        content=CurseforgeBaseResponse([model for model in mod_models]).model_dump()
+        content=CurseforgeBaseResponse(
+            data=[model for model in mod_models]
+        ).model_dump()
     )
 
 
@@ -255,7 +257,7 @@ async def curseforge_mod_files(item: fileIds_item):
         sync_mutil_files.send(fileIds=expire_fileid)
         trustable = False
     return TrustableResponse(
-        content=CurseforgeBaseResponse(content).model_dump(), trustable=trustable
+        content=CurseforgeBaseResponse(data=content).model_dump(), trustable=trustable
     )
 
 
@@ -279,7 +281,7 @@ async def curseforge_mod_file(modId: int, fileId: int):
         sync_file.send(modId=modId, fileId=fileId)
         trustable = False
     return TrustableResponse(
-        content=CurseforgeBaseResponse(model).model_dump(), trustable=trustable
+        content=CurseforgeBaseResponse(data=model).model_dump(), trustable=trustable
     )
 
 
@@ -304,8 +306,8 @@ async def curseforge_fingerprints(item: fingerprints_item):
         sync_fingerprints.send(fingerprints=item.fingerprints)
         trustable = False
         return TrustableResponse(
-            CurseforgeBaseResponse(
-                content=FingerprintResponse(unmatchedFingerprints=item.fingerprints)
+            content=CurseforgeBaseResponse(
+                data=FingerprintResponse(unmatchedFingerprints=item.fingerprints)
             ).model_dump(),
             trustable=trustable,
         )
@@ -319,7 +321,7 @@ async def curseforge_fingerprints(item: fingerprints_item):
         if fingerprint not in exactFingerprints
     ]
     return TrustableResponse(
-        content=CurseforgeBaseResponse(
+        content=CurseforgeBaseResponse(data=
             FingerprintResponse(
                 isCacheBuilt=True,
                 exactFingerprints=exactFingerprints,
@@ -342,4 +344,4 @@ async def curseforge_categories():
     if categories is None:
         sync_categories.send()
         return UncachedResponse()
-    return TrustableResponse(content=CurseforgeBaseResponse(json.loads(categories)))
+    return TrustableResponse(content=CurseforgeBaseResponse(data=json.loads(categories)))
