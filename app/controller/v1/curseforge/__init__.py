@@ -344,4 +344,4 @@ async def curseforge_categories():
     if categories is None:
         sync_categories.send()
         return UncachedResponse()
-    return TrustableResponse(content=CurseforgeBaseResponse(data=json.loads(categories)))
+    return TrustableResponse(content=CurseforgeBaseResponse(data=json.loads(categories)).model_dump())
