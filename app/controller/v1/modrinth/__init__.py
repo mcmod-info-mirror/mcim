@@ -136,7 +136,7 @@ class SearchIndex(str, Enum):
     # response_model=List[Project],
 )
 async def modrinth_search_projects(
-    query: str,
+    query: Optional[str] = None,
     facets: Optional[str] = None,
     offset: Optional[int] = 0,
     limit: Optional[int] = 10,
