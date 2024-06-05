@@ -137,5 +137,7 @@ def sync_fingerprints(fingerprints: List[int]):
 
 @actor
 def sync_categories():
-    res = request(f"{API}/v1/categories", headers=headers).json()["data"]
+    res = request(f"{API}/v1/categories", headers=headers, params={
+        'gameId': '432'
+    }).json()["data"]
     redis_engine.hset("curseforge", "categories", json.dumps(res))
