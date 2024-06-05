@@ -109,4 +109,4 @@ class CurseforgeBaseResponse(BaseModel):
 
 class CurseforgePageBaseResponse(BaseModel):
     data: Union[Mod, File, dict, List]
-    pagination: Optional[Pagination] = Pagination()
+    pagination: Pagination
