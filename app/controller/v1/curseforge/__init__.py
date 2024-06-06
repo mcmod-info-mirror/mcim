@@ -27,6 +27,8 @@ from app.config.mcim import MCIMConfig
 from app.utils.response import TrustableResponse, UncachedResponse
 from app.utils.network.network import request
 
+from app.utils.response_cache import cache
+
 mcim_config = MCIMConfig.load()
 
 API = mcim_config.curseforge_api
@@ -40,6 +42,7 @@ UNCACHE_STATUS_CODE = mcim_config.uncache_status_code
 
 
 @curseforge_router.get("/")
+@cache(never_expire=True)
 async def get_curseforge():
     return {"message": "CurseForge"}
 
@@ -103,6 +106,7 @@ class ModLoaderType(int, Enum):
     description="Curseforge Category 信息",
     # response_model TODO
 )
+@cache(expire=mcim_config.expire_second.curseforge.search)
 async def curseforge_search(
     gameId: int = 432,
     classId: Optional[int] = None,
@@ -152,6 +156,7 @@ async def curseforge_search(
     description="Curseforge Mod 信息",
     response_model=Mod,
 )
+@cache(expire=mcim_config.expire_second.curseforge.mod)
 async def curseforge_mod(modId: int):
     trustable: bool = True
     mod_model = await aio_mongo_engine.find_one(Mod, Mod.id == modId)
@@ -180,6 +185,7 @@ class modIds_item(BaseModel):
     description="Curseforge Mods 信息",
     response_model=List[Mod],
 )
+@cache(expire=mcim_config.expire_second.curseforge.mod)
 async def curseforge_mods(item: modIds_item):
     trustable: bool = True
     mod_models = await aio_mongo_engine.find(Mod, query.in_(Mod.id, item.modIds))
@@ -212,6 +218,7 @@ async def curseforge_mods(item: modIds_item):
     description="Curseforge Mod 文件信息",
     response_model=List[File],
 )
+@cache(expire=mcim_config.expire_second.curseforge.file)
 async def curseforge_mod_files(modId: int):
     mod_models = await aio_mongo_engine.find(File, File.modId == modId)
     if not mod_models:
@@ -234,6 +241,7 @@ class fileIds_item(BaseModel):
     description="Curseforge Mod 文件信息",
     response_model=List[File],
 )
+@cache(expire=mcim_config.expire_second.curseforge.file)
 async def curseforge_mod_files(item: fileIds_item):
     trustable = True
     file_models = await aio_mongo_engine.find(File, query.in_(File.id, item.fileIds))
@@ -266,6 +274,7 @@ async def curseforge_mod_files(item: fileIds_item):
     "/mods/{modId}/files/{fileId}",
     description="Curseforge Mod 文件信息",
 )
+@cache(expire=mcim_config.expire_second.curseforge.file)
 async def curseforge_mod_file(modId: int, fileId: int):
     trustable = True
     model = await aio_mongo_engine.find_one(
@@ -294,6 +303,7 @@ class fingerprints_item(BaseModel):
     description="Curseforge Fingerprint 文件信息",
     response_model=FingerprintResponse,
 )
+@cache(expire=mcim_config.expire_second.curseforge.fingerprint)
 async def curseforge_fingerprints(item: fingerprints_item):
     """
     未找到所有 fingerprint 会视为不可信，因为不存在的 fingerprint 会被记录
@@ -335,10 +345,11 @@ async def curseforge_fingerprints(item: fingerprints_item):
 
 
 @curseforge_router.get(
-    "/categories/",
+    "/categories",
     description="Curseforge Categories 信息",
     response_model=List[Category],
 )
+@cache(expire=mcim_config.expire_second.curseforge.categories)
 async def curseforge_categories():
     categories = await aio_redis_engine.hget("curseforge", "categories")
     if categories is None:

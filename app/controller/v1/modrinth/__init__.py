@@ -26,6 +26,8 @@ from app.config.mcim import MCIMConfig
 from app.utils.response import TrustableResponse, UncachedResponse
 from app.utils.network.network import request
 
+from app.utils.response_cache import cache
+
 mcim_config = MCIMConfig.load()
 
 API = mcim_config.modrinth_api
@@ -37,6 +39,7 @@ modrinth_router = APIRouter(prefix="/modrinth", tags=["modrinth"])
 
 
 @modrinth_router.get("/")
+@cache(never_expire=True)
 async def get_curseforge():
     return {"message": "Modrinth"}
 
@@ -46,6 +49,7 @@ async def get_curseforge():
     description="Modrinth Project 信息",
     response_model=Project,
 )
+@cache(expire=mcim_config.expire_second.modrinth.project)
 async def modrinth_project(idslug: str):
     trustable = True
     model = await aio_mongo_engine.find_one(
@@ -68,6 +72,7 @@ async def modrinth_project(idslug: str):
     description="Modrinth Projects 信息",
     response_model=List[Project],
 )
+@cache(expire=mcim_config.expire_second.modrinth.project)
 async def modrinth_projects(ids: str):
     ids = json.loads(ids)
     trustable = True
@@ -101,6 +106,7 @@ async def modrinth_projects(ids: str):
     description="Modrinth Projects 全部版本信息",
     response_model=List[Project],
 )
+@cache(expire=mcim_config.expire_second.modrinth.version)
 async def modrinth_project_versions(idslug: str):
     trustable = True
     model = await aio_mongo_engine.find(
@@ -135,6 +141,7 @@ class SearchIndex(str, Enum):
     description="Modrinth Projects 搜索",
     # response_model=List[Project],
 )
+@cache(expire=mcim_config.expire_second.modrinth.search)
 async def modrinth_search_projects(
     query: Optional[str] = None,
     facets: Optional[str] = None,
@@ -161,6 +168,7 @@ async def modrinth_search_projects(
     description="Modrinth Version 信息",
     response_model=Version,
 )
+@cache(expire=mcim_config.expire_second.modrinth.version)
 async def modrinth_version(version_id: Annotated[str, Path(alias="id")]):
     model = await aio_mongo_engine.find_one(
         Version, query.or_(Version.id == version_id, Version.slug == version_id)
@@ -182,6 +190,7 @@ async def modrinth_version(version_id: Annotated[str, Path(alias="id")]):
     description="Modrinth Versions 信息",
     response_model=List[Version],
 )
+@cache(expire=mcim_config.expire_second.modrinth.version)
 async def modrinth_versions(ids: str):
     trustable = True
     ids_list = json.loads(ids)
@@ -217,6 +226,7 @@ class Algorithm(str, Enum):
     description="Modrinth File 信息",
     response_model=File,
 )
+@cache(expire=mcim_config.expire_second.modrinth.file)
 async def modrinth_file(hash: str, algorithm: Optional[Algorithm] = Algorithm.sha1):
     trustable = True
     if algorithm == Algorithm.sha1:
@@ -256,6 +266,7 @@ class HashesQuery(BaseModel):
     description="Modrinth Files 信息",
     response_model=List[File],
 )
+@cache(expire=mcim_config.expire_second.modrinth.file)
 async def modrinth_files(items: HashesQuery):
     trustable = True
     if items.algorithm == Algorithm.sha1:
@@ -294,6 +305,7 @@ async def modrinth_files(items: HashesQuery):
     description="Modrinth Category 信息",
     response_model=List,
 )
+@cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_categories():
     category = await aio_redis_engine.hget("modrinth", "categories")
     if category is None:
@@ -307,6 +319,7 @@ async def modrinth_tag_categories():
     description="Modrinth Loader 信息",
     response_model=List,
 )
+@cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_loaders():
     loader = await aio_redis_engine.hget("modrinth", "loaders")
     if loader is None:
@@ -320,6 +333,7 @@ async def modrinth_tag_loaders():
     description="Modrinth Game Version 信息",
     response_model=List,
 )
+@cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_game_versions():
     game_version = await aio_redis_engine.hget("modrinth", "game_versions")
     if game_version is None:
@@ -333,6 +347,7 @@ async def modrinth_tag_game_versions():
     description="Modrinth Donation Platform 信息",
     response_model=List,
 )
+@cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_donation_platforms():
     donation_platform = await aio_redis_engine.hget("modrinth", "donation_platform")
     if donation_platform is None:
@@ -346,6 +361,7 @@ async def modrinth_tag_donation_platforms():
     description="Modrinth Project Type 信息",
     response_model=List,
 )
+@cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_project_types():
     project_type = await aio_redis_engine.hget("modrinth", "project_type")
     if project_type is None:
@@ -359,6 +375,7 @@ async def modrinth_tag_project_types():
     description="Modrinth Side Type 信息",
     response_model=List,
 )
+@cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_side_types():
     side_type = await aio_redis_engine.hget("modrinth", "side_type")
     if side_type is None:

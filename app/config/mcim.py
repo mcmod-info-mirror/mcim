@@ -11,10 +11,16 @@ MICM_CONFIG_PATH = os.path.join(CONFIG_PATH, "mcim.json")
 class Curseforge(BaseModel):
     mod: int = 86400
     file: int = 86400
+    fingerprint: int = 86400 * 7 # 一般不刷新
+    search: int = 7200
+    categories: int = 86400 * 7
 
 class Modrinth(BaseModel):
     project: int = 86400
     version: int = 86400
+    file: int = 86400 * 7 # 一般不刷新
+    search: int = 7200
+    category: int = 86400 * 7
 
 class ExpireSecond(BaseModel):
     curseforge: Curseforge = Curseforge()
