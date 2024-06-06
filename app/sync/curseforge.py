@@ -26,18 +26,39 @@ def check_alive():
     return request(API, headers=headers).text
 
 
+def append_model_from_files_res(
+    res, latestFiles: dict
+) -> List[Union[File, Fingerprint]]:
+    models = []
+    for file in res["data"]:
+        models.append(File(found=True, **file))
+        models.append(
+            Fingerprint(
+                id=file["fileFingerprint"],
+                file=file,
+                latestFiles=latestFiles,
+                found=True,
+            )
+        )
+    return models
+
+
 @actor
 def sync_mod_all_files(
-    modId: int, models: List[Union[File, Mod]] = [], submit: bool = True, latestFiles: List[dict] = None
-):
+    modId: int, latestFiles: List[dict] = None
+) -> List[Union[File, Mod]]:
+    models = []
     if not latestFiles:
-        latestFiles = request(f"{API}/v1/mods/{modId}", headers=headers).json()["data"]["latestFiles"]
+        latestFiles = request(f"{API}/v1/mods/{modId}", headers=headers).json()["data"][
+            "latestFiles"
+        ]
 
     res = request(
         f"{API}/v1/mods/{modId}/files",
         headers=headers,
         params={"index": 0, "pageSize": 50},
     ).json()
+    models.extend(append_model_from_files_res(res, latestFiles))
     page = Pagination(**res["pagination"])
     # index A zero based index of the first item to include in the response, the limit is: (index + pageSize <= 10,000).
     while page.index < page.totalCount - 1:
@@ -45,27 +66,20 @@ def sync_mod_all_files(
         res = request(
             f"{API}/v1/mods/{modId}/files", headers=headers, params=params
         ).json()
-        for file in res["data"]:
-            models.append(File(found=True, **file))
-            models.append(Fingerprint(id=file["fileFingerprint"], file=file, latestFiles=latestFiles, found=True))
+        models.extend(append_model_from_files_res(res, latestFiles))
         page = Pagination(**res["pagination"])
-    
-    if not submit:
-        return models
-    submit_models(models)
+
+    return models
 
 
 @actor
-def sync_multi_projects_all_files(
-    modIds: List[int], models: List[Union[File, Mod]] = [], submit: bool = True
-):
+def sync_multi_projects_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
+    models = []
     # 去重
     modIds = list(set(modIds))
     for modId in modIds:
-        models.extend(sync_mod_all_files(modId, submit=False))
-    if not submit:
-        return models
-    submit_models(models)
+        models.extend(sync_mod_all_files(modId))
+    return models
 
 
 @actor
@@ -73,7 +87,8 @@ def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
     res = request(f"{API}/v1/mods/{modId}", headers=headers).json()["data"]
     models.append(Mod(found=True, **res))
-    sync_mod_all_files(modId, models, submit=True)
+    models.extend(sync_mod_all_files(modId, latestFiles=res["latestFiles"]))
+    submit_models(models)
 
 
 @actor
@@ -86,7 +101,8 @@ def sync_mutil_mods(modIds: List[int]):
     models: List[Union[File, Mod]] = []
     for mod in res:
         models.append(Mod(found=True, **mod))
-    sync_multi_projects_all_files([model.id for model in models], models)
+    models.extend(sync_multi_projects_all_files([model.id for model in models]))
+    submit_models(models)
 
 
 @actor
@@ -94,10 +110,17 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     res = request(f"{API}/v1/mods/{modId}/files/{fileId}", headers=headers).json()[
         "data"
     ]
-    latestFiles = request(f"{API}/v1/mods/{modId}", headers=headers).json()["data"]["latestFiles"]
-    models = [File(found=True, **res), Fingerprint(found=True, id=res["fileFingerprint"], file=res, latestFiles=latestFiles)]
+    latestFiles = request(f"{API}/v1/mods/{modId}", headers=headers).json()["data"][
+        "latestFiles"
+    ]
+    models = [
+        File(found=True, **res),
+        Fingerprint(
+            found=True, id=res["fileFingerprint"], file=res, latestFiles=latestFiles
+        ),
+    ]
     if not expire:
-        sync_mod_all_files(modId, models, submit=False, latestFiles=latestFiles)
+        models.extend(sync_mod_all_files(modId, latestFiles=latestFiles))
     submit_models(models)
 
 
@@ -112,7 +135,8 @@ def sync_mutil_files(fileIds: List[int]):
     ).json()["data"]
     for file in res:
         models.append(File(found=True, **file))
-    sync_multi_projects_all_files([model.modId for model in models], models)
+    models.extend(sync_multi_projects_all_files([model.modId for model in models]))
+    submit_models(models)
 
 
 @actor
@@ -133,11 +157,13 @@ def sync_fingerprints(fingerprints: List[int]):
                 found=True,
             )
         )
-    sync_multi_projects_all_files([model.file.modId for model in models], models)
+    models.extend(sync_multi_projects_all_files([model.file.modId for model in models]))
+    submit_models(models)
+
 
 @actor
 def sync_categories():
-    res = request(f"{API}/v1/categories", headers=headers, params={
-        'gameId': '432'
-    }).json()["data"]
+    res = request(
+        f"{API}/v1/categories", headers=headers, params={"gameId": "432"}
+    ).json()["data"]
     redis_engine.hset("curseforge", "categories", json.dumps(res))
