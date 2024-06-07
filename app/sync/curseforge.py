@@ -3,8 +3,8 @@ from dramatiq import actor
 import json
 import os
 
-from app.sync.worker import sync_mongo_engine as mongodb_engine
-from app.sync.worker import sync_redis_engine as redis_engine
+from app.sync import sync_mongo_engine as mongodb_engine
+from app.sync import sync_redis_engine as redis_engine
 from app.models.database.curseforge import File, Mod, Pagination, Fingerprint, FileInfo
 from app.exceptions import ResponseCodeException
 from app.utils.network import request
