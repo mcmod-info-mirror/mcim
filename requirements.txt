@@ -1,4 +1,4 @@
-# beanie==1.25.0
+
 dramatiq==1.16.0
 odmantic==1.0.2
 fastapi==0.109.0
@@ -10,5 +10,5 @@ pydantic_core==2.16.1
 python-multipart==0.0.7
 uvicorn==0.27.0
 redis==5.0.1
-gunicorn==22.0.0
+aria2p==0.12.0
 orjson==3.10.3

@@ -1,16 +1,19 @@
 from typing import List, Optional, Union
 from dramatiq import actor
 import json
+import os
 
 from app.sync.worker import sync_mongo_engine as mongodb_engine
 from app.sync.worker import sync_redis_engine as redis_engine
 from app.models.database.curseforge import File, Mod, Pagination, Fingerprint, FileInfo
 from app.exceptions import ResponseCodeException
-from app.utils.network.network import request
-from app.config.mcim import MCIMConfig
+from app.utils.network import request
+from app.config import MCIMConfig, Aria2Config
+from app.utils.aria2 import add_http_task
 
 
 mcim_config = MCIMConfig.load()
+aria2_config = Aria2Config.load()
 
 API = mcim_config.curseforge_api
 
@@ -18,6 +21,20 @@ headers = {"x-api-key": mcim_config.curseforge_api_key}
 
 
 def submit_models(models: List[Union[File, Mod, Fingerprint]]):
+    if mcim_config.file_cdn:
+        for model in models:
+            if (
+                not os.path.exists(
+                    os.path.join(
+                        aria2_config.curseforge_download_path, model.hashes[0].value
+                    )
+                )
+            ) and isinstance(model, File):
+                add_http_task(
+                    url=model.downloadUrl,
+                    name=model.hashes[0].value,
+                    dir=aria2_config.curseforge_download_path,
+                )
     mongodb_engine.save_all(models)
 
 

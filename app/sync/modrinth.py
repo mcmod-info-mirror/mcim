@@ -18,21 +18,37 @@ sync_project 只刷新 project 信息，不刷新 project 下的 version 信息
 from typing import List, Optional, Union
 from dramatiq import actor
 import json
+import os
 
 from app.database.mongodb import sync_mongo_engine as mongodb_engine
 from app.database._redis import sync_redis_engine as redis_engine
 from app.models.database.modrinth import Project, File, Version
-from app.utils.network.network import request
+from app.utils.network import request
 from app.exceptions import ResponseCodeException
-from app.config.mcim import MCIMConfig
+from app.config import MCIMConfig, Aria2Config
+from app.utils.aria2 import add_http_task
 
 mcim_config = MCIMConfig.load()
-
+aria2_config = Aria2Config.load()
 
 API = mcim_config.modrinth_api
 
 
 def submit_models(models: List[Union[Project, File, Version]]):
+    if mcim_config.file_cdn:
+        for model in models:
+            if (
+                not os.path.exists(
+                    os.path.join(
+                        aria2_config.modrinth_download_path, model.hashes.sha512
+                    )
+                )
+            ) and isinstance(model, File):
+                add_http_task(
+                    url=model.url,
+                    name=model.hashes.sha512,
+                    dir=aria2_config.modrinth_download_path,
+                )
     mongodb_engine.save_all(models)
 
 
@@ -150,9 +166,7 @@ def sync_version(version_id: str):
     submit_models(models)
 
 
-def process_multi_versions(
-    res: List[dict]
-):
+def process_multi_versions(res: List[dict]):
     models = []
     for version in res:
         for file in version["files"]:
@@ -175,9 +189,9 @@ def sync_multi_versions(version_ids: List[str]):
             return
     models = []
     models.extend(process_multi_versions(res))
-    models.extend(sync_multi_projects_all_version(
-        [version["project_id"] for version in res]
-    ))
+    models.extend(
+        sync_multi_projects_all_version([version["project_id"] for version in res])
+    )
     submit_models(models)
 
 
@@ -198,9 +212,7 @@ def sync_hash(hash: str, algorithm: str):
     submit_models(models)
 
 
-def process_multi_hashes(
-    res: dict
-):
+def process_multi_hashes(res: dict):
     models = []
     for version in res.values():
         for file in version["files"]:
@@ -227,9 +239,11 @@ def sync_multi_hashes(hashes: List[str], algorithm: str):
             return
     models = []
     models.extend(process_multi_hashes(res))
-    models.extend(sync_multi_projects_all_version(
-        [version["project_id"] for version in res.values()]
-    ))
+    models.extend(
+        sync_multi_projects_all_version(
+            [version["project_id"] for version in res.values()]
+        )
+    )
     submit_models(models)
 
 
@@ -249,3 +263,11 @@ def sync_tags():
     redis_engine.hset("modrinth", "donation_platform", json.dumps(donation_platform))
     redis_engine.hset("modrinth", "project_type", json.dumps(project_type))
     redis_engine.hset("modrinth", "side_type", json.dumps(side_type))
+
+
+@actor
+def add_urls_to_alist(urls: List[str], project_id: str, version_id: str):
+    add_offline_download_task(
+        urls,
+        mcim_config.modrinth_cdn_path + f"/data/{project_id}/versions/{version_id}",
+    )

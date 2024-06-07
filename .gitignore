@@ -5,8 +5,7 @@
 # Python
 __pycache__
 
-# Go-Cqhttp
-/cqhttp
+/tests
 
 # Logs
 /logs
