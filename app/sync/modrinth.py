@@ -92,9 +92,10 @@ def sync_multi_projects_all_version(
 
 @actor
 def sync_project(project_id: str):
-    models = [Project(found=True, **res)]
+    models = []
     try:
         res = request(f"{API}/project/{project_id}").json()
+        models.append(Project(found=True, **res))
     except ResponseCodeException as e:
         if e.status_code == 404:
             models = [Project(success=False, id=project_id, slug=project_id)]
