@@ -23,18 +23,17 @@ headers = {"x-api-key": mcim_config.curseforge_api_key}
 def submit_models(models: List[Union[File, Mod, Fingerprint]]):
     if mcim_config.file_cdn:
         for model in models:
-            if (
-                not os.path.exists(
+            if isinstance(model, File):
+                if not os.path.exists(
                     os.path.join(
                         aria2_config.curseforge_download_path, model.hashes[0].value
                     )
-                )
-            ) and isinstance(model, File):
-                add_http_task(
-                    url=model.downloadUrl,
-                    name=model.hashes[0].value,
-                    dir=aria2_config.curseforge_download_path,
-                )
+                ):
+                    add_http_task(
+                        url=model.downloadUrl,
+                        name=model.hashes[0].value,
+                        dir=aria2_config.curseforge_download_path,
+                    )
     mongodb_engine.save_all(models)
 
 

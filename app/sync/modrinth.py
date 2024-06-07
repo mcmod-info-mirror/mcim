@@ -37,18 +37,13 @@ API = mcim_config.modrinth_api
 def submit_models(models: List[Union[Project, File, Version]]):
     if mcim_config.file_cdn:
         for model in models:
-            if (
-                not os.path.exists(
-                    os.path.join(
-                        aria2_config.modrinth_download_path, model.hashes.sha512
+            if isinstance(model, File):
+                if not os.path.exists(os.path.join(aria2_config.modrinth_download_path, model.hashes.sha512)):
+                    add_http_task(
+                        url=model.url,
+                        name=model.hashes.sha512,
+                        dir=aria2_config.modrinth_download_path,
                     )
-                )
-            ) and isinstance(model, File):
-                add_http_task(
-                    url=model.url,
-                    name=model.hashes.sha512,
-                    dir=aria2_config.modrinth_download_path,
-                )
     mongodb_engine.save_all(models)
 
 
