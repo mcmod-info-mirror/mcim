@@ -18,4 +18,3 @@ ARIA2_API = aria2p.API(
 def add_http_task(url: str, dir: str, name: str, **kwargs):
     # add HTTP task
     ARIA2_API.add(url, options={"out": name, "dir": dir}, **kwargs)
-    print(f"Add {url} to aria2")
