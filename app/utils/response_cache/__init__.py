@@ -27,10 +27,10 @@ def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
                     return BaseRespBuilder.decode(value["value"])
             
             result = await route(*args, **kwargs)
-            value = {
+            value = orjson.dumps({
                 "type": result.__class__.__name__,
                 "value": ORJsonBuilder.encode(result)
-            }
+            })
             if never_expire:
                 await redis.set(key, value)
             else:

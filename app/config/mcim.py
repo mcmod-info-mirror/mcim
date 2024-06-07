@@ -38,6 +38,9 @@ class MCIMConfigModel(BaseModel):
     sync_interval: int = 3600  # seconds
     async_timeout: int = 60  # seconds
 
+    file_cdn: bool = False
+    modrinth_cdn_path: str = "modrinth"
+    curseforge_cdn_path: str = "curseforge"
     
     expire_second: ExpireSecond = ExpireSecond()
     expire_status_code: int = 404

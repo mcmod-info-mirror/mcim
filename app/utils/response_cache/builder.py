@@ -23,13 +23,12 @@ class ORJsonBuilder(BaseBuilder):
             "headers": dict(headers),
             "status_code": status_code
         }
-
-        return orjson.dumps(
-            params,
-        )
+        # str
+        return orjson.dumps(params).decode('utf-8')
 
     @classmethod
-    def decode(cls, value: dict) -> ORJSONResponse:
+    def decode(cls, value: str) -> ORJSONResponse:
+        value = orjson.loads(value)
         return ORJSONResponse(
             content=value["content"],
             headers=value["headers"],

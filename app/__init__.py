@@ -1,11 +1,12 @@
-from fastapi import FastAPI, BackgroundTasks, Body, status, APIRouter
-from fastapi.responses import JSONResponse, Response, RedirectResponse, ORJSONResponse
+
+import os
 from fastapi import FastAPI, APIRouter
+from fastapi.responses import JSONResponse, Response, RedirectResponse, ORJSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
-from .controller.v1 import v1_router
+from .controller import controller_router
 
 # from .middleware.resp import RespMiddleware
 from .config.mcim import MCIMConfig
@@ -30,7 +31,16 @@ APP = FastAPI(
     title="MCIM", description="这是一个为 Mod 信息加速的 API", lifespan=lifespan
 )
 
-# APP.include_router(v1_router, prefix="/v1")
+APP.include_router(controller_router)
+
+if mcim_config.file_cdn:
+    # modrinth cdn
+    os.makedirs("./data/modrinth", exist_ok=True)
+    APP.mount("/data", StaticFiles(directory="./data/modrinth"), name="modrinth")
+
+    # curseforge cdn
+    os.makedirs("./data/curseforge", exist_ok=True)
+    APP.mount("/curseforge", StaticFiles(directory="./data/curseforge"), name="curseforge")
 
 APP.add_middleware(
     CORSMiddleware,
