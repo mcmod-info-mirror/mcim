@@ -15,6 +15,7 @@ class RedisDatabaseModel(BaseModel):
 class RedisdbConfigModel(BaseModel):
     host: str = "127.0.0.1"
     port: int = 6379
+    auth: bool = True
     user: Optional[str] = None
     password: Optional[str] = None
     database: RedisDatabaseModel = RedisDatabaseModel()

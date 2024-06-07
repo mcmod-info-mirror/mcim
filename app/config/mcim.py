@@ -31,16 +31,14 @@ class MCIMConfigModel(BaseModel):
     port: int = 8000
 
     curseforge_api_key: str = "<api key>"
-    curseforge_api: str = "https://api.curseforge.com/v1/"  # 不然和api的拼接对不上
-    modrinth_api: str = "https://api.modrinth.com/"
-    mcmod_api: str = "https://www.mcmod.cn/"
+    curseforge_api: str = "https://api.curseforge.com"  # 不然和api的拼接对不上
+    modrinth_api: str = "https://api.modrinth.com/v2"
     proxies: Optional[str] = None
-    sync_interval: int = 3600  # seconds
-    async_timeout: int = 60  # seconds
 
     file_cdn: bool = False
-    modrinth_cdn_path: str = "modrinth"
-    curseforge_cdn_path: str = "curseforge"
+    alist_endpoint: str = "http://127.0.0.1:5244"
+    alist_username: str = "admin"
+    alist_password: str = "admin"
     
     expire_second: ExpireSecond = ExpireSecond()
     expire_status_code: int = 404

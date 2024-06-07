@@ -11,6 +11,7 @@ MONGODB_CONFIG_PATH = os.path.join(CONFIG_PATH, "mongodb.json")
 class MongodbConfigModel(BaseModel):
     host: str = "127.0.0.1"
     port: int = 27017
+    auth: bool = True
     user: str = "username"
     password: str = "password"
     database: str = "database"

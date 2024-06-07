@@ -1,4 +1,3 @@
-
 from odmantic import AIOEngine, SyncEngine
 from loguru import logger
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -13,6 +12,7 @@ _mongodb_config = MongodbConfig.load()
 aio_mongo_engine: AIOEngine = None
 sync_mongo_engine: SyncEngine = None
 
+
 def init_mongodb_syncengine() -> SyncEngine:
     """
     Raw Motor client handler, use it when beanie cannot work
@@ -22,11 +22,14 @@ def init_mongodb_syncengine() -> SyncEngine:
     if sync_mongo_engine is None:
         sync_mongo_engine = SyncEngine(
             client=MongoClient(
-                f"mongodb://{_mongodb_config.user}:{_mongodb_config.password}@{_mongodb_config.host}:{_mongodb_config.port}" # 
+                f"mongodb://{_mongodb_config.user}:{_mongodb_config.password}@{_mongodb_config.host}:{_mongodb_config.port}"
+                if _mongodb_config.auth
+                else f"mongodb://{_mongodb_config.host}:{_mongodb_config.port}"
             ),
             database="mcim_backend",
         )
     return sync_mongo_engine
+
 
 def init_mongodb_aioengine() -> AIOEngine:
     """
@@ -37,11 +40,14 @@ def init_mongodb_aioengine() -> AIOEngine:
     if aio_mongo_engine is None:
         aio_mongo_engine = AIOEngine(
             client=AsyncIOMotorClient(
-                f"mongodb://{_mongodb_config.user}:{_mongodb_config.password}@{_mongodb_config.host}:{_mongodb_config.port}" # {_mongodb_config.user}:{_mongodb_config.password}@
+                f"mongodb://{_mongodb_config.user}:{_mongodb_config.password}@{_mongodb_config.host}:{_mongodb_config.port}"
+                if _mongodb_config.auth
+                else f"mongodb://{_mongodb_config.host}:{_mongodb_config.port}"
             ),
             database="mcim_backend",
         )
     return aio_mongo_engine
+
 
 async def setup_async_mongodb() -> None:
     """
@@ -63,6 +69,7 @@ async def setup_async_mongodb() -> None:
         ]
     )
     logger.success("started mongodb connection")
+
 
 aio_mongo_engine: AIOEngine = init_mongodb_aioengine()
 sync_mongo_engine: SyncEngine = init_mongodb_syncengine()
