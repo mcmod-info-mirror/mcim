@@ -8,8 +8,11 @@ from typing import Optional
 from fastapi.responses import ORJSONResponse
 
 from app.utils.response_cache.builder import ORJsonBuilder, BaseRespBuilder
+from app.config import RedisdbConfig
 
-redis = Redis(db=3, port=25565, host="localhost")
+_redis_config = RedisdbConfig.load()
+
+redis = Redis(db=3, port=_redis_config.port, host=_redis_config.host)
 
 def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
     def decorator(route):
