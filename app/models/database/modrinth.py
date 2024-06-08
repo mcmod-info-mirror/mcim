@@ -69,6 +69,7 @@ class File(Model):
     size: Optional[int] = None
     file_type: Optional[Optional[str]] = None
 
+    file_cdn_cached: bool = False
     found: bool = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)
 

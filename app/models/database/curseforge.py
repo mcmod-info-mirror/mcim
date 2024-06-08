@@ -167,6 +167,7 @@ class File(Model):
     dependencies: Optional[List[FileDependencies]] = None 
     fileFingerprint: Optional[int] = None
 
+    file_cdn_cached: bool = False
     found: bool = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)
 
