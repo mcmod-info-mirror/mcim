@@ -7,7 +7,7 @@ from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
 from app.models.database.curseforge import File, Mod, Pagination, Fingerprint, FileInfo
 from app.exceptions import ResponseCodeException
-from app.utils.network import request
+from app.utils.network import request_sync
 from app.config import MCIMConfig, Aria2Config
 from app.utils.aria2 import add_http_task
 
@@ -39,7 +39,7 @@ def submit_models(models: List[Union[File, Mod, Fingerprint]]):
 
 @actor
 def check_alive():
-    return request(API, headers=headers).text
+    return request_sync(API, headers=headers).text
 
 
 def append_model_from_files_res(
@@ -65,11 +65,11 @@ def sync_mod_all_files(
 ) -> List[Union[File, Mod]]:
     models = []
     if not latestFiles:
-        latestFiles = request(f"{API}/v1/mods/{modId}", headers=headers).json()["data"][
+        latestFiles = request_sync(f"{API}/v1/mods/{modId}", headers=headers).json()["data"][
             "latestFiles"
         ]
 
-    res = request(
+    res = request_sync(
         f"{API}/v1/mods/{modId}/files",
         headers=headers,
         params={"index": 0, "pageSize": 50},
@@ -79,7 +79,7 @@ def sync_mod_all_files(
     # index A zero based index of the first item to include in the response, the limit is: (index + pageSize <= 10,000).
     while page.index < page.totalCount - 1:
         params = {"index": page.index + page.pageSize, "pageSize": page.pageSize}
-        res = request(
+        res = request_sync(
             f"{API}/v1/mods/{modId}/files", headers=headers, params=params
         ).json()
         models.extend(append_model_from_files_res(res, latestFiles))
@@ -101,7 +101,7 @@ def sync_multi_projects_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
 @actor
 def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
-    res = request(f"{API}/v1/mods/{modId}", headers=headers).json()["data"]
+    res = request_sync(f"{API}/v1/mods/{modId}", headers=headers).json()["data"]
     models.append(Mod(found=True, **res))
     models.extend(sync_mod_all_files(modId, latestFiles=res["latestFiles"]))
     submit_models(models)
@@ -111,7 +111,7 @@ def sync_mod(modId: int):
 def sync_mutil_mods(modIds: List[int]):
     modIds = list(set(modIds))
     data = {"modIds": modIds}
-    res = request(
+    res = request_sync(
         method="POST", url=f"{API}/v1/mods", json=data, headers=headers
     ).json()["data"]
     models: List[Union[File, Mod]] = []
@@ -123,10 +123,10 @@ def sync_mutil_mods(modIds: List[int]):
 
 @actor
 def sync_file(modId: int, fileId: int, expire: bool = False):
-    res = request(f"{API}/v1/mods/{modId}/files/{fileId}", headers=headers).json()[
+    res = request_sync(f"{API}/v1/mods/{modId}/files/{fileId}", headers=headers).json()[
         "data"
     ]
-    latestFiles = request(f"{API}/v1/mods/{modId}", headers=headers).json()["data"][
+    latestFiles = request_sync(f"{API}/v1/mods/{modId}", headers=headers).json()["data"][
         "latestFiles"
     ]
     models = [
@@ -143,7 +143,7 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
 @actor
 def sync_mutil_files(fileIds: List[int]):
     models: List[Union[File, Mod]] = []
-    res = request(
+    res = request_sync(
         method="POST",
         url=f"{API}/v1/mods/files",
         headers=headers,
@@ -157,7 +157,7 @@ def sync_mutil_files(fileIds: List[int]):
 
 @actor
 def sync_fingerprints(fingerprints: List[int]):
-    res = request(
+    res = request_sync(
         method="POST",
         url=f"{API}/v1/fingerprints/432",
         headers=headers,
@@ -179,7 +179,7 @@ def sync_fingerprints(fingerprints: List[int]):
 
 @actor
 def sync_categories():
-    res = request(
+    res = request_sync(
         f"{API}/v1/categories", headers=headers, params={"gameId": "432"}
     ).json()["data"]
     redis_engine.hset("curseforge", "categories", json.dumps(res))

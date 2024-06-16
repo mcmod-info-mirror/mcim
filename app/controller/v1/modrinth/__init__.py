@@ -24,7 +24,7 @@ from app.database.mongodb import aio_mongo_engine
 from app.database._redis import aio_redis_engine
 from app.config.mcim import MCIMConfig
 from app.utils.response import TrustableResponse, UncachedResponse
-from app.utils.network import request
+from app.utils.network import request_sync
 
 from app.utils.response_cache import cache
 
@@ -150,7 +150,7 @@ async def modrinth_search_projects(
     index: Optional[SearchIndex] = SearchIndex.relevance,
 ):
     # TODO: Search
-    res = request(
+    res = request_sync(
         f"{API}/search",
         params={
             "query": query,

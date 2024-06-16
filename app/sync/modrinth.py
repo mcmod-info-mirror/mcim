@@ -23,7 +23,7 @@ import os
 from app.database.mongodb import sync_mongo_engine as mongodb_engine
 from app.database._redis import sync_redis_engine as redis_engine
 from app.models.database.modrinth import Project, File, Version
-from app.utils.network import request
+from app.utils.network import request_sync
 from app.exceptions import ResponseCodeException
 from app.config import MCIMConfig, Aria2Config
 from app.utils.aria2 import add_http_task
@@ -49,7 +49,7 @@ def submit_models(models: List[Union[Project, File, Version]]):
 
 @actor
 def check_alive():
-    res = request("https://api.modrinth.com")
+    res = request_sync("https://api.modrinth.com")
     return res.json()
 
 
@@ -65,7 +65,7 @@ def sync_project_all_version(
             slug = project.slug
         else:
             try:
-                res = request(f"{API}/project/{project_id}").json()
+                res = request_sync(f"{API}/project/{project_id}").json()
             except ResponseCodeException as e:
                 if e.status_code == 404:
                     models.append(
@@ -74,7 +74,7 @@ def sync_project_all_version(
                     return
             slug = res["slug"]
     try:
-        res = request(f"{API}/project/{project_id}/version").json()
+        res = request_sync(f"{API}/project/{project_id}/version").json()
     except ResponseCodeException as e:
         if e.status_code == 404:
             models.append(Project(success=False, id=project_id, slug=project_id))
@@ -105,7 +105,7 @@ def sync_multi_projects_all_version(
 def sync_project(project_id: str):
     models = []
     try:
-        res = request(f"{API}/project/{project_id}").json()
+        res = request_sync(f"{API}/project/{project_id}").json()
         models.append(Project(found=True, **res))
     except ResponseCodeException as e:
         if e.status_code == 404:
@@ -119,7 +119,7 @@ def sync_project(project_id: str):
 @actor
 def sync_multi_projects(project_ids: List[str]):
     try:
-        res = request(f"{API}/projects", params={"ids": json.dumps(project_ids)}).json()
+        res = request_sync(f"{API}/projects", params={"ids": json.dumps(project_ids)}).json()
     except ResponseCodeException as e:
         if e.status_code == 404:
             models = []
@@ -148,7 +148,7 @@ def process_version_resp(res: dict) -> List[Union[Project, File, Version]]:
 @actor
 def sync_version(version_id: str):
     try:
-        res = request(f"{API}/version/{version_id}").json()
+        res = request_sync(f"{API}/version/{version_id}").json()
     except ResponseCodeException as e:
         if e.status_code == 404:
             models = [Version(success=False, id=version_id)]
@@ -174,7 +174,7 @@ def process_multi_versions(res: List[dict]):
 @actor
 def sync_multi_versions(version_ids: List[str]):
     try:
-        res = request(f"{API}/versions", params={"ids": json.dumps(version_ids)}).json()
+        res = request_sync(f"{API}/versions", params={"ids": json.dumps(version_ids)}).json()
     except ResponseCodeException as e:
         if e.status_code == 404:
             models = []
@@ -193,7 +193,7 @@ def sync_multi_versions(version_ids: List[str]):
 @actor
 def sync_hash(hash: str, algorithm: str):
     try:
-        res = request(
+        res = request_sync(
             f"{API}/version_file/{hash}", params={"algorithm": algorithm}
         ).json()
     except ResponseCodeException as e:
@@ -220,7 +220,7 @@ def process_multi_hashes(res: dict):
 @actor
 def sync_multi_hashes(hashes: List[str], algorithm: str):
     try:
-        res = request(
+        res = request_sync(
             method="POST",
             url=f"{API}/version_files",
             json={"hashes": hashes, "algorithm": algorithm},
@@ -245,12 +245,12 @@ def sync_multi_hashes(hashes: List[str], algorithm: str):
 @actor
 def sync_tags():
     # db 1
-    categories = request(f"{API}/tag/category").json()
-    loaders = request(f"{API}/tag/loader").json()
-    game_versions = request(f"{API}/tag/game_version").json()
-    donation_platform = request(f"{API}/tag/donation_platform").json()
-    project_type = request(f"{API}/tag/project_type").json()
-    side_type = request(f"{API}/tag/side_type").json()
+    categories = request_sync(f"{API}/tag/category").json()
+    loaders = request_sync(f"{API}/tag/loader").json()
+    game_versions = request_sync(f"{API}/tag/game_version").json()
+    donation_platform = request_sync(f"{API}/tag/donation_platform").json()
+    project_type = request_sync(f"{API}/tag/project_type").json()
+    side_type = request_sync(f"{API}/tag/side_type").json()
 
     redis_engine.hset("modrinth", "categories", json.dumps(categories))
     redis_engine.hset("modrinth", "loaders", json.dumps(loaders))

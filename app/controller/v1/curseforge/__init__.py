@@ -25,7 +25,7 @@ from app.database.mongodb import aio_mongo_engine
 from app.database._redis import aio_redis_engine
 from app.config.mcim import MCIMConfig
 from app.utils.response import TrustableResponse, UncachedResponse
-from app.utils.network import request
+from app.utils.network import request_sync
 
 from app.utils.response_cache import cache
 
@@ -145,7 +145,7 @@ async def curseforge_search(
         "index": index,
         "pageSize": pageSize,
     }
-    res = request(
+    res = request_sync(
         f"{API}/v1/mods/search", params=params, headers={"x-api-key": x_api_key}
     ).json()
     return res

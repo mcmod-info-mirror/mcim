@@ -4,10 +4,7 @@
 
 import json
 import httpx
-from dataclasses import field, dataclass
-from typing import Any, Dict, Union
 
-# from ..log import logger
 from app.exceptions import ApiException, ResponseCodeException
 from app.config.mcim import MCIMConfig
 
@@ -25,7 +22,29 @@ RETRY_TIMES = 3
 REQUEST_LOG = True
 
 
-def retry(times: int = RETRY_TIMES):
+httpx_async_client: httpx.AsyncClient = httpx.AsyncClient()
+httpx_sync_client: httpx.Client = httpx.Client()
+
+
+def get_session() -> httpx.Client:
+    if httpx_sync_client:
+        return httpx_sync_client
+    else:
+        global httpx_sync_client
+        httpx_sync_client = httpx.Client()
+        return httpx_sync_client
+
+
+def get_async_session() -> httpx.AsyncClient:
+    if httpx_async_client:
+        return httpx_async_client
+    else:
+        global httpx_async_client
+        httpx_async_client = httpx.AsyncClient()
+        return httpx_async_client
+
+
+def retry_sync(times: int = RETRY_TIMES):
     """
     重试装饰器
 
@@ -56,8 +75,39 @@ def retry(times: int = RETRY_TIMES):
     return wrapper
 
 
-@retry()
-def request(
+def retry(times: int = RETRY_TIMES):
+    """
+    重试装饰器
+
+    Args:
+        times (int): 最大重试次数 默认 3 次 负数则一直重试直到成功
+
+    Returns:
+        Any: 原函数调用结果
+    """
+
+    def wrapper(func):
+        async def inner(*args, **kwargs):
+            nonlocal times
+            loop = times
+            while loop != 0:
+                loop -= 1
+                try:
+                    return await func(*args, **kwargs)
+                except json.decoder.JSONDecodeError:
+                    continue
+                except ResponseCodeException as e:
+                    raise e
+                # TIMEOUT
+            raise ApiException("重试达到最大次数")
+
+        return inner
+
+    return wrapper
+
+
+@retry_sync()
+def request_sync(
     url: str,
     method: str = "GET",
     data: dict = None,
@@ -82,12 +132,62 @@ def request(
     if params is not None:
         params = {k: v for k, v in params.items() if v is not None}
 
+    session = get_async_session()
+
     if json is not None:
-        res = httpx.request(
+        res: httpx.Response = session.request(
             method, url, proxies=PROXY, json=json, params=params, **kwargs
         )
     else:
-        res = httpx.request(
+        res: httpx.Response = session.request(
+            method, url, proxies=PROXY, data=data, params=params, **kwargs
+        )
+    if res.status_code != 200:
+        raise ResponseCodeException(
+            status_code=res.status_code,
+            method=method,
+            url=url,
+            data=data if data is None else json,
+            params=params,
+            msg=res.text,
+        )
+    return res
+
+
+@retry()
+async def request(
+    url: str,
+    method: str = "GET",
+    data: dict = None,
+    params: dict = None,
+    json: dict = None,
+    **kwargs
+) -> httpx.Response:
+    """
+    HTTPX 请求函数
+
+    Args:
+        url (str): 请求 URL
+
+        method (str, optional): 请求方法 默认 GET
+
+        **kwargs: 其他参数
+
+    Returns:
+        Any: 请求结果
+    """
+    # delete null query
+    if params is not None:
+        params = {k: v for k, v in params.items() if v is not None}
+
+    session = get_async_session()
+
+    if json is not None:
+        res: httpx.Response = await session.request(
+            method, url, proxies=PROXY, json=json, params=params, **kwargs
+        )
+    else:
+        res: httpx.Response = await session.request(
             method, url, proxies=PROXY, data=data, params=params, **kwargs
         )
     if res.status_code != 200:

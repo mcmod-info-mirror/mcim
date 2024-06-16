@@ -1,5 +1,5 @@
 import orjson
-from fastapi.responses import ORJSONResponse, Response
+from fastapi.responses import ORJSONResponse, Response, RedirectResponse
 
 class BaseBuilder:
     @classmethod
@@ -24,7 +24,8 @@ class ORJsonBuilder(BaseBuilder):
             "status_code": status_code
         }
         # str
-        return orjson.dumps(params).decode('utf-8')
+        # return orjson.dumps(params).decode('utf-8')
+        return params
 
     @classmethod
     def decode(cls, value: str) -> ORJSONResponse:
@@ -40,11 +41,13 @@ class BaseRespBuilder(BaseBuilder):
     def encode(cls, value: Response) -> bytes:
         headers = dict(value.headers)
         status_code = value.status_code
+        content = value.body
 
         return orjson.dumps(
             {
                 "headers": headers,
-                "status_code": status_code
+                "status_code": status_code,
+                "content": content
             }
         )
     
@@ -52,5 +55,26 @@ class BaseRespBuilder(BaseBuilder):
     def decode(cls, value: dict) -> Response:
         return Response(
             headers=value["headers"],
-            status_code=value["status_code"]
+            status_code=value["status_code"],
+            content=value["content"]
         )
+    
+# class RedirectRespBuilder(BaseBuilder):
+#     @classmethod
+#     def encode(cls, value: RedirectResponse) -> bytes:
+#         headers = dict(value.headers)
+#         status_code = value.status_code
+
+#         return orjson.dumps(
+#             {
+#                 "headers": headers,
+#                 "status_code": status_code,
+#             }
+#         )
+    
+#     @classmethod
+#     def decode(cls, value: dict) -> RedirectResponse:
+#         return RedirectResponse(
+#             status_code=value["status_code"],
+#             url=value["headers"]["location"]
+#         )
