@@ -160,7 +160,7 @@ async def modrinth_search_projects(
             "index": index.value,
         },
     ).json()
-    return res
+    return TrustableResponse(content=res)
 
 
 @modrinth_router.get(

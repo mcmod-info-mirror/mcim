@@ -10,3 +10,9 @@ __all__ = [
     'RedisdbConfig',
     'Aria2Config',
 ]
+
+import os
+from app.config.constants import CONFIG_PATH
+
+if not os.path.exists(CONFIG_PATH):
+    os.makedirs(CONFIG_PATH)

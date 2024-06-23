@@ -148,7 +148,7 @@ async def curseforge_search(
     res = request_sync(
         f"{API}/v1/mods/search", params=params, headers={"x-api-key": x_api_key}
     ).json()
-    return res
+    return TrustableResponse(content=res)
 
 
 @curseforge_router.get(
