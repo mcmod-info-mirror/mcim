@@ -9,8 +9,9 @@ from .constants import CONFIG_PATH
 REDIS_CONFIG_PATH = os.path.join(CONFIG_PATH, "redis.json")
 
 class RedisDatabaseModel(BaseModel):
-    tasks_queue: int = 0
-    info_cache: int = 1
+    tasks_queue: int = 0 # dramatiq tasks
+    info_cache: int = 1 # response_cache and static info
+    file_cdn: int = 2 # file cdn url cache
 
 class RedisdbConfigModel(BaseModel):
     host: str = "127.0.0.1"

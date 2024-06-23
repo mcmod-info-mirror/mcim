@@ -15,6 +15,6 @@ ARIA2_API = aria2p.API(
     )
 
 
-def add_http_task(url: str, dir: str, name: str, **kwargs):
+def add_http_task(url: str, dir: str, name: str, **kwargs) -> aria2p.Download:
     # add HTTP task
-    ARIA2_API.add(url, options={"out": name, "dir": dir}, **kwargs)
+    return ARIA2_API.add(url, options={"out": name, "dir": dir}, **kwargs)[0]

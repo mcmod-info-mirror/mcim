@@ -19,14 +19,16 @@ from typing import List, Optional, Union
 from dramatiq import actor
 import json
 import os
+import time
 
-from app.database.mongodb import sync_mongo_engine as mongodb_engine
-from app.database._redis import sync_redis_engine as redis_engine
+from app.sync import sync_mongo_engine as mongodb_engine
+from app.sync import sync_redis_engine as redis_engine
+from app.sync import file_cdn_redis_sync_engine
 from app.models.database.modrinth import Project, File, Version
 from app.utils.network import request_sync
 from app.exceptions import ResponseCodeException
 from app.config import MCIMConfig, Aria2Config
-from app.utils.aria2 import add_http_task
+from app.utils.aria2 import add_http_task, ARIA2_API
 
 mcim_config = MCIMConfig.load()
 aria2_config = Aria2Config.load()
@@ -38,12 +40,12 @@ def submit_models(models: List[Union[Project, File, Version]]):
     if mcim_config.file_cdn:
         for model in models:
             if isinstance(model, File):
-                if not os.path.exists(os.path.join(aria2_config.modrinth_download_path, model.hashes.sha512)):
-                    add_http_task(
-                        url=model.url,
-                        name=model.hashes.sha512,
-                        dir=aria2_config.modrinth_download_path,
-                    )
+                if not model.file_cdn_cached:
+                    if not os.path.exists(os.path.join(aria2_config.modrinth_download_path, model.hashes.sha512)):
+                        file_cdn_cache_add_task.send(model)
+                    else:
+                        model.file_cdn_cached = True
+                        mongodb_engine.save(model)
     mongodb_engine.save_all(models)
 
 
@@ -260,9 +262,25 @@ def sync_tags():
     redis_engine.hset("modrinth", "side_type", json.dumps(side_type))
 
 
+# file cdn url cache
 @actor
-def add_urls_to_alist(urls: List[str], project_id: str, version_id: str):
-    add_offline_download_task(
-        urls,
-        mcim_config.modrinth_cdn_path + f"/data/{project_id}/versions/{version_id}",
-    )
+def file_cdn_url_cache(url: str, key: str):
+    res = request_sync(method="HEAD", url=url, ignore_status_code=True)
+    file_cdn_redis_sync_engine.hset("file_cdn_modrinth", key, res.headers["Location"])
+    return res.headers["Location"]
+
+@actor
+def file_cdn_cache_add_task(file: File):
+    sha1 = file.hashes.sha1
+    download = add_http_task(url=file.url, name=sha1, dir=os.path.join(aria2_config.modrinth_download_path, sha1[:2]))
+    gid = download.gid
+    while True:
+        download = ARIA2_API.get_download(gid)
+        if download.is_waiting or download.is_active:
+            time.sleep(0.5)
+        elif download.is_complete:
+            file.file_cdn_cached = True
+            mongodb_engine.save(file)
+            break
+        elif download.has_failed:
+            return download.error_message

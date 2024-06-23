@@ -114,6 +114,7 @@ def request_sync(
     data: dict = None,
     params: dict = None,
     json: dict = None,
+    ignore_status_code: bool = False,
     **kwargs
 ) -> httpx.Response:
     """
@@ -143,15 +144,16 @@ def request_sync(
         res: httpx.Response = session.request(
             method, url, data=data, params=params, **kwargs
         )
-    if res.status_code != 200:
-        raise ResponseCodeException(
-            status_code=res.status_code,
-            method=method,
-            url=url,
-            data=data if data is None else json,
-            params=params,
-            msg=res.text,
-        )
+    if not ignore_status_code:
+        if res.status_code != 200:
+            raise ResponseCodeException(
+                status_code=res.status_code,
+                method=method,
+                url=url,
+                data=data if data is None else json,
+                params=params,
+                msg=res.text,
+            )
     return res
 
 
@@ -162,6 +164,7 @@ async def request(
     data: dict = None,
     params: dict = None,
     json: dict = None,
+    ignore_status_code: bool = False,
     **kwargs
 ) -> httpx.Response:
     """
@@ -191,13 +194,14 @@ async def request(
         res: httpx.Response = await session.request(
             method, url, data=data, params=params, **kwargs
         )
-    if res.status_code != 200:
-        raise ResponseCodeException(
-            status_code=res.status_code,
-            method=method,
-            url=url,
-            data=data if data is None else json,
-            params=params,
-            msg=res.text,
-        )
+    if not ignore_status_code:
+        if res.status_code != 200:
+            raise ResponseCodeException(
+                status_code=res.status_code,
+                method=method,
+                url=url,
+                data=data if data is None else json,
+                params=params,
+                msg=res.text,
+            )
     return res

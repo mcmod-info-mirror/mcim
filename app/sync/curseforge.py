@@ -2,14 +2,16 @@ from typing import List, Optional, Union
 from dramatiq import actor
 import json
 import os
+import time
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
+from app.sync import file_cdn_redis_sync_engine
 from app.models.database.curseforge import File, Mod, Pagination, Fingerprint, FileInfo
 from app.exceptions import ResponseCodeException
 from app.utils.network import request_sync
 from app.config import MCIMConfig, Aria2Config
-from app.utils.aria2 import add_http_task
+from app.utils.aria2 import add_http_task, ARIA2_API
 
 
 mcim_config = MCIMConfig.load()
@@ -24,16 +26,16 @@ def submit_models(models: List[Union[File, Mod, Fingerprint]]):
     if mcim_config.file_cdn:
         for model in models:
             if isinstance(model, File):
-                if not os.path.exists(
-                    os.path.join(
-                        aria2_config.curseforge_download_path, model.hashes[0].value
-                    )
-                ):
-                    add_http_task(
-                        url=model.downloadUrl,
-                        name=model.hashes[0].value,
-                        dir=aria2_config.curseforge_download_path,
-                    )
+                if not model.file_cdn_cached:
+                    if not os.path.exists(
+                        os.path.join(
+                            aria2_config.curseforge_download_path, model.hashes[0].value
+                        )
+                    ):
+                        file_cdn_cache_add_task.send(model)
+                    else:
+                        model.file_cdn_cached = True
+                        mongodb_engine.save(model)
     mongodb_engine.save_all(models)
 
 
@@ -183,3 +185,29 @@ def sync_categories():
         f"{API}/v1/categories", headers=headers, params={"gameId": "432"}
     ).json()["data"]
     redis_engine.hset("curseforge", "categories", json.dumps(res))
+
+@actor
+def file_cdn_url_cache(url: str, key: str):
+    res = request_sync(method="HEAD", url=url, ignore_status_code=True)
+    redis_engine.hset("file_cdn_curseforge", key, res.headers["Location"])
+    return res.headers["Location"]
+
+@actor
+def file_cdn_cache_add_task(file: File):
+    for hash_info in file.hashes:
+        if hash_info.algo == 1:
+            hash = hash_info.value
+            break
+    url = file.downloadUrl.replace("edge", "mediafilez")
+    download = add_http_task(url=url, name=hash, dir=os.path.join(aria2_config.curseforge_download_path, hash[:2]))
+    gid = download.gid
+    while True:
+        download = ARIA2_API.get_download(gid)
+        if download.is_waiting or download.is_active:
+            time.sleep(0.5)
+        elif download.is_complete:
+            file.file_cdn_cached = True
+            mongodb_engine.save(file)
+            break
+        elif download.has_failed:
+            return download.error_message
