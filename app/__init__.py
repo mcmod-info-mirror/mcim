@@ -33,15 +33,6 @@ APP = FastAPI(
 
 APP.include_router(controller_router)
 
-if mcim_config.file_cdn:
-    # modrinth cdn
-    os.makedirs("./data/modrinth", exist_ok=True)
-    APP.mount("/data", StaticFiles(directory="./data/modrinth"), name="modrinth")
-
-    # curseforge cdn
-    os.makedirs("./data/curseforge", exist_ok=True)
-    APP.mount("/curseforge", StaticFiles(directory="./data/curseforge"), name="curseforge")
-
 APP.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
