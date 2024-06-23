@@ -1,7 +1,7 @@
 
 # MCmod-info-mirror
 
-为各平台的 Mod 信息缓存加速
+为各平台的 Mod 信息缓存加速 
 
 ~~不会计划提供 **文件** 下载~~ 基于 [MCLF-CN #3](https://github.com/MCLF-CN/docs/issues/3#issuecomment-2150478972) 和 [mcim #59](https://github.com/z0z0r4/mcim/issues/65) 以及 bmclapi 使用网盘镜像的先例，当前文件缓存在 [八蓝米](https://alist.8mi.tech) 支持下试运行！
 
