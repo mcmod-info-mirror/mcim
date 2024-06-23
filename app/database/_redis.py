@@ -1,6 +1,6 @@
 from redis import Redis, StrictRedis
 from redis.asyncio import Redis as AioRedis
-from loguru import logger
+from app.utils.loger import log
 
 from app.config import RedisdbConfig
 
@@ -68,9 +68,9 @@ async def close_aio_redis_engine():
     global aio_redis_engine
     if aio_redis_engine is not None:
         await aio_redis_engine.close()
-        logger.success("closed redis connection")
+        log.success("closed redis connection")
     else:
-        logger.warning("no redis connection to close")
+        log.warning("no redis connection to close")
     aio_redis_engine = None
 
 def close_redis_engine():
@@ -80,9 +80,9 @@ def close_redis_engine():
     global sync_redis_engine
     if sync_redis_engine is not None:
         sync_redis_engine.close()
-        logger.success("closed redis connection")
+        log.success("closed redis connection")
     else:
-        logger.warning("no redis connection to close")
+        log.warning("no redis connection to close")
     sync_redis_engine = None
 
 def close_file_cdn_redis_engine():
@@ -92,12 +92,14 @@ def close_file_cdn_redis_engine():
     global file_cdn_redis_async_engine
     if file_cdn_redis_async_engine is not None:
         file_cdn_redis_async_engine.close()
-        logger.success("closed file cdn redis connection")
+        log.success("closed file cdn redis connection")
     else:
-        logger.warning("no file cdn redis connection to close")
+        log.warning("no file cdn redis connection to close")
     file_cdn_redis_async_engine = None
 
 aio_redis_engine: AioRedis = init_redis_aioengine()
 sync_redis_engine: Redis = init_sync_redis_engine()
 file_cdn_redis_async_engine: AioRedis = init_file_cdn_redis_async_engine()
 file_cdn_redis_sync_engine: Redis = init_file_cdn_redis_sync_engine()
+
+log.info("Redis connection established") # noqa

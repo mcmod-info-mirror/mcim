@@ -1,11 +1,11 @@
 from odmantic import AIOEngine, SyncEngine
-from loguru import logger
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import MongoClient
 
 from app.config import MongodbConfig
 from app.models.database.curseforge import Mod, File, Fingerprint  # , ModFilesSyncInfo
 from app.models.database.modrinth import Project, Version, File as ModrinthFile
+from app.utils.loger import log
 
 _mongodb_config = MongodbConfig.load()
 
@@ -68,8 +68,9 @@ async def setup_async_mongodb() -> None:
             # ModFilesSyncInfo,
         ]
     )
-    logger.success("started mongodb connection")
 
 
 aio_mongo_engine: AIOEngine = init_mongodb_aioengine()
 sync_mongo_engine: SyncEngine = init_mongodb_syncengine()
+
+log.info("MongoDB connection established.")

@@ -1,4 +1,3 @@
-
 import os
 from fastapi import FastAPI, APIRouter
 from fastapi.responses import JSONResponse, Response, RedirectResponse, ORJSONResponse
@@ -63,15 +62,17 @@ async def favicon():
 )
 @cache()
 async def root():
-    return ORJSONResponse(content={
-        "status": "success",
-        "message": "z0z0r4 Mod Info",
-        "information": {
-            "Status": "https://status.mcim.z0z0r4.top/status/mcim",
-            "Docs": [
-                "https://mcim.z0z0r4.top/docs",
-            ],
-            "Github": "https://github.com/z0z0r4/mcim",
-            "contact": {"Eamil": "z0z0r4@outlook.com", "QQ": "3531890582"},
-        },
-    })
+    return ORJSONResponse(
+        content={
+            "status": "success",
+            "message": "z0z0r4 Mod Info",
+            "information": {
+                "Status": "https://status.mcim.z0z0r4.top/status/mcim",
+                "Docs": [
+                    "https://mcim.z0z0r4.top/docs",
+                ],
+                "Github": "https://github.com/z0z0r4/mcim",
+                "contact": {"Eamil": "z0z0r4@outlook.com", "QQ": "3531890582"},
+            },
+        }
+    )
