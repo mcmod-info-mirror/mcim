@@ -28,8 +28,7 @@ class ORJsonBuilder(BaseBuilder):
         return params
 
     @classmethod
-    def decode(cls, value: str) -> ORJSONResponse:
-        value = orjson.loads(value)
+    def decode(cls, value: dict) -> ORJSONResponse:
         return ORJSONResponse(
             content=value["content"],
             headers=value["headers"],
