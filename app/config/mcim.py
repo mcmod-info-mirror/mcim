@@ -29,6 +29,7 @@ class ExpireSecond(BaseModel):
 class MCIMConfigModel(BaseModel):
     host: str = "127.0.0.1"
     port: int = 8000
+    debug: bool = False
 
     curseforge_api_key: str = "<api key>"
     curseforge_api: str = "https://api.curseforge.com"  # 不然和api的拼接对不上
