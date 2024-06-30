@@ -9,16 +9,16 @@ services:
     # 当 docker 服务启动后，自动启动 mongodb 容器
     restart: always
     # 对外映射的端口
-    # network_mode: app-network
+
     ports:
       - 27017:27017
-      # environment:
-      # 初始化一个 root 角色的用户 root 密码是 root
-      # - MONGO_INITDB_ROOT_USERNAME=root
-      # - MONGO_INITDB_ROOT_PASSWORD=root
-      # 宿主机硬盘目录映射容器内的存放数据的目录
+    environment:
+    # 初始化一个 root 角色的用户 root 密码是 root
+    - MONGO_INITDB_ROOT_USERNAME=root
+    - MONGO_INITDB_ROOT_PASSWORD=root
+    # 宿主机硬盘目录映射容器内的存放数据的目录
     volumes:
-      - D:\MongoDB:/data/db
+      - /data/db:/data/db
     # 增加启动参数，--auth，表示连接 mongodb 需要用户名和密码
     # command:
     #   - "--auth"
@@ -26,7 +26,7 @@ services:
   redis:
     container_name: redistest
     image: redis:alpine
-    # network_mode: app-network
+
     ports:
       - 6379:6379
     restart: always
@@ -37,13 +37,16 @@ services:
     build:
       context: .
       dockerfile: ./docker/fastapi
-    # network_mode: app-network
+
     ports:
       - 8000:8000
     restart: always
     depends_on:
       - mongodb
       - redis
+    volumes:
+      - /opt/mcim/config:/config
+      - /opt/mcim/logs:/logs
 
   mcim_sync:
     container_name: mcim_sync
@@ -51,12 +54,11 @@ services:
     build:
       context: .
       dockerfile: ./docker/dramatiq
-    # network_mode: app-network
+
     restart: always
     depends_on:
       - mongodb
       - redis
-
-# networks:
-#   app-network:
-#     driver: bridge
+    volumes:
+      - /opt/mcim/config:/config
+      - /opt/mcim/logs:/logs
