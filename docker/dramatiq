@@ -6,4 +6,4 @@ COPY requirements.txt .
 COPY ./app ./app
 RUN python -m pip install -r requirements.txt
 
-ENTRYPOINT [ "python", "-m", "dramatiq app.sync"]
+ENTRYPOINT [ "python", "-m", "dramatiq", "app.sync"]
