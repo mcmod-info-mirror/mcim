@@ -1,40 +1,62 @@
 version: '3.4'
 
 services:
-  mcim:
-    container_name: mcim
-    image: mcim
+  mongodb:
+    # 容器的名称为 mongo
+    container_name: mongotest
+    # 使用的镜像名称
+    image: mongo:latest
+    # 当 docker 服务启动后，自动启动 mongodb 容器
+    restart: always
+    # 对外映射的端口
+    # network_mode: app-network
+    ports:
+      - 27017:27017
+      # environment:
+      # 初始化一个 root 角色的用户 root 密码是 root
+      # - MONGO_INITDB_ROOT_USERNAME=root
+      # - MONGO_INITDB_ROOT_PASSWORD=root
+      # 宿主机硬盘目录映射容器内的存放数据的目录
+    volumes:
+      - D:\MongoDB:/data/db
+    # 增加启动参数，--auth，表示连接 mongodb 需要用户名和密码
+    # command:
+    #   - "--auth"
+
+  redis:
+    container_name: redistest
+    image: redis:alpine
+    # network_mode: app-network
+    ports:
+      - 6379:6379
+    restart: always
+
+  mcim_api:
+    container_name: mcim_api
+    image: mcim_api
     build:
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: ./docker/fastapi
+    # network_mode: app-network
     ports:
       - 8000:8000
     restart: always
+    depends_on:
+      - mongodb
+      - redis
 
-  mongodb:
-      # 容器的名称为 mongo
-      container_name: mongo
-      # 使用的镜像名称
-      image: mongo:latest
-      # 当 docker 服务启动后，自动启动 mongodb 容器
-      restart: always
-      # 对外映射的端口
-      ports:
-        - "27017:27017"
-      # environment:
-        # 初始化一个 root 角色的用户 root 密码是 root
-        # - MONGO_INITDB_ROOT_USERNAME=root
-        # - MONGO_INITDB_ROOT_PASSWORD=root
-      # 宿主机硬盘目录映射容器内的存放数据的目录
-      volumes:
-        - D:\MongoDB:/data/db
-      # 增加启动参数，--auth，表示连接 mongodb 需要用户名和密码
-      # command:
-      #   - "--auth"
-
-  redis:
-    container_name: myredis
-    image: redis:latest
-    ports:
-      - "6379:6379"
+  mcim_sync:
+    container_name: mcim_sync
+    image: mcim_sync
+    build:
+      context: .
+      dockerfile: ./docker/dramatiq
+    # network_mode: app-network
     restart: always
+    depends_on:
+      - mongodb
+      - redis
+
+# networks:
+#   app-network:
+#     driver: bridge
