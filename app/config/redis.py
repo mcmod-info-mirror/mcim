@@ -14,7 +14,7 @@ class RedisDatabaseModel(BaseModel):
     file_cdn: int = 2 # file cdn url cache
 
 class RedisdbConfigModel(BaseModel):
-    host: str = "127.0.0.1"
+    host: str = "redis"
     port: int = 6379
     auth: bool = True
     user: Optional[str] = None
