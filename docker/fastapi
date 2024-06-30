@@ -9,4 +9,4 @@ COPY start.py .
 COPY ./app ./app
 RUN python -m pip install -r requirements.txt
 
-RUN python start.py
+ENTRYPOINT ["python", "start.py"]
