@@ -13,9 +13,8 @@ services:
     ports:
       - 27017:27017
     environment:
-    # 初始化一个 root 角色的用户 root 密码是 root
-    - MONGO_INITDB_ROOT_USERNAME=root
-    - MONGO_INITDB_ROOT_PASSWORD=root
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
     # 宿主机硬盘目录映射容器内的存放数据的目录
     volumes:
       - /data/db:/data/db
