@@ -55,7 +55,7 @@ async def favicon():
             "description": "MCIM API status",
             "content": {
                 "APPlication/json": {
-                    "example": {"status": "success", "message": "z0z0r4 Mod Info"}
+                    "example": {"status": "success", "message": "mcimirror"}
                 }
             },
         }
@@ -67,13 +67,13 @@ async def root():
     return ORJSONResponse(
         content={
             "status": "success",
-            "message": "z0z0r4 Mod Info",
+            "message": "mcimirror",
             "information": {
-                "Status": "https://status.mcim.z0z0r4.top/status/mcim",
+                "Status": "https://status.mcimirror.top",
                 "Docs": [
-                    "https://mcim.z0z0r4.top/docs",
+                    "https://mod.mcimirror.top/docs",
                 ],
-                "Github": "https://github.com/z0z0r4/mcim",
+                "Github": "https://github.com/mcmod-info-mirror/mcim",
                 "contact": {"Eamil": "z0z0r4@outlook.com", "QQ": "3531890582"},
             },
         }
