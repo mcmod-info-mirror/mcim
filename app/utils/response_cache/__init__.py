@@ -2,6 +2,7 @@ import hashlib
 import orjson
 from functools import wraps
 from typing import Optional
+from app.utils.loger import logger
 
 from fastapi.responses import ORJSONResponse, RedirectResponse
 
@@ -24,6 +25,7 @@ def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
 
             if value is not None:
                 value = orjson.loads(value)
+                logger.debug(f"Cached response: {key_material}:{value}")
                 if value["type"] == "ORJSONResponse":
                     return ORJsonBuilder.decode(value["value"])
                 elif value["type"] == "Response":
@@ -40,6 +42,7 @@ def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
                 value = BaseRespBuilder.encode(result)
 
             value = orjson.dumps({"type": result.__class__.__name__, "value": value})
+            logger.debug(f"Set cache: {key_material}:{value}")
             if never_expire:
                 await aio_redis_engine.set(key, value)
             else:

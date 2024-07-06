@@ -6,6 +6,10 @@ from types import FrameType
 from typing import cast
 from loguru import logger
 
+from app.config import MCIMConfig
+
+mcim_config = MCIMConfig.load()
+
 LOG_PATH = "logs"
 os.makedirs(LOG_PATH, exist_ok=True)
 
@@ -63,6 +67,11 @@ class Logger:
         logging.getLogger().handlers = [InterceptHandler()]
         for logger_name in LOGGER_NAMES:
             logging_logger = logging.getLogger(logger_name)
+            # log level
+            if not mcim_config.debug:
+                logging_logger.setLevel(logging.INFO)
+            else:
+                logging_logger.setLevel(logging.DEBUG)
             logging_logger.handlers = [InterceptHandler()]
 
 
