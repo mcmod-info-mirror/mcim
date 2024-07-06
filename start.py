@@ -29,6 +29,7 @@ if __name__ == "__main__":
                 exist_ok=True,
             )
         log.info("File CDN enabled, cache folder ready.")
+        # log.info("File CDN enabled, cache folder ready.")
     config = uvicorn.Config(APP, host=mcim_config.host, port=mcim_config.port)
     server = uvicorn.Server(config)
     # 将uvicorn输出的全部让loguru管理

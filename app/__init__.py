@@ -6,13 +6,12 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
-from .controller import controller_router
+from app.controller import controller_router
 
-# from .middleware.resp import RespMiddleware
-from .config.mcim import MCIMConfig
-from .database.mongodb import setup_async_mongodb, init_mongodb_aioengine
-from .database._redis import init_redis_aioengine, close_aio_redis_engine
-
+# from app.middleware.resp import RespMiddleware
+from app.config.mcim import MCIMConfig
+from app.database.mongodb import setup_async_mongodb, init_mongodb_aioengine
+from app.database._redis import init_redis_aioengine, close_aio_redis_engine
 from app.utils.response_cache import cache
 from app.utils.response import TrustableResponse
 
