@@ -2,6 +2,7 @@ import os
 from fastapi import FastAPI, APIRouter
 from fastapi.responses import JSONResponse, Response, RedirectResponse, ORJSONResponse
 from starlette.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
@@ -31,6 +32,8 @@ APP = FastAPI(
 )
 
 APP.include_router(controller_router)
+
+APP.add_middleware(GZipMiddleware, minimum_size=1000)
 
 APP.add_middleware(
     CORSMiddleware,
