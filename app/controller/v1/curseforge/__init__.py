@@ -26,7 +26,7 @@ from app.database._redis import aio_redis_engine
 from app.config.mcim import MCIMConfig
 from app.utils.response import TrustableResponse, UncachedResponse
 from app.utils.network import request_sync
-
+from app.utils.loger import log
 from app.utils.response_cache import cache
 
 mcim_config = MCIMConfig.load()
@@ -162,12 +162,14 @@ async def curseforge_mod(modId: int):
     mod_model = await aio_mongo_engine.find_one(Mod, Mod.id == modId)
     if mod_model is None:
         sync_mod.send(modId=modId)
+        log.debug(f"modId: {modId} not found, send sync task.")
         return UncachedResponse()
     elif (
         mod_model.sync_at.timestamp() + mcim_config.expire_second.curseforge.mod
         < time.time()
     ):
         sync_mod.send(modId=modId)
+        log.debug(f"modId: {modId} expired, send sync task.")
         trustable = False
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=mod_model).model_dump(), trustable=trustable
@@ -189,11 +191,15 @@ class modIds_item(BaseModel):
 async def curseforge_mods(item: modIds_item):
     trustable: bool = True
     mod_models = await aio_mongo_engine.find(Mod, query.in_(Mod.id, item.modIds))
+    mod_model_count = len(mod_models)
+    item_count = len(item.modIds)
     if not mod_models:
         sync_mutil_mods.send(modIds=item.modIds)
+        log.debug(f"modIds: {item.modIds} not found, send sync task.")
         return UncachedResponse()
-    elif len(mod_models) != len(item.modIds):
+    elif mod_model_count != item_count:
         sync_mutil_mods.send(modIds=item.modIds)
+        log.debug(f"modIds: {item.modIds} {mod_model_count}/{item_count} not found, send sync task.")
         trustable = False
     content = []
     expire_modid: List[int] = []
@@ -208,6 +214,7 @@ async def curseforge_mods(item: modIds_item):
     if expire_modid:
         trustable = False
         sync_mutil_mods.send(modIds=expire_modid)
+        log.debug(f"modIds: {expire_modid} expired, send sync task.")
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=content).model_dump(), trustable=trustable
     )
@@ -223,6 +230,7 @@ async def curseforge_mod_files(modId: int):
     mod_models = await aio_mongo_engine.find(File, File.modId == modId)
     if not mod_models:
         sync_mod.send(modId=modId)
+        log.debug(f"modId: {modId} not found, send sync task.")
         return UncachedResponse()
     return TrustableResponse(
         content=CurseforgeBaseResponse(
@@ -263,6 +271,7 @@ async def curseforge_mod_files(item: fileIds_item):
         content.append(model.model_dump())
     if expire_fileid:
         sync_mutil_files.send(fileIds=expire_fileid)
+        
         trustable = False
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=content).model_dump(), trustable=trustable
