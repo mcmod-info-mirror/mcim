@@ -38,6 +38,8 @@ class Logger:
             #    ":<cyan>{line}</cyan> | "  # 行号
             "<level>{level}</level>: "  # 等级
             "<level>{message}</level>",  # 日志内容
+            level="INFO" if not mcim_config.debug else "DEBUG",
+            
         )
         # 日志写入文件
         self.logger.add(
@@ -55,6 +57,7 @@ class Logger:
             # rotation="5kb",  # 切割，设置文件大小，rotation="12:00"，rotation="1 week"
             # filter="my_module"  # 过滤模块
             # compression="zip"   # 文件压缩
+            level="INFO" if not mcim_config.debug else "DEBUG",
         )
 
     def get_logger(self):

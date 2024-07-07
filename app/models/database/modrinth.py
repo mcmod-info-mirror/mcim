@@ -15,8 +15,8 @@ class Gallery(BaseModel):
     ordering: Optional[int] = None
 
 class Project(Model):
-    id: str = Field(primary_field=True)
-    slug: str
+    id: str = Field(primary_field=True, index=True)
+    slug: str = Field(index=True)
     title: Optional[str] = None
     description: Optional[str] = None
     categories: Optional[List[str]] = None
@@ -61,7 +61,7 @@ class Hashes(EmbeddedModel):
 
 # TODO: Add Version reference directly but not query File again
 class File(Model):
-    hashes: Hashes = Field(primary_field=True)
+    hashes: Hashes = Field(primary_field=True, index=True)
     version_id: str
     url: Optional[str] = None
     filename: Optional[str] = None
@@ -83,8 +83,8 @@ class File(Model):
         return value.strftime("%Y-%m-%dT%H:%M:%SZ")
     
 class Version(Model):
-    id: str = Field(primary_field=True)
-    project_id: str
+    id: str = Field(primary_field=True, index=True)
+    project_id: str = Field(index=True)
     slug: Optional[str] = None
     name: str
     version_number: str

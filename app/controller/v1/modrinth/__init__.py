@@ -252,12 +252,12 @@ class Algorithm(str, Enum):
 async def modrinth_file(hash: str, algorithm: Optional[Algorithm] = Algorithm.sha1):
     trustable = True
     if algorithm == Algorithm.sha1:
-        file_model = await aio_mongo_engine.find_one(File, File.hashes.sha1 == hash)
         match_stage = {"hashes.sha1": hash}
     elif algorithm == Algorithm.sha512:
         file_model = await aio_mongo_engine.find_one(File, File.hashes.sha512 == hash)
     if file_model is None:
         sync_hash.send(hash=hash, algorithm=algorithm)
+        log.debug("File not found, send sync task.")
         return UncachedResponse()
     # Don't check file model expire
     # elif file_model.sync_at.timestamp() + mcim_config.expire_second.modrinth < time.time():
@@ -269,14 +269,16 @@ async def modrinth_file(hash: str, algorithm: Optional[Algorithm] = Algorithm.sh
     )
     if version_model is None:
         sync_version.send(version_id=file_model.version_id)
+        log.debug("Version not found, send sync task.")
         return UncachedResponse()
     elif (
         version_model.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
         < time.time()
     ):
         sync_version.send(version_id=file_model.version_id)
+        log.debug("Version expire, send sync task.")
         trustable = False
-    return TrustableResponse(content=version_model.model_dump(), trustable=trustable)
+    return TrustableResponse(content=version_model, trustable=trustable)
 
 
 class HashesQuery(BaseModel):
