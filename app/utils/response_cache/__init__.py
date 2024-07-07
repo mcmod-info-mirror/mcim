@@ -14,8 +14,6 @@ from app.utils.response_cache.builder import (
 from app.config import RedisdbConfig
 from app.database import aio_redis_engine
 
-from starlette_context import context
-
 def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
     def decorator(route):
         @wraps(route)

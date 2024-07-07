@@ -33,8 +33,6 @@ APP.include_router(controller_router)
 
 APP.add_middleware(GZipMiddleware, minimum_size=1000)
 
-APP.add_middleware(RawContextMiddleware, plugins=(plugins.RequestIdPlugin(),))
-
 APP.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
