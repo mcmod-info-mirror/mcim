@@ -23,8 +23,6 @@ class ORJsonBuilder(BaseBuilder):
             "headers": dict(headers),
             "status_code": status_code
         }
-        # str
-        # return orjson.dumps(params).decode('utf-8')
         return params
 
     @classmethod

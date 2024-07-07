@@ -25,8 +25,8 @@ def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
 
             if value is not None:
                 value = orjson.loads(value)
-                logger.debug(f"Cached response: {key_material}:{value}")
-                if value["type"] == "ORJSONResponse":
+                logger.debug(f"Cached response: [{key_material}]:[{key}]:[{value}]")
+                if value["type"] in ["ORJSONResponse","TrustableResponse"]:
                     return ORJsonBuilder.decode(value["value"])
                 elif value["type"] == "Response":
                     return BaseRespBuilder.decode(value["value"])
@@ -42,7 +42,7 @@ def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
                 value = BaseRespBuilder.encode(result)
 
             value = orjson.dumps({"type": result.__class__.__name__, "value": value})
-            logger.debug(f"Set cache: {key_material}:{value}")
+            logger.debug(f"Set cache: [{key_material}]:[{key}]:[{value}]")
             if never_expire:
                 await aio_redis_engine.set(key, value)
             else:
