@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, Path
+from fastapi import APIRouter, Query, Path, Request
 from fastapi.responses import Response
 from typing_extensions import Annotated
 from typing import List, Optional, Union
@@ -20,13 +20,11 @@ from app.sync.modrinth import (
     sync_multi_hashes,
     sync_tags,
 )
-from app.database.mongodb import aio_mongo_engine
-from app.database._redis import aio_redis_engine
 from app.config.mcim import MCIMConfig
 from app.utils.response import TrustableResponse, UncachedResponse
 from app.utils.network import request_sync
 from app.utils.loger import log
-from app.utils.response_cache import cache
+from app.utils.response_cache.decorator import cache
 
 mcim_config = MCIMConfig.load()
 
@@ -50,9 +48,9 @@ async def get_curseforge():
     response_model=Project,
 )
 @cache(expire=mcim_config.expire_second.modrinth.project)
-async def modrinth_project(idslug: str):
+async def modrinth_project(idslug: str, request: Request):
     trustable = True
-    model = await aio_mongo_engine.find_one(
+    model = await request.app.state.aio_mongo_engine.find_one(
         Project, query.or_(Project.id == idslug, Project.slug == idslug)
     )
     if model is None:
@@ -75,11 +73,11 @@ async def modrinth_project(idslug: str):
     response_model=List[Project],
 )
 @cache(expire=mcim_config.expire_second.modrinth.project)
-async def modrinth_projects(ids: str):
+async def modrinth_projects(ids: str, request: Request):
     ids = json.loads(ids)
     trustable = True
     # id or slug
-    models = await aio_mongo_engine.find(
+    models = await request.app.state.aio_mongo_engine.find(
         Project, query.or_(query.in_(Project.id, ids), query.in_(Project.slug, ids))
     )
     models_count = len(models)
@@ -118,9 +116,9 @@ async def modrinth_projects(ids: str):
     response_model=List[Project],
 )
 @cache(expire=mcim_config.expire_second.modrinth.version)
-async def modrinth_project_versions(idslug: str):
+async def modrinth_project_versions(idslug: str, request: Request):
     trustable = True
-    model = await aio_mongo_engine.find(
+    model = await request.app.state.aio_mongo_engine.find(
         Version, query.or_(Version.project_id == idslug, Version.slug == idslug)
     )
     if not model:
@@ -160,7 +158,7 @@ async def modrinth_search_projects(
     facets: Optional[str] = None,
     offset: Optional[int] = 0,
     limit: Optional[int] = 10,
-    index: Optional[SearchIndex] = SearchIndex.relevance,
+    index: Optional[SearchIndex] = SearchIndex.relevance, 
 ):
     # TODO: Search
     res = request_sync(
@@ -182,8 +180,8 @@ async def modrinth_search_projects(
     response_model=Version,
 )
 @cache(expire=mcim_config.expire_second.modrinth.version)
-async def modrinth_version(version_id: Annotated[str, Path(alias="id")]):
-    model = await aio_mongo_engine.find_one(
+async def modrinth_version(version_id: Annotated[str, Path(alias="id")], request: Request):
+    model = await request.app.state.aio_mongo_engine.find_one(
         Version, query.or_(Version.id == version_id, Version.slug == version_id)
     )
     if model is None:
@@ -206,10 +204,10 @@ async def modrinth_version(version_id: Annotated[str, Path(alias="id")]):
     response_model=List[Version],
 )
 @cache(expire=mcim_config.expire_second.modrinth.version)
-async def modrinth_versions(ids: str):
+async def modrinth_versions(ids: str, request: Request):
     trustable = True
     ids_list = json.loads(ids)
-    models = await aio_mongo_engine.find(Version, query.in_(Version.id, ids_list))
+    models = await request.app.state.aio_mongo_engine.find(Version, query.in_(Version.id, ids_list))
     models_count = len(models)
     ids_count = len(ids_list)
     if not models:
@@ -249,12 +247,12 @@ class Algorithm(str, Enum):
     response_model=File,
 )
 @cache(expire=mcim_config.expire_second.modrinth.file)
-async def modrinth_file(hash: str, algorithm: Optional[Algorithm] = Algorithm.sha1):
+async def modrinth_file(request: Request, hash: str, algorithm: Optional[Algorithm] = Algorithm.sha1):
     trustable = True
     if algorithm == Algorithm.sha1:
         match_stage = {"hashes.sha1": hash}
     elif algorithm == Algorithm.sha512:
-        file_model = await aio_mongo_engine.find_one(File, File.hashes.sha512 == hash)
+        file_model = await request.app.state.aio_mongo_engine.find_one(File, File.hashes.sha512 == hash)
     if file_model is None:
         sync_hash.send(hash=hash, algorithm=algorithm)
         log.debug("File not found, send sync task.")
@@ -264,7 +262,7 @@ async def modrinth_file(hash: str, algorithm: Optional[Algorithm] = Algorithm.sh
     #     sync_hash.send(hash=hash, algorithm=algorithm)
     #     trustable = False
     # TODO: Add Version reference directly but not query File again
-    version_model = await aio_mongo_engine.find_one(
+    version_model = await request.app.state.aio_mongo_engine.find_one(
         Version, Version.id == file_model.version_id
     )
     if version_model is None:
@@ -292,14 +290,14 @@ class HashesQuery(BaseModel):
     response_model=List[File],
 )
 @cache(expire=mcim_config.expire_second.modrinth.file)
-async def modrinth_files(items: HashesQuery):
+async def modrinth_files(items: HashesQuery, request: Request):
     trustable = True
     if items.algorithm == Algorithm.sha1:
-        files_models = await aio_mongo_engine.find(
+        files_models = await request.app.state.aio_mongo_engine.find(
             File, query.in_(File.hashes.sha1, items.hashes)
         )
     elif items.algorithm == Algorithm.sha512:
-        files_models = await aio_mongo_engine.find(
+        files_models = await request.app.state.aio_mongo_engine.find(
             File, query.in_(File.hashes.sha512, items.hashes)
         )
     model_count = len(files_models)
@@ -317,7 +315,7 @@ async def modrinth_files(items: HashesQuery):
     # Don't need to check version expire
 
     version_ids = [file.version_id for file in files_models]
-    version_models = await aio_mongo_engine.find(
+    version_models = await request.app.state.aio_mongo_engine.find(
         Version, query.in_(Version.id, version_ids)
     )
     # len(version_models) != len(files_models)
@@ -344,8 +342,8 @@ async def modrinth_files(items: HashesQuery):
     response_model=List,
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
-async def modrinth_tag_categories():
-    category = await aio_redis_engine.hget("modrinth", "categories")
+async def modrinth_tag_categories(request: Request):
+    category = await request.app.state.aio_redis_engine.hget("modrinth", "categories")
     if category is None:
         sync_tags.send()
         log.debug("Category not found, send sync task.")
@@ -359,8 +357,8 @@ async def modrinth_tag_categories():
     response_model=List,
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
-async def modrinth_tag_loaders():
-    loader = await aio_redis_engine.hget("modrinth", "loaders")
+async def modrinth_tag_loaders(request: Request):
+    loader = await request.app.state.aio_redis_engine.hget("modrinth", "loaders")
     if loader is None:
         sync_tags.send()
         log.debug("Loader not found, send sync task.")
@@ -374,8 +372,8 @@ async def modrinth_tag_loaders():
     response_model=List,
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
-async def modrinth_tag_game_versions():
-    game_version = await aio_redis_engine.hget("modrinth", "game_versions")
+async def modrinth_tag_game_versions(request: Request):
+    game_version = await request.app.state.aio_redis_engine.hget("modrinth", "game_versions")
     if game_version is None:
         sync_tags.send()
         log.debug("Game Version not found, send sync task.")
@@ -389,8 +387,8 @@ async def modrinth_tag_game_versions():
     response_model=List,
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
-async def modrinth_tag_donation_platforms():
-    donation_platform = await aio_redis_engine.hget("modrinth", "donation_platform")
+async def modrinth_tag_donation_platforms(request: Request):
+    donation_platform = await request.app.state.aio_redis_engine.hget("modrinth", "donation_platform")
     if donation_platform is None:
         sync_tags.send()
         log.debug("Donation Platform not found, send sync task.")
@@ -404,8 +402,8 @@ async def modrinth_tag_donation_platforms():
     response_model=List,
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
-async def modrinth_tag_project_types():
-    project_type = await aio_redis_engine.hget("modrinth", "project_type")
+async def modrinth_tag_project_types(request: Request):
+    project_type = await request.app.state.aio_redis_engine.hget("modrinth", "project_type")
     if project_type is None:
         sync_tags.send()
         log.debug("Project Type not found, send sync task.")
@@ -419,8 +417,8 @@ async def modrinth_tag_project_types():
     response_model=List,
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
-async def modrinth_tag_side_types():
-    side_type = await aio_redis_engine.hget("modrinth", "side_type")
+async def modrinth_tag_side_types(request: Request):
+    side_type = await request.app.state.aio_redis_engine.hget("modrinth", "side_type")
     if side_type is None:
         sync_tags.send()
         log.debug("Side Type not found, send sync task.")

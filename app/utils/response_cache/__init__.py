@@ -1,53 +1,35 @@
-import hashlib
-import orjson
-from functools import wraps
 from typing import Optional
-from app.utils.loger import log
+from redis.asyncio import Redis
+from app.utils.response_cache.key_builder import default_key_builder, KeyBuilder
+from app.config.redis import RedisdbConfig
 
-from fastapi.responses import ORJSONResponse, RedirectResponse
+redis_config = RedisdbConfig.load()
 
-from app.utils.response_cache.builder import (
-    ORJsonBuilder,
-    BaseRespBuilder,
-    # RedirectRespBuilder,
-)
-from app.config import RedisdbConfig
-from app.database import aio_redis_engine
 
-def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
-    def decorator(route):
-        @wraps(route)
-        async def wrapper(*args, **kwargs):
-            key_material = route.__name__ + str(args) + str(kwargs)
-            key = hashlib.md5(key_material.encode()).hexdigest()
-            value = await aio_redis_engine.get(key)
-            
-            if value is not None:
-                value = orjson.loads(value)
-                log.debug(f"Cached response: [{key_material}]:[{key}]:[{value}]")
-                if value["type"] in ["ORJSONResponse","TrustableResponse"]:
-                    return ORJsonBuilder.decode(value["value"])
-                elif value["type"] == "Response":
-                    return BaseRespBuilder.decode(value["value"])
-                # elif value["type"] == "RedirectResponse":
-                #     return RedirectRespBuilder.decode(value["value"])
+class Cache:
+    backend: Redis
+    enabled: bool = False
+    namespace: str = "fastapi_cache"
+    key_builder: KeyBuilder = default_key_builder
 
-            result = await route(*args, **kwargs)
-            if isinstance(result, ORJSONResponse):
-                value = ORJsonBuilder.encode(result)
-            # elif isinstance(result, RedirectResponse):
-            #     value = RedirectRespBuilder.encode(result)
-            else:
-                value = BaseRespBuilder.encode(result)
-
-            value = orjson.dumps({"type": result.__class__.__name__, "value": value})
-            log.debug(f"Set cache: [{key_material}]:[{key}]:[{value}]")
-            if never_expire:
-                await aio_redis_engine.set(key, value)
-            else:
-                await aio_redis_engine.set(key, value, ex=expire)
-            return result
-
-        return wrapper
-
-    return decorator
+    @classmethod
+    def init(
+        cls,
+        backend: Optional[Redis] = None,
+        enabled: Optional[bool] = False,
+        namespace: Optional[str] = "fastapi_cache",
+        key_builder: KeyBuilder = default_key_builder,
+    ) -> None:
+        cls.backend = (
+            Redis(
+                host=redis_config.host,
+                port=redis_config.port,
+                db=redis_config.database.info_cache,
+                password=redis_config.password,
+            )
+            if backend is None
+            else backend
+        )
+        cls.enabled = enabled
+        cls.namespace = namespace
+        cls.key_builder = key_builder

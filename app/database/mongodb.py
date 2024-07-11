@@ -19,15 +19,14 @@ def init_mongodb_syncengine() -> SyncEngine:
     :return:
     """
     global sync_mongo_engine
-    if sync_mongo_engine is None:
-        sync_mongo_engine = SyncEngine(
-            client=MongoClient(
-                f"mongodb://{_mongodb_config.user}:{_mongodb_config.password}@{_mongodb_config.host}:{_mongodb_config.port}"
-                if _mongodb_config.auth
-                else f"mongodb://{_mongodb_config.host}:{_mongodb_config.port}"
-            ),
-            database="mcim_backend",
-        )
+    sync_mongo_engine =  SyncEngine(
+        client=MongoClient(
+            f"mongodb://{_mongodb_config.user}:{_mongodb_config.password}@{_mongodb_config.host}:{_mongodb_config.port}"
+            if _mongodb_config.auth
+            else f"mongodb://{_mongodb_config.host}:{_mongodb_config.port}"
+        ),
+        database="mcim_backend",
+    )
     return sync_mongo_engine
 
 
@@ -36,26 +35,23 @@ def init_mongodb_aioengine() -> AIOEngine:
     Raw Motor client handler, use it when beanie cannot work
     :return:
     """
-    global aio_mongo_engine
-    if aio_mongo_engine is None:
-        aio_mongo_engine = AIOEngine(
-            client=AsyncIOMotorClient(
-                f"mongodb://{_mongodb_config.user}:{_mongodb_config.password}@{_mongodb_config.host}:{_mongodb_config.port}"
-                if _mongodb_config.auth
-                else f"mongodb://{_mongodb_config.host}:{_mongodb_config.port}"
-            ),
-            database="mcim_backend",
-        )
-    return aio_mongo_engine
+    return AIOEngine(
+        client=AsyncIOMotorClient(
+            f"mongodb://{_mongodb_config.user}:{_mongodb_config.password}@{_mongodb_config.host}:{_mongodb_config.port}"
+            if _mongodb_config.auth
+            else f"mongodb://{_mongodb_config.host}:{_mongodb_config.port}"
+        ),
+        database="mcim_backend",
+    )
 
 
-async def setup_async_mongodb() -> None:
+async def setup_async_mongodb(engine: AIOEngine) -> None:
     """
     Start beanie when process started.
     :return:
     """
     # try:
-    await aio_mongo_engine.configure_database(
+    await engine.configure_database(
         [
             # CurseForge
             Mod,
@@ -65,7 +61,6 @@ async def setup_async_mongodb() -> None:
             Project,
             Version,
             ModrinthFile,
-            # ModFilesSyncInfo,
         ]
     )
 

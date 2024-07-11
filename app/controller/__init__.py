@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 from odmantic import query
 
@@ -26,12 +26,12 @@ if mcim_config.file_cdn:
     # WARNING: 直接查 version_id 忽略 project_id
     # WARNING: 必须文件名一致
     @controller_router.get("/data/{project_id}/versions/{version_id}/{file_name}")
-    async def get_modrinth_file(project_id: str, version_id: str, file_name: str):
+    async def get_modrinth_file(project_id: str, version_id: str, file_name: str, request: Request):
         cache = await file_cdn_redis_async_engine.hget("file_cdn_modrinth", f'{project_id}/{version_id}/{file_name}')
         if cache:
             return RedirectResponse(url=cache)
         else:
-            file: mrFile = await aio_mongo_engine.find_one(mrFile, query.and_(mrFile.version_id == version_id, mrFile.filename == file_name))
+            file: mrFile = await request.app.state.aio_mongo_engine.find_one(mrFile, query.and_(mrFile.version_id == version_id, mrFile.filename == file_name))
             sha1 = file.hashes.sha1
             if file:
                 if file.file_cdn_cached:
@@ -44,13 +44,13 @@ if mcim_config.file_cdn:
 
     # curseforge | example: https://edge.forgecdn.net/files/3040/523/jei_1.12.2-4.16.1.301.jar
     @controller_router.get("/files/{fileid1}/{fileid2}/{file_name}")
-    async def get_curseforge_file(fileid1: str, fileid2: str, file_name: str):
+    async def get_curseforge_file(fileid1: str, fileid2: str, file_name: str, request: Request):
         fileid = int(f"{fileid1}{fileid2}")
         cache = await file_cdn_redis_async_engine.hget("file_cdn_curseforge", f'{fileid}/{file_name}')
         if cache:
             return RedirectResponse(url=cache)
         else:
-            file: cfFile = await aio_mongo_engine.find_one(cfFile, query.and_(cfFile.id == fileid, cfFile.fileName == file_name))
+            file: cfFile = await request.app.state.aio_mongo_engine.find_one(cfFile, query.and_(cfFile.id == fileid, cfFile.fileName == file_name))
             sha1 = file.hashes[0].value if file.hashes[0].algo == 1 else file.hashes[1].value
             if file:
                 if file.file_cdn_cached:

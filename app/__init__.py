@@ -1,27 +1,51 @@
-from fastapi import FastAPI, APIRouter
-from fastapi.responses import JSONResponse, Response, RedirectResponse, ORJSONResponse
+import os
+from fastapi import FastAPI
+from fastapi.responses import RedirectResponse, ORJSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from app.controller import controller_router
-
-# from app.middleware.resp import RespMiddleware
-from app.config.mcim import MCIMConfig
+from app.utils.loger import log
+from app.config import MCIMConfig, Aria2Config
 from app.database.mongodb import setup_async_mongodb, init_mongodb_aioengine
 from app.database._redis import init_redis_aioengine, close_aio_redis_engine
-from app.utils.response_cache import cache
-from app.utils.response import TrustableResponse
-
+from app.utils.response_cache import Cache
+from app.utils.response_cache.decorator import cache
+from app.utils.response_cache.key_builder import xxhash_key_builder
 mcim_config = MCIMConfig.load()
+
+
+def init_file_cdn():
+    aria2_config = Aria2Config.load()
+    os.makedirs(aria2_config.modrinth_download_path, exist_ok=True)
+    os.makedirs(aria2_config.curseforge_download_path, exist_ok=True)
+    for i in range(256):
+        os.makedirs(
+            os.path.join(aria2_config.modrinth_download_path, format(i, "02x")),
+            exist_ok=True,
+        )
+        os.makedirs(
+            os.path.join(aria2_config.curseforge_download_path, format(i, "02x")),
+            exist_ok=True,
+        )
+    log.success("File CDN enabled, cache folder ready.")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await setup_async_mongodb()
+    app.state.aio_redis_engine = init_redis_aioengine()
+    app.state.aio_mongo_engine = init_mongodb_aioengine()
+    await setup_async_mongodb(app.state.aio_mongo_engine)
+    
+    if mcim_config.redis_cache:
+        app.state.fastapi_cache = Cache.init(enabled=True)
+    
+    if mcim_config.file_cdn:
+        init_file_cdn()
+    
     yield
-    # await close_async_mongodb()
+    
     await close_aio_redis_engine()
 
 

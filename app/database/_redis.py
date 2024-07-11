@@ -1,4 +1,4 @@
-from redis import Redis, StrictRedis
+from redis import Redis
 from redis.asyncio import Redis as AioRedis
 from app.utils.loger import log
 
@@ -11,7 +11,7 @@ sync_redis_engine: Redis = None
 file_cdn_redis_async_engine: AioRedis = None
 file_cdn_redis_sync_engine: Redis = None
 
-def init_redis_aioengine():
+def init_redis_aioengine() -> AioRedis:
     global aio_redis_engine
     aio_redis_engine = AioRedis(
         host=_redis_config.host,
@@ -21,7 +21,7 @@ def init_redis_aioengine():
     )
     return aio_redis_engine
 
-def init_sync_redis_engine():
+def init_sync_redis_engine() -> Redis:
     global sync_redis_engine
     sync_redis_engine = Redis(
         host=_redis_config.host,
@@ -31,7 +31,7 @@ def init_sync_redis_engine():
     )
     return sync_redis_engine
 
-def init_file_cdn_redis_async_engine():
+def init_file_cdn_redis_async_engine() -> AioRedis:
     global file_cdn_redis_async_engine
     file_cdn_redis_async_engine = AioRedis(
         host=_redis_config.host,
@@ -41,9 +41,9 @@ def init_file_cdn_redis_async_engine():
     )
     return file_cdn_redis_async_engine
 
-def init_file_cdn_redis_sync_engine():
+def init_file_cdn_redis_sync_engine() -> Redis:
     global file_cdn_redis_sync_engine
-    file_cdn_redis_sync_engine = StrictRedis(
+    file_cdn_redis_sync_engine = Redis(
         host=_redis_config.host,
         port=_redis_config.port,
         password=_redis_config.password,
@@ -51,9 +51,9 @@ def init_file_cdn_redis_sync_engine():
     )
     return file_cdn_redis_sync_engine
 
-def init_task_redis_client():
+def init_task_redis_client() -> Redis:
     global task_redis_client
-    task_redis_client = StrictRedis(
+    task_redis_client = Redis(
         host=_redis_config.host,
         port=_redis_config.port,
         password=_redis_config.password,
