@@ -3,7 +3,6 @@ from fastapi.responses import RedirectResponse
 from odmantic import query
 from typing import Optional
 from app.controller.v1 import v1_router
-from app.database import aio_mongo_engine, file_cdn_redis_async_engine
 from app.models.database.curseforge import File as cfFile
 from app.models.database.modrinth import File as mrFile
 from app.config import MCIMConfig
@@ -36,7 +35,8 @@ if mcim_config.file_cdn:
     @controller_router.get("/data/{project_id}/versions/{version_id}/{file_name}")
     @cache(expire=int(60 * 60 * 2.8))
     async def get_modrinth_file(project_id: str, version_id: str, file_name: str, request: Request):
-        cache = await request.app.state.aio_redis_engine.hget("file_cdn_modrinth", f'{project_id}/{version_id}/{file_name}')
+        key = f'file_cdn_modrinth:{project_id}:{version_id}:{file_name}'
+        cache = await request.app.state.file_cdn_redis_async_engine.get(key)
         if cache:
             log.debug(f"URL cache found, return {cache}")
             return RedirectResponse(url=cache)
@@ -46,7 +46,7 @@ if mcim_config.file_cdn:
                 sha1 = file.hashes.sha1
                 url = f'{mcim_config.alist_endpoint}/modrinth/{sha1[:2]}/{sha1}'
                 if file.file_cdn_cached:
-                    mr_file_cdn_url_cache.send(url=url, key=f'{project_id}/{version_id}/{file_name}')
+                    mr_file_cdn_url_cache.send(url=url, key=key)
                     log.debug(f"URL cache not found, return {url} directly.")
                     return RedirectResponse(url=url)
                 else:
@@ -59,14 +59,16 @@ if mcim_config.file_cdn:
             else:
                 sync_project.send(project_id)
                 log.debug("sync project task send.")
-            return RedirectResponse(url=f"https://cdn.modrinth.com/data/{project_id}/versions/{version_id}/{file_name}")
+        
+        return RedirectResponse(url=f"https://cdn.modrinth.com/data/{project_id}/versions/{version_id}/{file_name}")
 
     # curseforge | example: https://edge.forgecdn.net/files/3040/523/jei_1.12.2-4.16.1.301.jar
     @controller_router.get("/files/{fileid1}/{fileid2}/{file_name}")
     @cache(expire=int(60 * 60 * 2.8))
     async def get_curseforge_file(fileid1: str, fileid2: str, file_name: str, request: Request):
         fileid = int(f"{fileid1}{fileid2}")
-        cache = await request.app.state.aio_redis_engine.hget("file_cdn_curseforge", f'{fileid}/{file_name}')
+        key = f'file_cdn_curseforge:{fileid}:{file_name}'
+        cache = await request.app.state.file_cdn_redis_async_engine.get(key)
         if cache:
             log.debug(f"URL cache found, return {cache}")
             return RedirectResponse(url=cache)

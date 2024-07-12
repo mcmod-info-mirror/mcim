@@ -192,7 +192,7 @@ def sync_categories():
 @actor(actor_name="cf_file_cdn_url_cache")
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
-    redis_engine.hset("file_cdn_curseforge", key, res.headers["Location"])
+    redis_engine.hset(key, res.headers["Location"], ex=int(3600*2.8))
     return res.headers["Location"]
 
 @actor
