@@ -15,7 +15,9 @@ class TrustableResponse(ORJSONResponse):
         headers: dict = {},
         trustable: bool = True,
     ):
-        if isinstance(content, BaseModel):
+        if isinstance(content, dict):
+            raw_content = content
+        elif isinstance(content, BaseModel):
             raw_content = content.model_dump()
         elif isinstance(content, list):
             raw_content = []
