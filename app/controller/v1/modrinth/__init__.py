@@ -74,22 +74,22 @@ async def modrinth_project(idslug: str, request: Request):
 )
 @cache(expire=mcim_config.expire_second.modrinth.project)
 async def modrinth_projects(ids: str, request: Request):
-    ids = json.loads(ids)
+    ids_list = json.loads(ids)
     trustable = True
     # id or slug
     models = await request.app.state.aio_mongo_engine.find(
-        Project, query.or_(query.in_(Project.id, ids), query.in_(Project.slug, ids))
+        Project, query.or_(query.in_(Project.id, ids_list), query.in_(Project.slug, ids_list))
     )
     models_count = len(models)
-    ids_count = len(ids)
+    ids_count = len(ids_list)
     if not models:
-        sync_multi_projects.send(project_ids=ids)
-        log.debug(f"Projects {ids} not found, send sync task.")
+        sync_multi_projects.send(project_ids=ids_list)
+        log.debug(f"Projects {ids_list} not found, send sync task.")
         return UncachedResponse()
     elif models_count != ids_count:
-        sync_multi_projects.send(project_ids=ids)
+        sync_multi_projects.send(project_ids=ids_list)
         log.debug(
-            f"Projects {ids} {models_count}/{ids_count} not completely found, send sync task."
+            f"Projects {ids_list} {models_count}/{ids_count} not completely found, send sync task."
         )
         trustable = False
     # check expire

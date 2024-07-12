@@ -25,7 +25,7 @@ from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
 from app.sync import file_cdn_redis_sync_engine
 from app.models.database.modrinth import Project, File, Version
-from app.utils.network import request_sync
+from app.utils.network import request_sync, download_file_sync
 from app.exceptions import ResponseCodeException
 from app.config import MCIMConfig, Aria2Config
 from app.utils.aria2 import add_http_task, ARIA2_API
@@ -284,3 +284,12 @@ def file_cdn_cache_add_task(file: File):
             break
         elif download.has_failed:
             return download.error_message
+@actor
+def file_cdn_cache(file: File):
+    sha1 = file.hashes.sha1
+    try:
+        download_file_sync(file.url, os.path.join(aria2_config.modrinth_download_path, sha1[:2], sha1))
+        file.file_cdn_cached = True
+        mongodb_engine.save(file)
+    except:
+        pass
