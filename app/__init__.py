@@ -11,22 +11,21 @@ from app.config import MCIMConfig, Aria2Config
 from app.database.mongodb import setup_async_mongodb, init_mongodb_aioengine
 from app.database._redis import init_redis_aioengine, close_aio_redis_engine
 from app.utils.response_cache import Cache
-from app.utils.response_cache.decorator import cache
+from app.utils.response_cache import cache
 from app.utils.response_cache.key_builder import xxhash_key_builder
 mcim_config = MCIMConfig.load()
 
 
 def init_file_cdn():
-    aria2_config = Aria2Config.load()
-    os.makedirs(aria2_config.modrinth_download_path, exist_ok=True)
-    os.makedirs(aria2_config.curseforge_download_path, exist_ok=True)
+    os.makedirs(mcim_config.modrinth_download_path, exist_ok=True)
+    os.makedirs(mcim_config.curseforge_download_path, exist_ok=True)
     for i in range(256):
         os.makedirs(
-            os.path.join(aria2_config.modrinth_download_path, format(i, "02x")),
+            os.path.join(mcim_config.modrinth_download_path, format(i, "02x")),
             exist_ok=True,
         )
         os.makedirs(
-            os.path.join(aria2_config.curseforge_download_path, format(i, "02x")),
+            os.path.join(mcim_config.curseforge_download_path, format(i, "02x")),
             exist_ok=True,
         )
     log.success("File CDN enabled, cache folder ready.")

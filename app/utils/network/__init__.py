@@ -174,8 +174,9 @@ def download_file_sync(url: str, path: str):
     log.debug(f"Downloading file from {url} to {path}")
     with get_session() as client:
         with open(path, "wb") as f:
-            with client.stream("GET", url) as response:
-                for chunk in response.iter_bytes():
+            with client.stream("GET", url, timeout=30) as response:
+                for chunk in response.iter_bytes(1024):
+                    log.debug(f"Downloading file from {url} + 1024 bytes")
                     f.write(chunk)
     log.debug(f"Downloaded file from {url} to {path}")
     return True

@@ -12,8 +12,6 @@ class Aria2ConfigModel(BaseModel):
     host: str = "http://localhost"
     port: int = 6800
     secret: str = ""
-    modrinth_download_path: str = "./data/modrinth"
-    curseforge_download_path: str = "./data/curseforge"
         
 class Aria2Config:
     @staticmethod

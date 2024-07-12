@@ -26,8 +26,6 @@ class Logger:
         # 判断日志文件夹是否存在，不存则创建
         if not os.path.exists(LOG_PATH):
             os.makedirs(LOG_PATH)
-        # 日志输出格式
-        formatter = "{time:YYYY-MM-DD HH:mm:ss} | {level}: {message}"
         # 添加控制台输出的格式,sys.stdout为输出到屏幕;关于这些配置还需要自定义请移步官网查看相关参数说明
         self.logger.add(
             sys.stdout,
@@ -39,7 +37,8 @@ class Logger:
             "<level>{level}</level>: "  # 等级
             "<level>{message}</level>",  # 日志内容
             level="INFO" if not mcim_config.debug else "DEBUG",
-            
+            backtrace=False,
+            diagnose=False,
         )
         # 日志写入文件
         self.logger.add(

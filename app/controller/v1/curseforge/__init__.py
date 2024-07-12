@@ -24,7 +24,7 @@ from app.config.mcim import MCIMConfig
 from app.utils.response import TrustableResponse, UncachedResponse
 from app.utils.network import request_sync
 from app.utils.loger import log
-from app.utils.response_cache.decorator import cache
+from app.utils.response_cache import cache
 
 mcim_config = MCIMConfig.load()
 

@@ -1,7 +1,13 @@
+import orjson
+from functools import wraps
 from typing import Optional
+from fastapi.responses import Response
 from redis.asyncio import Redis
 from app.utils.response_cache.key_builder import default_key_builder, KeyBuilder
+from app.utils.response_cache.resp_builder import ResponseBuilder
+from app.utils.loger import log
 from app.config.redis import RedisdbConfig
+
 
 redis_config = RedisdbConfig.load()
 
@@ -33,3 +39,43 @@ class Cache:
         cls.enabled = enabled
         cls.namespace = namespace
         cls.key_builder = key_builder
+
+
+def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
+    if not isinstance(expire, int):
+        raise ValueError("expire must be an integer")
+
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            if not Cache.enabled:
+                return await func(*args, **kwargs)
+            key = default_key_builder(
+                func, namespace=Cache.namespace, args=args, kwargs=kwargs
+            )
+            value = await Cache.backend.get(key)
+
+            if value is not None:
+                value = orjson.loads(value)
+                log.debug(f"Cached response: [{key}]:[{value}]")
+                return ResponseBuilder.decode(value)
+
+            result = await func(*args, **kwargs)
+
+            if isinstance(result, Response):
+                to_set = ResponseBuilder.encode(result)
+            else:
+                return result
+            value = orjson.dumps(to_set)
+
+            if never_expire:
+                await Cache.backend.set(key, value)
+            else:
+                await Cache.backend.set(key, value, ex=expire)
+            log.debug(f"Set cache: [{key}]:[{to_set}]")
+
+            return result
+
+        return wrapper
+
+    return decorator

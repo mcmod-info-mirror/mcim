@@ -41,8 +41,11 @@ def submit_models(models: List[Union[Project, File, Version]]):
         for model in models:
             if isinstance(model, File):
                 if not model.file_cdn_cached:
-                    if not os.path.exists(os.path.join(aria2_config.modrinth_download_path, model.hashes.sha512)):
-                        file_cdn_cache_add_task.send(model)
+                    if not os.path.exists(os.path.join(mcim_config.modrinth_download_path, model.hashes.sha512)):
+                        if mcim_config.aria2:
+                            file_cdn_cache_add_task.send(model)
+                        else:
+                            file_cdn_cache.send(model.model_dump())
                     else:
                         model.file_cdn_cached = True
                         mongodb_engine.save(model)
@@ -71,7 +74,7 @@ def sync_project_all_version(
             except ResponseCodeException as e:
                 if e.status_code == 404:
                     models.append(
-                        Project(success=False, id=project_id, slug=project_id)
+                        Project(found=False, id=project_id, slug=project_id)
                     )
                     return
             slug = res["slug"]
@@ -79,7 +82,7 @@ def sync_project_all_version(
         res = request_sync(f"{API}/project/{project_id}/version").json()
     except ResponseCodeException as e:
         if e.status_code == 404:
-            models.append(Project(success=False, id=project_id, slug=project_id))
+            models.append(Project(found=False, id=project_id, slug=project_id))
             return
     for version in res:
         for file in version["files"]:
@@ -111,7 +114,7 @@ def sync_project(project_id: str):
         models.append(Project(found=True, **res))
     except ResponseCodeException as e:
         if e.status_code == 404:
-            models = [Project(success=False, id=project_id, slug=project_id)]
+            models = [Project(found=False, id=project_id, slug=project_id)]
             submit_models(models)
             return
     models.extend(sync_project_all_version(project_id, slug=res["slug"]))
@@ -126,7 +129,7 @@ def sync_multi_projects(project_ids: List[str]):
         if e.status_code == 404:
             models = []
             for project_id in project_ids:
-                models.append(Project(success=False, id=project_id, slug=project_id))
+                models.append(Project(found=False, id=project_id, slug=project_id))
             submit_models(models)
             return
     models = []
@@ -153,12 +156,12 @@ def sync_version(version_id: str):
         res = request_sync(f"{API}/version/{version_id}").json()
     except ResponseCodeException as e:
         if e.status_code == 404:
-            models = [Version(success=False, id=version_id)]
-            submit_models(models)
+            models = [Version(found=False, id=version_id)]
+            # submit_models(models)
             return
 
     models = []
-    models.extend(process_version_resp(res, models))
+    models.extend(process_version_resp(res))
     models.extend(sync_project_all_version(res["project_id"]))
     submit_models(models)
 
@@ -181,7 +184,7 @@ def sync_multi_versions(version_ids: List[str]):
         if e.status_code == 404:
             models = []
             for version_id in version_ids:
-                models.append(Version(success=False, id=version_id))
+                models.append(Version(found=False, id=version_id))
             submit_models(models)
             return
     models = []
@@ -200,7 +203,7 @@ def sync_hash(hash: str, algorithm: str):
         ).json()
     except ResponseCodeException as e:
         if e.status_code == 404:
-            models = [File(success=False, hash=hash)]
+            models = [File(found=False, hash=hash)]
             submit_models(models)
             return
     models = []
@@ -231,7 +234,7 @@ def sync_multi_hashes(hashes: List[str], algorithm: str):
         if e.status_code == 404:
             models = []
             for hash in hashes:
-                models.append(File(success=False, hash=hash))
+                models.append(File(found=False, hash=hash))
             submit_models(models)
             return
     models = []
@@ -263,16 +266,17 @@ def sync_tags():
 
 
 # file cdn url cache
-@actor
+@actor(actor_name="mr_file_cdn_url_cache")
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
     file_cdn_redis_sync_engine.hset("file_cdn_modrinth", key, res.headers["Location"])
     return res.headers["Location"]
 
 @actor
-def file_cdn_cache_add_task(file: File):
+def file_cdn_cache_add_task(file: dict):
+    file = File(**file)
     sha1 = file.hashes.sha1
-    download = add_http_task(url=file.url, name=sha1, dir=os.path.join(aria2_config.modrinth_download_path, sha1[:2]))
+    download = add_http_task(url=file.url, name=sha1, dir=os.path.join(mcim_config.modrinth_download_path, sha1[:2]))
     gid = download.gid
     while True:
         download = ARIA2_API.get_download(gid)
@@ -284,11 +288,13 @@ def file_cdn_cache_add_task(file: File):
             break
         elif download.has_failed:
             return download.error_message
-@actor
-def file_cdn_cache(file: File):
+
+@actor(actor_name="mr_file_cdn_cache")
+def file_cdn_cache(file: dict):
+    file = File(**file)
     sha1 = file.hashes.sha1
     try:
-        download_file_sync(file.url, os.path.join(aria2_config.modrinth_download_path, sha1[:2], sha1))
+        download_file_sync(file.url, os.path.join(mcim_config.modrinth_download_path, sha1[:2], sha1))
         file.file_cdn_cached = True
         mongodb_engine.save(file)
     except:

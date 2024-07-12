@@ -29,10 +29,13 @@ def submit_models(models: List[Union[File, Mod, Fingerprint]]):
                 if not model.file_cdn_cached:
                     if not os.path.exists(
                         os.path.join(
-                            aria2_config.curseforge_download_path, model.hashes[0].value
+                            mcim_config.curseforge_download_path, model.hashes[0].value
                         )
                     ):
-                        file_cdn_cache_add_task.send(model)
+                        if mcim_config.aria2:
+                            file_cdn_cache_add_task.send(model)
+                        else:
+                            file_cdn_cache.send(model)
                     else:
                         model.file_cdn_cached = True
                         mongodb_engine.save(model)
@@ -91,7 +94,7 @@ def sync_mod_all_files(
 
 
 @actor
-def sync_multi_projects_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
+def sync_multi_mods_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
     models = []
     # 去重
     modIds = list(set(modIds))
@@ -119,7 +122,7 @@ def sync_mutil_mods(modIds: List[int]):
     models: List[Union[File, Mod]] = []
     for mod in res:
         models.append(Mod(found=True, **mod))
-    models.extend(sync_multi_projects_all_files([model.id for model in models]))
+    models.extend(sync_multi_mods_all_files([model.id for model in models]))
     submit_models(models)
 
 
@@ -153,7 +156,7 @@ def sync_mutil_files(fileIds: List[int]):
     ).json()["data"]
     for file in res:
         models.append(File(found=True, **file))
-    models.extend(sync_multi_projects_all_files([model.modId for model in models]))
+    models.extend(sync_multi_mods_all_files([model.modId for model in models]))
     submit_models(models)
 
 
@@ -175,7 +178,7 @@ def sync_fingerprints(fingerprints: List[int]):
                 found=True,
             )
         )
-    models.extend(sync_multi_projects_all_files([model.file.modId for model in models]))
+    models.extend(sync_multi_mods_all_files([model.file.modId for model in models]))
     submit_models(models)
 
 
@@ -186,7 +189,7 @@ def sync_categories():
     ).json()["data"]
     redis_engine.hset("curseforge", "categories", json.dumps(res))
 
-@actor
+@actor(actor_name="cf_file_cdn_url_cache")
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
     redis_engine.hset("file_cdn_curseforge", key, res.headers["Location"])
@@ -212,7 +215,7 @@ def file_cdn_cache_add_task(file: File):
         elif download.has_failed:
             return download.error_message
         
-@actor
+@actor(actor_name="cf_file_cdn_cache")
 def file_cdn_cache(file: File):
     for hash_info in file.hashes:
         if hash_info.algo == 1:

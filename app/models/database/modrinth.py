@@ -84,23 +84,23 @@ class File(Model):
     
 class Version(Model):
     id: str = Field(primary_field=True, index=True)
-    project_id: str = Field(index=True)
+    project_id: Optional[str] = Field(index=True)
     slug: Optional[str] = None
-    name: str
-    version_number: str
+    name: Optional[str] = None
+    version_number: Optional[str] = None
     changelog: Optional[str] = None
     dependencies: Optional[List[Dependencies]] = None
-    game_versions: List[str]
-    version_type: str
-    loaders: List[str]
-    featured: bool
+    game_versions: Optional[List[str]] = None
+    version_type: Optional[str] = None
+    loaders: Optional[List[str]] = None
+    featured: Optional[bool] = None
     status: Optional[str] = None
     requested_status: Optional[str] = None
-    author_id: str
-    date_published: str
-    downloads: int
+    author_id: Optional[str] = None
+    date_published: Optional[str] = None
+    downloads: Optional[int] = None
     changelog_url: Optional[str] = None # Deprecated
-    files: List[File]
+    files: Optional[List[File]] = None
 
     found: bool = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)

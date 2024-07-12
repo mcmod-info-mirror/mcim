@@ -1,5 +1,4 @@
 import dramatiq
-from dramatiq.actor import actor
 from dramatiq.brokers.redis import RedisBroker
 
 from app.database.mongodb import init_mongodb_syncengine, sync_mongo_engine
@@ -9,15 +8,11 @@ from app.database._redis import (
     sync_redis_engine,
     file_cdn_redis_sync_engine,
     init_file_cdn_redis_sync_engine
-    # task_redis_client,
 )
 from app.config.redis import RedisdbConfig
 
-# from app.utils.alist import AUTHORIZATION
-
 _redis_config = RedisdbConfig.load()
 
-# init_task_redis_client()
 init_sync_redis_engine()
 init_mongodb_syncengine()
 init_file_cdn_redis_sync_engine()

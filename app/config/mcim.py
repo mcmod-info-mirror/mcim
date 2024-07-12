@@ -38,6 +38,9 @@ class MCIMConfigModel(BaseModel):
 
     file_cdn: bool = False
     aria2: bool = False
+    modrinth_download_path: str = "./data/modrinth"
+    curseforge_download_path: str = "./data/curseforge"
+    
     redis_cache: bool = True
     alist_endpoint: str = "http://127.0.0.1:5244"
     alist_username: str = "admin"

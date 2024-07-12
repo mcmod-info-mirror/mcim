@@ -24,7 +24,7 @@ from app.config.mcim import MCIMConfig
 from app.utils.response import TrustableResponse, UncachedResponse
 from app.utils.network import request_sync
 from app.utils.loger import log
-from app.utils.response_cache.decorator import cache
+from app.utils.response_cache import cache
 
 mcim_config = MCIMConfig.load()
 
@@ -181,8 +181,10 @@ async def modrinth_search_projects(
 )
 @cache(expire=mcim_config.expire_second.modrinth.version)
 async def modrinth_version(version_id: Annotated[str, Path(alias="id")], request: Request):
+    trustable = True
     model = await request.app.state.aio_mongo_engine.find_one(
-        Version, query.or_(Version.id == version_id, Version.slug == version_id)
+        # Version, query.or_(Version.id == version_id, Version.slug == version_id)
+        Version, Version.id == version_id
     )
     if model is None:
         sync_version.send(version_id=version_id)
@@ -194,8 +196,9 @@ async def modrinth_version(version_id: Annotated[str, Path(alias="id")], request
     ):
         sync_version.send(version_id=version_id)
         log.debug(f"Version {version_id} expire, send sync task.")
-        return Response(status_code=EXPIRE_STATUS_CODE)
-    return TrustableResponse(content=model.model_dump())
+        # return Response(status_code=EXPIRE_STATUS_CODE)
+        trustable = False
+    return TrustableResponse(content=model.model_dump(), trustable=trustable)
 
 
 @modrinth_router.get(
