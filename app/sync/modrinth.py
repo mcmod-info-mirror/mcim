@@ -44,7 +44,7 @@ def submit_models(models: List[Union[Project, File, Version]]):
                 if not model.file_cdn_cached:
                     if not os.path.exists(os.path.join(mcim_config.modrinth_download_path, model.hashes.sha512)):
                         if mcim_config.aria2:
-                            file_cdn_cache_add_task.send(model)
+                            file_cdn_cache_add_task.send(model.model_dump())
                         else:
                             file_cdn_cache.send(model.model_dump())
                     else:

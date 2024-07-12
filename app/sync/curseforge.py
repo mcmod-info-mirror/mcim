@@ -32,9 +32,9 @@ def submit_models(models: List[Union[File, Mod, Fingerprint]]):
                         )
                     ):
                         if mcim_config.aria2:
-                            file_cdn_cache_add_task.send(model)
+                            file_cdn_cache_add_task.send(model.model_dump())
                         else:
-                            file_cdn_cache.send(model)
+                            file_cdn_cache.send(model.model_dump())
                     else:
                         model.file_cdn_cached = True
                         mongodb_engine.save(model)
