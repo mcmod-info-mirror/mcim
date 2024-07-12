@@ -172,11 +172,13 @@ def download_file_sync(url: str, path: str):
         path (str): 保存路径
     """
     log.debug(f"Downloading file from {url} to {path}")
-    with get_session() as client:
-        with open(path, "wb") as f:
-            with client.stream("GET", url, timeout=30) as response:
-                for chunk in response.iter_bytes(1024):
-                    log.debug(f"Downloading file from {url} + 1024 bytes")
-                    f.write(chunk)
+    # with get_session() as client:
+    #     with open(path, "wb") as f:
+    #         with client.stream("GET", url, timeout=30) as response:
+    #             for chunk in response.iter_bytes(1024):
+    #                 log.debug(f"Downloading file from {url} + 1024 bytes")
+    #                 f.write(chunk)
+    with open(path, "wb") as f:
+        f.write(httpx.get(url, timeout=30).content)
     log.debug(f"Downloaded file from {url} to {path}")
     return True
