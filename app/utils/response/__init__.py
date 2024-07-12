@@ -40,4 +40,5 @@ class UncachedResponse(Response):
     def __init__(self, status_code: int = 404, headers: dict = {}):
         headers = {}
         headers["Trustable"] = "False"
+        headers["Cache-Control"] = "public, no-cache"
         super().__init__(status_code=status_code, headers=headers)
