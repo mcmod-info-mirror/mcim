@@ -197,7 +197,8 @@ def file_cdn_url_cache(url: str, key: str):
     log.debug(f"URL cache {key} set {res.headers['Location']}")
 
 @actor
-def file_cdn_cache_add_task(file: File):
+def file_cdn_cache_add_task(file: dict):
+    file = File(**file)
     for hash_info in file.hashes:
         if hash_info.algo == 1:
             hash = hash_info.value
@@ -217,7 +218,8 @@ def file_cdn_cache_add_task(file: File):
             return download.error_message
         
 @actor(actor_name="cf_file_cdn_cache")
-def file_cdn_cache(file: File):
+def file_cdn_cache(file: dict):
+    file = File(**file)
     for hash_info in file.hashes:
         if hash_info.algo == 1:
             hash = hash_info.value
