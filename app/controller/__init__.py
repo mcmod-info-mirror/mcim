@@ -44,8 +44,8 @@ if mcim_config.file_cdn:
             file: Optional[mrFile] = await request.app.state.aio_mongo_engine.find_one(mrFile, query.and_(mrFile.version_id == version_id, mrFile.filename == file_name))
             if file:
                 sha1 = file.hashes.sha1
+                url = f'{mcim_config.alist_endpoint}/modrinth/{sha1[:2]}/{sha1}'
                 if file.file_cdn_cached:
-                    url = f'{mcim_config.alist_endpoint}/modrinth/{sha1[:2]}/{sha1}'
                     mr_file_cdn_url_cache.send(url=url, key=f'{project_id}/{version_id}/{file_name}')
                     log.debug(f"URL cache not found, return {url} directly.")
                     return RedirectResponse(url=url)
@@ -74,8 +74,8 @@ if mcim_config.file_cdn:
             file: Optional[cfFile] = await request.app.aio_mongo_engine.find_one(cfFile, query.and_(cfFile.id == fileid, cfFile.fileName == file_name))
             if file:
                 sha1 = file.hashes[0].value if file.hashes[0].algo == 1 else file.hashes[1].value
+                url = f'{mcim_config.alist_endpoint}/curseforge/{sha1[:2]}/{sha1}'
                 if file.file_cdn_cached:
-                    url = f'{mcim_config.alist_endpoint}/curseforge/{sha1[:2]}/{sha1}'
                     cf_file_cdn_url_cache.send(url=url, key=f'{fileid}/{file_name}')
                     log.debug(f"URL cache not found, return {url} directly.")
                     return RedirectResponse(url=url)

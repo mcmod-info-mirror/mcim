@@ -179,6 +179,7 @@ def download_file_sync(url: str, path: str):
     #                 log.debug(f"Downloading file from {url} + 1024 bytes")
     #                 f.write(chunk)
     with open(path, "wb") as f:
+        log.debug("opened file")
         f.write(httpx.get(url, timeout=30).content)
     log.debug(f"Downloaded file from {url} to {path}")
     return True
