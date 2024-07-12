@@ -63,6 +63,9 @@ def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
             result = await func(*args, **kwargs)
 
             if isinstance(result, Response):
+                if result.status_code >= 400:
+                    return result
+                 
                 to_set = ResponseBuilder.encode(result)
             else:
                 return result
