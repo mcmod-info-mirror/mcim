@@ -161,7 +161,7 @@ def sync_version(version_id: str):
             return
 
     models = []
-    models.extend(process_version_resp(res))
+    # models.extend(process_version_resp(res)) # will sync all versions
     models.extend(sync_project_all_version(res["project_id"]))
     submit_models(models)
 
@@ -207,7 +207,7 @@ def sync_hash(hash: str, algorithm: str):
             submit_models(models)
             return
     models = []
-    models.extend(process_version_resp(res))
+    # models.extend(process_version_resp(res)) # will sync all versions
     models.extend(sync_project_all_version(res["project_id"]))
     submit_models(models)
 
