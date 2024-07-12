@@ -1,5 +1,3 @@
-version: '3.4'
-
 services:
   mongodb:
     # 容器的名称为 mongo
