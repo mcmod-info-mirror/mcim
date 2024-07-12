@@ -54,10 +54,10 @@ if mcim_config.file_cdn:
                         mr_file_cdn_cache_add_task.send(file.model_dump())
                         log.debug(f"file cache not found, {url} send with aria2 mode.")
                     else:
-                        mr_file_cdn_cache.send(file.model_dump())
+                        mr_file_cdn_cache.send(version_id=version_id)
                         log.debug(f"file cache not found, {url} send with normal mode.")
             else:
-                sync_project.send(project_id)
+                sync_project.send(project_id=project_id)
                 log.debug("sync project task send.")
             return RedirectResponse(url=f"https://cdn.modrinth.com/data/{project_id}/versions/{version_id}/{file_name}")
 
