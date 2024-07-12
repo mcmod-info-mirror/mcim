@@ -250,37 +250,34 @@ class Algorithm(str, Enum):
     response_model=File,
 )
 @cache(expire=mcim_config.expire_second.modrinth.file)
-async def modrinth_file(request: Request, hash: str, algorithm: Optional[Algorithm] = Algorithm.sha1):
+async def modrinth_file(request: Request, hash_: Annotated[str, Path(alias="hash")], algorithm: Optional[Algorithm] = Algorithm.sha1):
     trustable = True
-    if algorithm == Algorithm.sha1:
-        match_stage = {"hashes.sha1": hash}
-    elif algorithm == Algorithm.sha512:
-        file_model = await request.app.state.aio_mongo_engine.find_one(File, File.hashes.sha512 == hash)
-    if file_model is None:
-        sync_hash.send(hash=hash, algorithm=algorithm)
-        log.debug("File not found, send sync task.")
+    # ignore algo
+    file: Optional[File] = await request.app.state.aio_mongo_engine.find_one(File, query.or_(File.hashes.sha512 == hash_, File.hashes.sha1 == hash_))
+    if file is None:
+        sync_hash.send(hash=hash_, algorithm=algorithm)
+        log.debug(f"File {hash_} not found, send sync task.")
         return UncachedResponse()
-    # Don't check file model expire
-    # elif file_model.sync_at.timestamp() + mcim_config.expire_second.modrinth < time.time():
-    #     sync_hash.send(hash=hash, algorithm=algorithm)
+    # Don't need to check file expire
+    # elif file.sync_at.timestamp() + mcim_config.expire_second.modrinth.file < time.time():
+    #     sync_hash.send(hash=hash_, algorithm=algorithm)
+    #     log.debug(f"File {hash_} expire, send sync task.")
     #     trustable = False
+    
     # TODO: Add Version reference directly but not query File again
-    version_model = await request.app.state.aio_mongo_engine.find_one(
-        Version, Version.id == file_model.version_id
-    )
-    if version_model is None:
-        sync_version.send(version_id=file_model.version_id)
-        log.debug("Version not found, send sync task.")
+    # get version object
+    version: Optional[Version] = await request.app.state.aio_mongo_engine.find_one(Version, Version.id == file.version_id)
+    if version is None:
+        sync_version.send(version_id=file.version_id)
+        log.debug(f"Version {file.version_id} not found, send sync task.")
         return UncachedResponse()
-    elif (
-        version_model.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
-        < time.time()
-    ):
-        sync_version.send(version_id=file_model.version_id)
-        log.debug("Version expire, send sync task.")
+    elif version.sync_at.timestamp() + mcim_config.expire_second.modrinth.version < time.time():
+        sync_version.send(version_id=file.version_id)
+        log.debug(f"Version {file.version_id} expire, send sync task.")
         trustable = False
-    return TrustableResponse(content=version_model, trustable=trustable)
-
+    
+    return TrustableResponse(content=version, trustable=trustable)
+    
 
 class HashesQuery(BaseModel):
     hashes: List[str]
@@ -295,14 +292,10 @@ class HashesQuery(BaseModel):
 @cache(expire=mcim_config.expire_second.modrinth.file)
 async def modrinth_files(items: HashesQuery, request: Request):
     trustable = True
-    if items.algorithm == Algorithm.sha1:
-        files_models = await request.app.state.aio_mongo_engine.find(
-            File, query.in_(File.hashes.sha1, items.hashes)
-        )
-    elif items.algorithm == Algorithm.sha512:
-        files_models = await request.app.state.aio_mongo_engine.find(
-            File, query.in_(File.hashes.sha512, items.hashes)
-        )
+    # ignore algo
+    files_models: List[File] = await request.app.state.aio_mongo_engine.find(
+        File, query.or_(query.in_(File.hashes.sha1, items.hashes), query.in_(File.hashes.sha512, items.hashes))
+    )
     model_count = len(files_models)
     hashes_count = len(items.hashes)
     if not files_models:
@@ -318,7 +311,7 @@ async def modrinth_files(items: HashesQuery, request: Request):
     # Don't need to check version expire
 
     version_ids = [file.version_id for file in files_models]
-    version_models = await request.app.state.aio_mongo_engine.find(
+    version_models: List[Version] = await request.app.state.aio_mongo_engine.find(
         Version, query.in_(Version.id, version_ids)
     )
     # len(version_models) != len(files_models)
