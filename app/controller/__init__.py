@@ -36,8 +36,9 @@ if mcim_config.file_cdn:
     @cache(expire=int(60 * 60 * 2.8))
     async def get_modrinth_file(project_id: str, version_id: str, file_name: str, request: Request):
         key = f'file_cdn_modrinth:{project_id}:{version_id}:{file_name}'
-        cache = await request.app.state.file_cdn_redis_async_engine.get(key).decode("UTF-8")
+        cache = await request.app.state.file_cdn_redis_async_engine.get(key)
         if cache:
+            cache = cache.decode("UTF-8")
             log.debug(f"URL cache found, return {cache}")
             return RedirectResponse(url=cache)
         else:
@@ -68,8 +69,9 @@ if mcim_config.file_cdn:
     async def get_curseforge_file(fileid1: str, fileid2: str, file_name: str, request: Request):
         fileid = int(f"{fileid1}{fileid2}")
         key = f'file_cdn_curseforge:{fileid}:{file_name}'
-        cache = await request.app.state.file_cdn_redis_async_engine.get(key).decode("UTF-8")
+        cache = await request.app.state.file_cdn_redis_async_engine.get(key)
         if cache:
+            cache = cache.decode("UTF-8")
             log.debug(f"URL cache found, return {cache}")
             return RedirectResponse(url=cache)
         else: # redis 中没有缓存网盘链接
