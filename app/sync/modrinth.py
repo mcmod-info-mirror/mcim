@@ -29,6 +29,7 @@ from app.utils.network import request_sync, download_file_sync
 from app.exceptions import ResponseCodeException
 from app.config import MCIMConfig, Aria2Config
 from app.utils.aria2 import add_http_task, ARIA2_API
+from app.utils.loger import log
 
 mcim_config = MCIMConfig.load()
 aria2_config = Aria2Config.load()
@@ -161,7 +162,7 @@ def sync_version(version_id: str):
             return
 
     models = []
-    models.extend(process_version_resp(res))
+    # models.extend(process_version_resp(res)) # will sync all versions
     models.extend(sync_project_all_version(res["project_id"]))
     submit_models(models)
 
@@ -207,7 +208,7 @@ def sync_hash(hash: str, algorithm: str):
             submit_models(models)
             return
     models = []
-    models.extend(process_version_resp(res))
+    # models.extend(process_version_resp(res)) # will sync all versions
     models.extend(sync_project_all_version(res["project_id"]))
     submit_models(models)
 
@@ -269,8 +270,8 @@ def sync_tags():
 @actor(actor_name="mr_file_cdn_url_cache")
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
-    file_cdn_redis_sync_engine.hset("file_cdn_modrinth", key, res.headers["Location"])
-    return res.headers["Location"]
+    file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600*2.8))
+    log.debug(f"URL cached {res.headers['Location']}")
 
 @actor
 def file_cdn_cache_add_task(file: dict):

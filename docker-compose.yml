@@ -1,5 +1,3 @@
-version: '3.4'
-
 services:
   mongodb:
     # 容器的名称为 mongo
@@ -61,3 +59,4 @@ services:
     volumes:
       - /opt/mcim/config:/config
       - /opt/mcim/logs:/logs
+      - /data:alist:/data # rclone 挂载位置

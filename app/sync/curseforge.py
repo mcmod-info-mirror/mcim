@@ -6,12 +6,11 @@ import time
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import file_cdn_redis_sync_engine
-from app.models.database.curseforge import File, Mod, Pagination, Fingerprint, FileInfo
-from app.exceptions import ResponseCodeException
+from app.models.database.curseforge import File, Mod, Pagination, Fingerprint
 from app.utils.network import request_sync, download_file_sync
 from app.config import MCIMConfig, Aria2Config
 from app.utils.aria2 import add_http_task, ARIA2_API
+from app.utils.loger import log
 
 
 mcim_config = MCIMConfig.load()
@@ -128,18 +127,20 @@ def sync_mutil_mods(modIds: List[int]):
 
 @actor
 def sync_file(modId: int, fileId: int, expire: bool = False):
-    res = request_sync(f"{API}/v1/mods/{modId}/files/{fileId}", headers=headers).json()[
-        "data"
-    ]
+    # res = request_sync(f"{API}/v1/mods/{modId}/files/{fileId}", headers=headers).json()[
+    #     "data"
+    # ]
     latestFiles = request_sync(f"{API}/v1/mods/{modId}", headers=headers).json()["data"][
         "latestFiles"
     ]
-    models = [
-        File(found=True, **res),
-        Fingerprint(
-            found=True, id=res["fileFingerprint"], file=res, latestFiles=latestFiles
-        ),
-    ]
+    # models = [
+    #     File(found=True, **res),
+    #     Fingerprint(
+    #         found=True, id=res["fileFingerprint"], file=res, latestFiles=latestFiles
+    #     ),
+    # ]
+    # 下面会拉取所有文件，不重复添加
+    models = []
     if not expire:
         models.extend(sync_mod_all_files(modId, latestFiles=latestFiles))
     submit_models(models)
@@ -156,7 +157,7 @@ def sync_mutil_files(fileIds: List[int]):
     ).json()["data"]
     for file in res:
         models.append(File(found=True, **file))
-    models.extend(sync_multi_mods_all_files([model.modId for model in models]))
+    models = sync_multi_mods_all_files([model.modId for model in models])
     submit_models(models)
 
 
@@ -178,7 +179,7 @@ def sync_fingerprints(fingerprints: List[int]):
                 found=True,
             )
         )
-    models.extend(sync_multi_mods_all_files([model.file.modId for model in models]))
+    models = sync_multi_mods_all_files([model.file.modId for model in models])
     submit_models(models)
 
 
@@ -192,8 +193,8 @@ def sync_categories():
 @actor(actor_name="cf_file_cdn_url_cache")
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
-    redis_engine.hset("file_cdn_curseforge", key, res.headers["Location"])
-    return res.headers["Location"]
+    redis_engine.hset(key, res.headers["Location"], ex=int(3600*2.8))
+    log.debug(f"URL cache {key} set {res.headers['Location']}")
 
 @actor
 def file_cdn_cache_add_task(file: File):
@@ -202,7 +203,7 @@ def file_cdn_cache_add_task(file: File):
             hash = hash_info.value
             break
     url = file.downloadUrl.replace("edge", "mediafilez")
-    download = add_http_task(url=url, name=hash, dir=os.path.join(aria2_config.curseforge_download_path, hash[:2]))
+    download = add_http_task(url=url, name=hash, dir=os.path.join(mcim_config.curseforge_download_path, hash[:2]))
     gid = download.gid
     while True:
         download = ARIA2_API.get_download(gid)
@@ -223,7 +224,7 @@ def file_cdn_cache(file: File):
             break
     url = file.downloadUrl.replace("edge", "mediafilez")
     try:
-        download_file_sync(url, os.path.join(aria2_config.curseforge_download_path, hash[:2], hash))
+        download_file_sync(url, os.path.join(mcim_config.curseforge_download_path, hash[:2], hash))
         file.file_cdn_cached = True
         mongodb_engine.save(file)
     except:

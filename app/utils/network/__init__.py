@@ -154,11 +154,11 @@ async def download_file(url: str, path: str):
         path (str): 保存路径
     """
     log.debug(f"Downloading file from {url} to {path}")
-    async with get_async_session() as client:
-        async with client.stream("GET", url) as response:
-            with open(path, "wb") as f:
-                async for chunk in response.aiter_bytes():
-                    f.write(chunk)
+    client = get_async_session()
+    async with client.stream("GET", url) as response:
+        with open(path, "wb") as f:
+            async for chunk in response.aiter_bytes():
+                f.write(chunk)
     log.debug(f"Downloaded file from {url} to {path}")
 
 @retry(stop=stop_after_attempt(RETRY_TIMES), reraise=True)
@@ -172,11 +172,9 @@ def download_file_sync(url: str, path: str):
         path (str): 保存路径
     """
     log.debug(f"Downloading file from {url} to {path}")
-    with get_session() as client:
-        with open(path, "wb") as f:
-            with client.stream("GET", url, timeout=30) as response:
-                for chunk in response.iter_bytes(1024):
-                    log.debug(f"Downloading file from {url} + 1024 bytes")
-                    f.write(chunk)
+    client = get_session()
+    with open(path, "wb") as f:
+        with client.stream("GET", url, timeout=30) as response:
+            for chunk in response.iter_bytes(1024):
+                f.write(chunk)
     log.debug(f"Downloaded file from {url} to {path}")
-    return True

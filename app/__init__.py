@@ -7,12 +7,17 @@ from contextlib import asynccontextmanager
 
 from app.controller import controller_router
 from app.utils.loger import log
-from app.config import MCIMConfig, Aria2Config
+from app.config import MCIMConfig
 from app.database.mongodb import setup_async_mongodb, init_mongodb_aioengine
-from app.database._redis import init_redis_aioengine, close_aio_redis_engine
+from app.database._redis import (
+    init_redis_aioengine,
+    close_aio_redis_engine,
+    init_file_cdn_redis_async_engine,
+)
 from app.utils.response_cache import Cache
 from app.utils.response_cache import cache
 from app.utils.response_cache.key_builder import xxhash_key_builder
+
 mcim_config = MCIMConfig.load()
 
 
@@ -36,15 +41,17 @@ async def lifespan(app: FastAPI):
     app.state.aio_redis_engine = init_redis_aioengine()
     app.state.aio_mongo_engine = init_mongodb_aioengine()
     await setup_async_mongodb(app.state.aio_mongo_engine)
-    
+
     if mcim_config.redis_cache:
         app.state.fastapi_cache = Cache.init(enabled=True)
-    
+
     if mcim_config.file_cdn:
+        app.state.file_cdn_redis_async_engine = init_file_cdn_redis_async_engine()
         init_file_cdn()
-    
+        
+
     yield
-    
+
     await close_aio_redis_engine()
 
 
