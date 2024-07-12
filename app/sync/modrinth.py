@@ -290,13 +290,12 @@ def file_cdn_cache_add_task(file: dict):
             return download.error_message
 
 @actor(actor_name="mr_file_cdn_cache")
-def file_cdn_cache(version_id: str):
-    file = mongodb_engine.find_one(File, {"version_id": version_id})
-    if not file.file_cdn_cached:
-        sha1 = file.hashes.sha1
-        try:
-            download_file_sync(file.url, os.path.join(mcim_config.modrinth_download_path, sha1[:2], sha1))
-            file.file_cdn_cached = True
-            mongodb_engine.save(file)
-        except:
-            pass
+def file_cdn_cache(file: dict):
+    file = File(**file)
+    sha1 = file.hashes.sha1
+    try:
+        download_file_sync(file.url, os.path.join(mcim_config.modrinth_download_path, sha1[:2], sha1))
+        file.file_cdn_cached = True
+        mongodb_engine.save(file)
+    except:
+        pass
