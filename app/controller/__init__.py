@@ -49,7 +49,7 @@ if mcim_config.file_cdn:
                 if file.file_cdn_cached:
                     mr_file_cdn_url_cache.send(url=alist_url, key=key)
                     log.debug(f"URL cache not found, return {alist_url} directly.")
-                    return RedirectResponse(url=alist_url) # TODO: cache headers
+                    return RedirectResponse(url=alist_url, headers={"Cache-Control": "public, no-cache"}) # TODO: cache headers
                 else:
                     if ARIA2_ENABLED:
                         mr_file_cdn_cache_add_task.send(file.model_dump())
@@ -82,7 +82,7 @@ if mcim_config.file_cdn:
                 if file.file_cdn_cached:
                     cf_file_cdn_url_cache.send(url=alist_url, key=key)
                     log.debug(f"URL cache not found, return {alist_url} directly.")
-                    return RedirectResponse(url=alist_url)
+                    return RedirectResponse(url=alist_url, headers={"Cache-Control": "public, no-cache"})
                 else:
                     if ARIA2_ENABLED:
                         cf_file_cdn_cache_add_task.send(file.model_dump())
