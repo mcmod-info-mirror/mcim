@@ -98,4 +98,4 @@ if mcim_config.file_cdn:
 
         url = f"https://mediafilez.curseforge.com/files{fileid1}/{fileid2}/{file_name}"
         log.debug(f"Redirect to {url}")
-        RedirectResponse(url=url, headers={"Cache-Control": "public, no-cache"})
+        return RedirectResponse(url=url, headers={"Cache-Control": "public, no-cache"})

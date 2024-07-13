@@ -72,9 +72,10 @@ APP.add_middleware(
 )
 
 
-@APP.get("favicon.ico")
+@APP.get("/favicon.ico")
+@cache(never_expire=True)
 async def favicon():
-    return RedirectResponse(status_code=301, url=mcim_config.favicon_url)
+    return RedirectResponse(url=mcim_config.favicon_url)
 
 
 @APP.get(
