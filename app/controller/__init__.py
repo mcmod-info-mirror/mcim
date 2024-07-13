@@ -96,6 +96,6 @@ if mcim_config.file_cdn:
                 sync_mutil_files.send([fileid])
                 log.debug(f"sync fileId {fileid} task send.")
 
-        url = f"https://mediafilez.curseforge.com/files{fileid1}/{fileid2}/{file_name}"
+        url = f"https://mediafilez.curseforge.com/files/{fileid1}/{fileid2}/{file_name}"
         log.debug(f"Redirect to {url}")
         return RedirectResponse(url=url, headers={"Cache-Control": "public, no-cache"})
