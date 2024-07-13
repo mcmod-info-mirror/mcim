@@ -60,8 +60,10 @@ if mcim_config.file_cdn:
             else:
                 sync_project.send(project_id)
                 log.debug(f"sync project {project_id} task send.")
-        
-        return RedirectResponse(url=f"https://cdn.modrinth.com/data/{project_id}/versions/{version_id}/{file_name}")
+
+        url = f"https://cdn.modrinth.com/data/{project_id}/versions/{version_id}/{file_name}"
+        log.debug(f"Redirect to {url}")
+        return RedirectResponse(url=url, headers={"Cache-Control": "public, no-cache"})
 
     # curseforge | example: https://edge.forgecdn.net/files/3040/523/jei_1.12.2-4.16.1.301.jar
     @controller_router.get("/files/{fileid1}/{fileid2}/{file_name}")
@@ -93,4 +95,7 @@ if mcim_config.file_cdn:
             else:
                 sync_mutil_files.send([fileid])
                 log.debug(f"sync fileId {fileid} task send.")
-        RedirectResponse(url=f"https://mediafilez.curseforge.com/files{fileid1}/{fileid2}/{file_name}")
+
+        url = f"https:///media.forgecdn.net/files/{fileid1}/{fileid2}/{file_name}"
+        log.debug(f"Redirect to {url}")
+        return RedirectResponse(url=url, headers={"Cache-Control": "public, no-cache"})
