@@ -4,6 +4,6 @@ FROM python:3-slim
 # Install pip requirements
 COPY requirements.txt .
 COPY ./app ./app
-RUN python -m pip install -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip pip install -r requirements.txt
 
 ENTRYPOINT [ "python", "-m", "dramatiq", "app.sync"]

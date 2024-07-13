@@ -7,6 +7,6 @@ EXPOSE 8000
 COPY requirements.txt .
 COPY start.py .
 COPY ./app ./app
-RUN python -m pip install -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip pip install -r requirements.txt
 
 ENTRYPOINT ["python", "start.py"]
