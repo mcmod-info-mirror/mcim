@@ -70,9 +70,9 @@ def sync_mod_all_files(
 ) -> List[Union[File, Mod]]:
     models = []
     if not latestFiles:
-        latestFiles = request_sync(f"{API}/v1/mods/{modId}", headers=headers).json()["data"][
-            "latestFiles"
-        ]
+        latestFiles = request_sync(f"{API}/v1/mods/{modId}", headers=headers).json()[
+            "data"
+        ]["latestFiles"]
 
     res = request_sync(
         f"{API}/v1/mods/{modId}/files",
@@ -131,9 +131,9 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     # res = request_sync(f"{API}/v1/mods/{modId}/files/{fileId}", headers=headers).json()[
     #     "data"
     # ]
-    latestFiles = request_sync(f"{API}/v1/mods/{modId}", headers=headers).json()["data"][
-        "latestFiles"
-    ]
+    latestFiles = request_sync(f"{API}/v1/mods/{modId}", headers=headers).json()[
+        "data"
+    ]["latestFiles"]
     # models = [
     #     File(found=True, **res),
     #     Fingerprint(
@@ -191,11 +191,13 @@ def sync_categories():
     ).json()["data"]
     redis_engine.hset("curseforge", "categories", json.dumps(res))
 
+
 @actor(actor_name="cf_file_cdn_url_cache")
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
-    file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600*2.8))
+    file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600 * 2.8))
     log.debug(f"URL cache {key} set {res.headers['Location']}")
+
 
 @actor
 def file_cdn_cache_add_task(file: dict):
@@ -205,7 +207,11 @@ def file_cdn_cache_add_task(file: dict):
             hash = hash_info.value
             break
     url = file.downloadUrl.replace("edge", "mediafilez")
-    download = add_http_task(url=url, name=hash, dir=os.path.join(mcim_config.curseforge_download_path, hash[:2]))
+    download = add_http_task(
+        url=url,
+        name=hash,
+        dir=os.path.join(mcim_config.curseforge_download_path, hash[:2]),
+    )
     gid = download.gid
     while True:
         download = ARIA2_API.get_download(gid)
@@ -217,18 +223,27 @@ def file_cdn_cache_add_task(file: dict):
             break
         elif download.has_failed:
             return download.error_message
-        
+
+
 @actor(actor_name="cf_file_cdn_cache")
 def file_cdn_cache(file: dict):
-    file = File(**file)
+    file: File = File(**file)
     for hash_info in file.hashes:
         if hash_info.algo == 1:
-            hash = hash_info.value
+            hash_ = hash_info.value
             break
     url = file.downloadUrl.replace("edge", "mediafilez")
     try:
-        download_file_sync(url, os.path.join(mcim_config.curseforge_download_path, hash[:2], hash))
+        download_file_sync(
+            url=url,
+            path=os.path.join(mcim_config.curseforge_download_path, hash_[:2], hash_),
+            hash_=hash_,
+            algo="sha1",
+            size=file.fileLength,
+            ignore_exist=False
+        )
         file.file_cdn_cached = True
         mongodb_engine.save(file)
+        log.debug(f"Cached file {file.hashes}")
     except:
-        pass
+        log.debug(f"Failed to cache file {file.hashes}")

@@ -42,7 +42,11 @@ def submit_models(models: List[Union[Project, File, Version]]):
         for model in models:
             if isinstance(model, File):
                 if not model.file_cdn_cached:
-                    if not os.path.exists(os.path.join(mcim_config.modrinth_download_path, model.hashes.sha512)):
+                    if not os.path.exists(
+                        os.path.join(
+                            mcim_config.modrinth_download_path, model.hashes.sha512
+                        )
+                    ):
                         if mcim_config.aria2:
                             file_cdn_cache_add_task.send(model.model_dump())
                         else:
@@ -74,9 +78,7 @@ def sync_project_all_version(
                 res = request_sync(f"{API}/project/{project_id}").json()
             except ResponseCodeException as e:
                 if e.status_code == 404:
-                    models.append(
-                        Project(found=False, id=project_id, slug=project_id)
-                    )
+                    models.append(Project(found=False, id=project_id, slug=project_id))
                     return
             slug = res["slug"]
     try:
@@ -125,7 +127,9 @@ def sync_project(project_id: str):
 @actor
 def sync_multi_projects(project_ids: List[str]):
     try:
-        res = request_sync(f"{API}/projects", params={"ids": json.dumps(project_ids)}).json()
+        res = request_sync(
+            f"{API}/projects", params={"ids": json.dumps(project_ids)}
+        ).json()
     except ResponseCodeException as e:
         if e.status_code == 404:
             models = []
@@ -180,7 +184,9 @@ def process_multi_versions(res: List[dict]):
 @actor
 def sync_multi_versions(version_ids: List[str]):
     try:
-        res = request_sync(f"{API}/versions", params={"ids": json.dumps(version_ids)}).json()
+        res = request_sync(
+            f"{API}/versions", params={"ids": json.dumps(version_ids)}
+        ).json()
     except ResponseCodeException as e:
         if e.status_code == 404:
             models = []
@@ -270,14 +276,19 @@ def sync_tags():
 @actor(actor_name="mr_file_cdn_url_cache")
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
-    file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600*2.8))
+    file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600 * 2.8))
     log.debug(f"URL cache set [{key}]:[{res.headers['Location']}]")
+
 
 @actor
 def file_cdn_cache_add_task(file: dict):
     file = File(**file)
     sha1 = file.hashes.sha1
-    download = add_http_task(url=file.url, name=sha1, dir=os.path.join(mcim_config.modrinth_download_path, sha1[:2]))
+    download = add_http_task(
+        url=file.url,
+        name=sha1,
+        dir=os.path.join(mcim_config.modrinth_download_path, sha1[:2]),
+    )
     gid = download.gid
     while True:
         download = ARIA2_API.get_download(gid)
@@ -290,13 +301,22 @@ def file_cdn_cache_add_task(file: dict):
         elif download.has_failed:
             return download.error_message
 
+
 @actor(actor_name="mr_file_cdn_cache")
 def file_cdn_cache(file: dict):
-    file = File(**file)
+    file: File = File(**file)
     sha1 = file.hashes.sha1
     try:
-        download_file_sync(file.url, os.path.join(mcim_config.modrinth_download_path, sha1[:2], sha1))
+        download_file_sync(
+            url=file.url,
+            path=os.path.join(mcim_config.modrinth_download_path, sha1[:2], sha1),
+            hash_=sha1,
+            algo="sha1",
+            size=file.size,
+            ignore_exist=False
+        )
         file.file_cdn_cached = True
         mongodb_engine.save(file)
+        log.debug(f"Cached file {file.hashes}")
     except:
-        pass
+        log.debug(f"Failed to cache file {file.hashes}")

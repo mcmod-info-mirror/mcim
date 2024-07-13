@@ -2,6 +2,8 @@
 与网络请求相关的模块
 """
 
+import os
+import hashlib
 import httpx
 from tenacity import retry, stop_after_attempt
 from typing import Optional, Union
@@ -44,6 +46,24 @@ def get_async_session() -> httpx.AsyncClient:
         httpx_async_client = httpx.AsyncClient()
         return httpx_async_client
 
+
+def verify_hash(path: str, hash_: str, algo: str) -> bool:
+    with open(path, "rb") as f:
+        if algo == "sha512":
+            hash_tool = hashlib.sha512()
+        elif algo == "sha1":
+            hash_tool = hashlib.sha1()
+        elif algo == "md5":
+            hash_tool = hashlib.md5()
+
+        while True:
+            data = f.read(1024)
+            if data is None:
+                break
+            hash_tool.update(data)
+    return hash_ == hash_tool.hexdigest()
+
+
 @retry(stop=stop_after_attempt(RETRY_TIMES), reraise=True)
 def request_sync(
     url: str,
@@ -52,7 +72,7 @@ def request_sync(
     params: Optional[dict] = None,
     json: Optional[dict] = None,
     ignore_status_code: bool = False,
-    **kwargs
+    **kwargs,
 ) -> httpx.Response:
     """
     HTTPX 请求函数
@@ -102,7 +122,7 @@ async def request(
     params: Optional[dict] = None,
     json: Optional[dict] = None,
     ignore_status_code: bool = False,
-    **kwargs
+    **kwargs,
 ) -> httpx.Response:
     """
     HTTPX 请求函数
@@ -143,34 +163,41 @@ async def request(
             )
     return res
 
+
+# @retry(stop=stop_after_attempt(RETRY_TIMES), reraise=True)
+# async def download_file(url: str, path: str):
+#     """
+#     下载文件
+
+#     Args:
+#         url (str): 下载链接
+
+#         path (str): 保存路径
+#     """
+#     log.debug(f"Downloading file from {url} to {path}")
+#     client = get_async_session()
+#     async with client.stream("GET", url) as response:
+#         with open(path, "wb") as f:
+#             async for chunk in response.aiter_bytes():
+#                 f.write(chunk)
+#     log.debug(f"Downloaded file from {url} to {path}")
+
+
 @retry(stop=stop_after_attempt(RETRY_TIMES), reraise=True)
-async def download_file(url: str, path: str):
+def download_file_sync(
+    url: str,
+    path: str,
+    hash_: Optional[str] = None,
+    algo: Optional[str] = None,
+    size: Optional[int] = None,
+    ignore_exist: bool = True,
+):
     """
     下载文件
-
-    Args:
-        url (str): 下载链接
-
-        path (str): 保存路径
     """
-    log.debug(f"Downloading file from {url} to {path}")
-    client = get_async_session()
-    async with client.stream("GET", url) as response:
-        with open(path, "wb") as f:
-            async for chunk in response.aiter_bytes():
-                f.write(chunk)
-    log.debug(f"Downloaded file from {url} to {path}")
-
-@retry(stop=stop_after_attempt(RETRY_TIMES), reraise=True)
-def download_file_sync(url: str, path: str):
-    """
-    下载文件
-
-    Args:
-        url (str): 下载链接
-
-        path (str): 保存路径
-    """
+    if not ignore_exist and os.path.exists(path):
+        if os.path.getsize(path) == size and verify_hash(path=path, hash_=hash_, algo=algo):
+            log.debug(f"File {path} exists {hash_}")
     log.debug(f"Downloading file from {url} to {path}")
     client = get_session()
     with open(path, "wb") as f:
