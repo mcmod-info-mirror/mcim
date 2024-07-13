@@ -271,7 +271,7 @@ def sync_tags():
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
     file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600*2.8))
-    log.debug(f"URL cached {res.headers['Location']}")
+    log.debug(f"URL cache set [{key}]:[{res.headers['Location']}]")
 
 @actor
 def file_cdn_cache_add_task(file: dict):

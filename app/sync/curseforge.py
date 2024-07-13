@@ -6,6 +6,7 @@ import time
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
+from app.sync import file_cdn_redis_sync_engine
 from app.models.database.curseforge import File, Mod, Pagination, Fingerprint
 from app.utils.network import request_sync, download_file_sync
 from app.config import MCIMConfig, Aria2Config
@@ -193,7 +194,7 @@ def sync_categories():
 @actor(actor_name="cf_file_cdn_url_cache")
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
-    redis_engine.set(key, res.headers["Location"], ex=int(3600*2.8))
+    file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600*2.8))
     log.debug(f"URL cache {key} set {res.headers['Location']}")
 
 @actor
