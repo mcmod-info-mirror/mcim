@@ -368,54 +368,55 @@ async def modrinth_file_update(
     algorithm: Optional[Algorithm] = Algorithm.sha1,
 ):
     trustable = True
-    file: Optional[File] = await request.app.state.aio_mongo_engine.find_one(
-        File,
-        # query.or_(File.hashes.sha512 == hash_, File.hashes.sha1 == hash_)
+    files_collection = request.app.state.aio_mongo_engine.get_collection(File)
+    pipeline = [
         (
-            query.in_(File.hashes.sha1, items.hashes)
-            if algorithm == Algorithm.sha1
-            else query.in_(File.hashes.sha512, items.hashes)
+            {"$match": {"_id.sha1": hash_}}
+            if algorithm is Algorithm.sha1
+            else {"$match": {"_id.sha512": hash_}}
         ),
-    )
-    if file is None:
-        sync_hash.send(hash=hash_, algorithm=algorithm)
-        log.debug(f"File {hash_} not found, send sync task.")
-        return UncachedResponse()
-    # Don't need to check file expire
-    # elif file.sync_at.timestamp() + mcim_config.expire_second.modrinth.file < time.time():
-    #     sync_hash.send(hash=hash_, algorithm=algorithm)
-    #     log.debug(f"File {hash_} expire, send sync task.")
-    #     trustable = False
-
-    # TODO: Add Version reference directly but not query File again
-    # get version object
-
-    # build query
-    _query_and = [query.eq(Version.project_id, file.project_id)]
-    # if items.loaders:
-    _query_and.append(query.in_(Version.loaders, items.loaders))
-    # elif items.game_versions:
-    _query_and.append(query.in_(Version.game_versions, items.game_versions))
-    _query = query.and_(*_query_and)
-
-    version: Optional[List[Version]] = await request.app.state.aio_mongo_engine.find(
-        Version, _query, sort=query.desc(Version.date_published), limit=1
-    )
-    if version is None:
-        sync_project.send(project_id=file.project_id)
-        log.debug(f"Project {file.project_id} not found version, send sync task.")
-        return UncachedResponse()
-    else:
-        version = version[0]
-        if (
-            version.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
-            < time.time()
-        ):
-            sync_project.send(project_id=file.project_id)
-            log.debug(f"Project {file.project_id} expire, send sync task.")
+        {
+            "$lookup": {
+                "from": "modrinth_versions",
+                "localField": "project_id",
+                "foreignField": "project_id",
+                "as": "versions_fields",
+            }
+        },
+        {"$unwind": "$versions_fields"},
+        {
+            "$match": {
+                "versions_fields.game_versions": {"$in": items.game_versions},
+                "versions_fields.loaders": {"$in": items.loaders},
+            }
+        },
+        {"$sort": {"versions_fields.date_published": -1}},
+        # {
+        #     "$group": {
+        #         "_id": "$_id.sha1" if items.algorithm is Algorithm.sha1 else "$_id.sha512",
+        #         "latest_date": {"$first": "$versions_fields.date_published"},
+        #         "detail": ,  # 只保留第一个匹配版本
+        #     }
+        # },
+        {"$replaceRoot": {"newRoot": {"$first": "$versions_fields"}}},
+    ]
+    version_result = await files_collection.aggregate(pipeline).to_list(length=None)
+    if len(version_result) != 0:
+        version_result = version_result[0]
+        if not (
+                datetime.strptime(
+                    version_result["sync_at"], "%Y-%m-%dT%H:%M:%SZ"
+                ).timestamp()
+                + mcim_config.expire_second.modrinth.file
+                > time.time()
+            ):
+            sync_project.send(project_id=version_result["project_id"])
+            log.debug(f"Project {version_result["project_id"]} expired, send sync task.")
             trustable = False
+    else:
+        return UncachedResponse()
+    return TrustableResponse(content=version_result, trustable=trustable)
 
-    return TrustableResponse(content=version, trustable=trustable)
 
 
 class MultiUpdateItems(BaseModel):
@@ -431,7 +432,11 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
     trustable = True
     files_collection = request.app.state.aio_mongo_engine.get_collection(File)
     pipeline = [
-        {"$match": {"_id.sha1": {"$in": items.hashes}}} if items.algorithm is Algorithm.sha1 else {"$match": {"_id.sha512": {"$in": items.hashes}}},
+        (
+            {"$match": {"_id.sha1": {"$in": items.hashes}}}
+            if items.algorithm is Algorithm.sha1
+            else {"$match": {"_id.sha512": {"$in": items.hashes}}}
+        ),
         {
             "$lookup": {
                 "from": "modrinth_versions",
@@ -450,7 +455,9 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
         {"$sort": {"versions_fields.date_published": -1}},
         {
             "$group": {
-                "_id": "$_id.sha1" if items.algorithm is Algorithm.sha1 else "$_id.sha512",
+                "_id": (
+                    "$_id.sha1" if items.algorithm is Algorithm.sha1 else "$_id.sha512"
+                ),
                 "latest_date": {"$first": "$versions_fields.date_published"},
                 "detail": {"$first": "$versions_fields"},  # 只保留第一个匹配版本
                 # "original_hash": { "$first": "$_id.sha1" if items.algorithm is Algorithm.sha1 else "$_id.sha512" }
@@ -460,66 +467,26 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
     versions_result = await files_collection.aggregate(pipeline).to_list(length=None)
     if len(versions_result) == 0:
         log.debug(f"Hashes {items.hashes} not found")
+        return UncachedResponse()
     else:
         # check expire
         resp = {}
         project_ids_to_sync = set()
         for original_hash, date, version_detail in versions_result:
             resp[original_hash] = version_detail
-            if datetime.strptime(version_detail["sync_at"], "%Y-%m-%dT%H:%M:%SZ").timestamp() + mcim_config.expire_second.modrinth.file > time.time():
+            if not (
+                datetime.strptime(
+                    version_detail["sync_at"], "%Y-%m-%dT%H:%M:%SZ"
+                ).timestamp()
+                + mcim_config.expire_second.modrinth.file
+                > time.time()
+            ):
                 project_ids_to_sync.add(version_detail["project_id"])
                 trustable = False
-        sync_multi_projects.send(project_ids=list(project_ids_to_sync))
+        if len(project_ids_to_sync) != 0:
+            sync_multi_projects.send(project_ids=list(project_ids_to_sync))
+            log.debug(f"Project {project_ids_to_sync} expired, send sync task.")
         return TrustableResponse(content=resp, trustable=trustable)
-
-    # # ignore algo
-    # files_models: List[File] = await request.app.state.aio_mongo_engine.find(
-    #     File,
-    #     (
-    #         query.in_(File.hashes.sha1, items.hashes)
-    #         if items.algorithm == Algorithm.sha1
-    #         else query.in_(File.hashes.sha512, items.hashes)
-    #     ),
-    # )
-    # model_count = len(files_models)
-    # hashes_count = len(items.hashes)
-    # if not files_models:
-    #     sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm)
-    #     log.debug("Files not found, send sync task.")
-    #     return UncachedResponse()
-    # elif model_count != hashes_count:
-    #     sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm)
-    #     log.debug(
-    #         f"Files {items.hashes} {model_count}/{hashes_count} not completely found, send sync task."
-    #     )
-    #     trustable = False
-    # # Don't need to check version expire
-
-    # project_ids = list(set([file.project_id for file in files_models]))
-    # version_models: List[Version] = await request.app.state.aio_mongo_engine.find(
-    #     Version,
-    #     query.and_(
-    #         query.in_(Version.project_id, project_ids),
-    #         query.in_(Version.loaders, items.loaders),
-    #         query.in_(Version.game_versions, items.game_versions),
-    #     ),
-    # )
-    # # len(version_models) != len(files_models)
-    # version_model_count = len(version_models)
-    # file_model_count = len(files_models)
-    # if not version_models:
-    #     sync_multi_projects.send(project_ids=project_ids)
-    #     log.debug(f"Projects {project_ids} not found, send sync task.")
-    #     return UncachedResponse()
-    # elif version_model_count != file_model_count:
-    #     sync_multi_projects.send(project_ids=project_ids)
-    #     log.debug(
-    #         f"Projects {project_ids} {version_model_count}/{file_model_count} not completely found, send sync task."
-    #     )
-    #     trustable = False
-    # return TrustableResponse(
-    #     content=[model.model_dump() for model in version_models], trustable=trustable
-    # )
 
 
 @modrinth_router.get(
