@@ -73,11 +73,11 @@ class File(Model):
     size: Optional[int] = None
     file_type: Optional[Optional[str]] = None
 
-    version_id: str
-    project_id: str
+    version_id: Optional[str] # 有可能没有该 file...
+    project_id: Optional[str]
     
-    file_cdn_cached: bool = False
-    found: bool = True
+    file_cdn_cached: Optional[bool] = False
+    found: Optional[bool] = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)
 
     model_config = {"collection": "modrinth_files"}

@@ -211,10 +211,11 @@ def sync_hash(hash: str, algorithm: str):
             f"{API}/version_file/{hash}", params={"algorithm": algorithm}
         ).json()
     except ResponseCodeException as e:
-        if e.status_code == 404:
-            models = [File(found=False, hash=hash)]
-            submit_models(models)
-            return
+        # if e.status_code == 404:
+        #     models = [File(found=False, hash=hash)]
+        #     submit_models(models)
+        #     return
+        return
     models = []
     # models.extend(process_version_resp(res)) # will sync all versions
     models.extend(sync_project_all_version(res["project_id"]))
@@ -241,12 +242,12 @@ def sync_multi_hashes(hashes: List[str], algorithm: str):
             json={"hashes": hashes, "algorithm": algorithm},
         ).json()
     except ResponseCodeException as e:
-        if e.status_code == 404:
-            models = []
-            for hash in hashes:
-                models.append(File(found=False, hash=hash))
-            submit_models(models)
-            return
+        # if e.status_code == 404:
+        #     models = []
+        #     for hash in hashes:
+        #         models.append(File(found=False, hash=hash))
+        #     submit_models(models)
+        return
     models = []
     models.extend(process_multi_hashes(res))
     models.extend(
