@@ -65,7 +65,7 @@ def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
             if isinstance(result, Response):
                 if result.status_code >= 400:
                     return result
-                elif "Cache-Control" in  result.headers:
+                elif "Cache-Control" in result.headers:
                     if "no-cache" in result.headers["Cache-Control"]:
                         return result
                  
