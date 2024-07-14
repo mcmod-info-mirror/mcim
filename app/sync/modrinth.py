@@ -90,6 +90,7 @@ def sync_project_all_version(
     for version in res:
         for file in version["files"]:
             file["version_id"] = version["id"]
+            file["project_id"] = version["project_id"]
             models.append(File(found=True, slug=slug, **file))
         models.append(Version(found=True, slug=slug, **version))
     return models
@@ -150,6 +151,7 @@ def process_version_resp(res: dict) -> List[Union[Project, File, Version]]:
     models = []
     for file in res["files"]:
         file["version_id"] = res["id"]
+        file["project_id"] = res["project_id"]
         models.append(File(found=True, **file))
     models.append(Version(found=True, **res))
     return models
@@ -176,6 +178,7 @@ def process_multi_versions(res: List[dict]):
     for version in res:
         for file in version["files"]:
             file["version_id"] = version["id"]
+            file["project_id"] = res["project_id"]
             models.append(File(found=True, **file))
         models.append(Version(found=True, **version))
     return models
@@ -195,10 +198,9 @@ def sync_multi_versions(version_ids: List[str]):
             submit_models(models)
             return
     models = []
-    models.extend(process_multi_versions(res))
-    models.extend(
-        sync_multi_projects_all_version([version["project_id"] for version in res])
-    )
+    # models.extend(process_multi_versions(res)) # 后面会拉取
+    project_ids = list(set([version["project_id"] for version in res]))  # 去重
+    models.extend(sync_multi_projects_all_version(project_ids))
     submit_models(models)
 
 
@@ -224,6 +226,7 @@ def process_multi_hashes(res: dict):
     for version in res.values():
         for file in version["files"]:
             file["version_id"] = version["id"]
+            file["project_id"] = res["project_id"]
             models.append(File(found=True, **file))
         models.append(Version(found=True, **version))
     return models
@@ -313,7 +316,7 @@ def file_cdn_cache(file: dict):
             hash_=sha1,
             algo="sha1",
             size=file.size,
-            ignore_exist=False
+            ignore_exist=False,
         )
         file.file_cdn_cached = True
         mongodb_engine.save(file)

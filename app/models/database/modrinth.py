@@ -1,10 +1,11 @@
 from odmantic import Model, Field, EmbeddedModel
-from pydantic import BaseModel, field_serializer, model_serializer
+from pydantic import BaseModel, field_serializer, field_validator
 
-from typing import List, Optional
+from typing import List, Optional, Union
 from datetime import datetime
 
 expireAfterSeconds: int = 60 * 60 * 24
+
 
 class Gallery(BaseModel):
     url: Optional[str] = None
@@ -13,6 +14,7 @@ class Gallery(BaseModel):
     description: Optional[str] = None
     created: Optional[str] = None
     ordering: Optional[int] = None
+
 
 class Project(Model):
     id: str = Field(primary_field=True, index=True)
@@ -40,7 +42,7 @@ class Project(Model):
 
     found: bool = Field(default=True)
     sync_at: datetime = Field(default_factory=datetime.utcnow)
-    
+
     model_config = {
         "collection": "modrinth_projects",
     }
@@ -49,39 +51,41 @@ class Project(Model):
     def serialize_sync_Date(self, value: datetime, _info):
         return value.strftime("%Y-%m-%dT%H:%M:%SZ")
 
+
 class Dependencies(BaseModel):
     version_id: Optional[str] = None
     project_id: Optional[str] = None
     file_name: Optional[str] = None
     dependency_type: Optional[str] = None
 
+
 class Hashes(EmbeddedModel):
     sha512: str
     sha1: str
 
+
 # TODO: Add Version reference directly but not query File again
 class File(Model):
     hashes: Hashes = Field(primary_field=True, index=True)
-    version_id: str
     url: Optional[str] = None
     filename: Optional[str] = None
     primary: Optional[bool] = None
     size: Optional[int] = None
     file_type: Optional[Optional[str]] = None
 
+    version_id: str
+    project_id: str
+    
     file_cdn_cached: bool = False
     found: bool = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)
 
+    model_config = {"collection": "modrinth_files"}
 
-    model_config = {
-        "collection": "modrinth_files"
-    }
-        
-    @field_serializer("sync_at")
+    @field_serializer("sync_at", "date_published")
     def serialize_sync_Date(self, value: datetime, _info):
         return value.strftime("%Y-%m-%dT%H:%M:%SZ")
-    
+
 class Version(Model):
     id: str = Field(primary_field=True, index=True)
     project_id: Optional[str] = Field(index=True)
@@ -97,18 +101,23 @@ class Version(Model):
     status: Optional[str] = None
     requested_status: Optional[str] = None
     author_id: Optional[str] = None
-    date_published: Optional[str] = None
+    date_published: Optional[datetime] = None
     downloads: Optional[int] = None
-    changelog_url: Optional[str] = None # Deprecated
+    changelog_url: Optional[str] = None  # Deprecated
     files: Optional[List[File]] = None
 
     found: bool = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)
 
-    model_config = {
-        "collection": "modrinth_versions"
-    }
+    model_config = {"collection": "modrinth_versions"}
 
-    @field_serializer("sync_at")
+    @field_serializer("sync_at", "date_published")
     def serialize_sync_Date(self, value: datetime, _info):
         return value.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    @field_validator("date_published")
+    @classmethod
+    def format_date(cls, v: Union[str, datetime]) -> datetime:
+        if isinstance(v, str):
+            return datetime.strptime(v, "%Y-%m-%dT%H:%M:%S.%fZ")
+        return v
