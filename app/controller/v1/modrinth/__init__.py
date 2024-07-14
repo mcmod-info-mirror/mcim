@@ -426,7 +426,7 @@ class MultiUpdateItems(BaseModel):
     game_versions: Optional[List[str]]
 
 
-@modrinth_router.post("/version_file/update")
+@modrinth_router.post("/version_files/update")
 @cache(expire=mcim_config.expire_second.modrinth.file)
 async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
     trustable = True
