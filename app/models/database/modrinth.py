@@ -82,7 +82,7 @@ class File(Model):
 
     model_config = {"collection": "modrinth_files"}
 
-    @field_serializer("sync_at", "date_published")
+    @field_serializer("sync_at")
     def serialize_sync_Date(self, value: datetime, _info):
         return value.strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -112,7 +112,7 @@ class Version(Model):
     model_config = {"collection": "modrinth_versions"}
 
     @field_serializer("sync_at", "date_published")
-    def serialize_sync_Date(self, value: datetime, _info):
+    def serialize_sync_date(self, value: datetime, _info):
         return value.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     @field_validator("date_published")
