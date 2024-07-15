@@ -3,7 +3,8 @@ FROM python:3-slim
 
 # Install pip requirements
 COPY requirements.txt .
-COPY ./app ./app
 RUN --mount=type=cache,target=/root/.cache/pip pip install -r requirements.txt
+
+COPY ./app ./app
 
 ENTRYPOINT [ "python", "-m", "dramatiq", "app.sync"]
