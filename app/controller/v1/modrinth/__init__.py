@@ -476,17 +476,18 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
         resp = {}
         project_ids_to_sync = set()
         for version_result in versions_result:
-            for original_hash, date, version_detail in version_result:
-                resp[original_hash] = version_detail
-                if not (
-                    datetime.strptime(
-                        version_detail["sync_at"], "%Y-%m-%dT%H:%M:%SZ"
-                    ).timestamp()
-                    + mcim_config.expire_second.modrinth.file
-                    > time.time()
-                ):
-                    project_ids_to_sync.add(version_detail["project_id"])
-                    trustable = False
+            original_hash = version_result["_id"]
+            version_detail= version_result["detail"]
+            resp[original_hash] = version_detail
+            if not (
+                datetime.strptime(
+                    version_detail["sync_at"], "%Y-%m-%dT%H:%M:%SZ"
+                ).timestamp()
+                + mcim_config.expire_second.modrinth.file
+                > time.time()
+            ):
+                project_ids_to_sync.add(version_detail["project_id"])
+                trustable = False
         if len(project_ids_to_sync) != 0:
             sync_multi_projects.send(project_ids=list(project_ids_to_sync))
             log.debug(f"Project {project_ids_to_sync} expired, send sync task.")
