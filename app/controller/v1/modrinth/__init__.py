@@ -391,14 +391,8 @@ async def modrinth_file_update(
             }
         },
         {"$sort": {"versions_fields.date_published": -1}},
-        # {
-        #     "$group": {
-        #         "_id": "$_id.sha1" if items.algorithm is Algorithm.sha1 else "$_id.sha512",
-        #         "latest_date": {"$first": "$versions_fields.date_published"},
-        #         "detail": ,  # 只保留第一个匹配版本
-        #     }
-        # },
-        {"$replaceRoot": {"newRoot": {"$first": "$versions_fields"}}},
+        {"$limit": 1},
+        {"$replaceRoot": {"newRoot": "$versions_fields"}},
     ]
     version_result = await files_collection.aggregate(pipeline).to_list(length=None)
     if len(version_result) != 0:
@@ -414,7 +408,7 @@ async def modrinth_file_update(
             log.debug(f"Project {version_result["project_id"]} expired, send sync task.")
             trustable = False
     else:
-        sync_hash(hash=hash_, algorithm=algorithm.value)
+        sync_hash.send(hash=hash_, algorithm=algorithm.value)
         log.debug(f"Hash {hash_} not found, send sync task")
         return UncachedResponse()
     return TrustableResponse(content=version_result, trustable=trustable)
