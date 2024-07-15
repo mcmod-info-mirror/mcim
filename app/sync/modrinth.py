@@ -227,11 +227,10 @@ def process_multi_hashes(res: dict):
     for version in res.values():
         for file in version["files"]:
             file["version_id"] = version["id"]
-            file["project_id"] = res["project_id"]
+            file["project_id"] = version["project_id"]
             models.append(File(found=True, **file))
         models.append(Version(found=True, **version))
     return models
-
 
 @actor
 def sync_multi_hashes(hashes: List[str], algorithm: str):
