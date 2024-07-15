@@ -1,2 +1,1 @@
-
-CONFIG_PATH = './config/'
+CONFIG_PATH = "./config/"

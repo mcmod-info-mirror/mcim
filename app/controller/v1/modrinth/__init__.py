@@ -397,21 +397,22 @@ async def modrinth_file_update(
     if len(version_result) != 0:
         version_result = version_result[0]
         if not (
-                datetime.strptime(
-                    version_result["sync_at"], "%Y-%m-%dT%H:%M:%SZ"
-                ).timestamp()
-                + mcim_config.expire_second.modrinth.file
-                > time.time()
-            ):
+            datetime.strptime(
+                version_result["sync_at"], "%Y-%m-%dT%H:%M:%SZ"
+            ).timestamp()
+            + mcim_config.expire_second.modrinth.file
+            > time.time()
+        ):
             sync_project.send(project_id=version_result["project_id"])
-            log.debug(f"Project {version_result["project_id"]} expired, send sync task.")
+            log.debug(
+                f"Project {version_result["project_id"]} expired, send sync task."
+            )
             trustable = False
     else:
         sync_hash.send(hash=hash_, algorithm=algorithm.value)
         log.debug(f"Hash {hash_} not found, send sync task")
         return UncachedResponse()
     return TrustableResponse(content=version_result, trustable=trustable)
-
 
 
 class MultiUpdateItems(BaseModel):
@@ -470,7 +471,7 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
         project_ids_to_sync = set()
         for version_result in versions_result:
             original_hash = version_result["_id"]
-            version_detail= version_result["detail"]
+            version_detail = version_result["detail"]
             resp[original_hash] = version_detail
             if not (
                 datetime.strptime(

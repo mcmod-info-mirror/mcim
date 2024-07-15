@@ -187,7 +187,9 @@ class modIds_item(BaseModel):
 @cache(expire=mcim_config.expire_second.curseforge.mod)
 async def curseforge_mods(item: modIds_item, request: Request):
     trustable: bool = True
-    mod_models = await request.app.state.aio_mongo_engine.find(Mod, query.in_(Mod.id, item.modIds))
+    mod_models = await request.app.state.aio_mongo_engine.find(
+        Mod, query.in_(Mod.id, item.modIds)
+    )
     mod_model_count = len(mod_models)
     item_count = len(item.modIds)
     if not mod_models:
@@ -196,7 +198,9 @@ async def curseforge_mods(item: modIds_item, request: Request):
         return UncachedResponse()
     elif mod_model_count != item_count:
         sync_mutil_mods.send(modIds=item.modIds)
-        log.debug(f"modIds: {item.modIds} {mod_model_count}/{item_count} not found, send sync task.")
+        log.debug(
+            f"modIds: {item.modIds} {mod_model_count}/{item_count} not found, send sync task."
+        )
         trustable = False
     content = []
     expire_modid: List[int] = []
@@ -224,7 +228,9 @@ async def curseforge_mods(item: modIds_item, request: Request):
 )
 @cache(expire=mcim_config.expire_second.curseforge.file)
 async def curseforge_mod_files(modId: int, request: Request):
-    mod_models = await request.app.state.aio_mongo_engine.find(File, File.modId == modId)
+    mod_models = await request.app.state.aio_mongo_engine.find(
+        File, File.modId == modId
+    )
     if not mod_models:
         sync_mod.send(modId=modId)
         log.debug(f"modId: {modId} not found, send sync task.")
@@ -249,7 +255,9 @@ class fileIds_item(BaseModel):
 @cache(expire=mcim_config.expire_second.curseforge.file)
 async def curseforge_mod_files(item: fileIds_item, request: Request):
     trustable = True
-    file_models = await request.app.state.aio_mongo_engine.find(File, query.in_(File.id, item.fileIds))
+    file_models = await request.app.state.aio_mongo_engine.find(
+        File, query.in_(File.id, item.fileIds)
+    )
     if not file_models:
         sync_mutil_files.send(fileIds=item.fileIds)
         return UncachedResponse()
@@ -268,7 +276,7 @@ async def curseforge_mod_files(item: fileIds_item, request: Request):
         content.append(model.model_dump())
     if expire_fileid:
         sync_mutil_files.send(fileIds=expire_fileid)
-        
+
         trustable = False
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=content).model_dump(), trustable=trustable
@@ -337,8 +345,8 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
         if fingerprint not in exactFingerprints
     ]
     return TrustableResponse(
-        content=CurseforgeBaseResponse(data=
-            FingerprintResponse(
+        content=CurseforgeBaseResponse(
+            data=FingerprintResponse(
                 isCacheBuilt=True,
                 exactFingerprints=exactFingerprints,
                 exactMatches=fingerprints_models,
@@ -357,8 +365,12 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
 )
 @cache(expire=mcim_config.expire_second.curseforge.categories)
 async def curseforge_categories(request: Request):
-    categories = await request.app.state.aio_redis_engine.hget("curseforge", "categories")
+    categories = await request.app.state.aio_redis_engine.hget(
+        "curseforge", "categories"
+    )
     if categories is None:
         sync_categories.send()
         return UncachedResponse()
-    return TrustableResponse(content=CurseforgeBaseResponse(data=json.loads(categories)).model_dump())
+    return TrustableResponse(
+        content=CurseforgeBaseResponse(data=json.loads(categories)).model_dump()
+    )

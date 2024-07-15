@@ -8,10 +8,12 @@ from .constants import CONFIG_PATH
 # REDIS config path
 REDIS_CONFIG_PATH = os.path.join(CONFIG_PATH, "redis.json")
 
+
 class RedisDatabaseModel(BaseModel):
-    tasks_queue: int = 0 # dramatiq tasks
-    info_cache: int = 1 # response_cache and static info
-    file_cdn: int = 2 # file cdn url cache
+    tasks_queue: int = 0  # dramatiq tasks
+    info_cache: int = 1  # response_cache and static info
+    file_cdn: int = 2  # file cdn url cache
+
 
 class RedisdbConfigModel(BaseModel):
     host: str = "redis"
@@ -21,9 +23,12 @@ class RedisdbConfigModel(BaseModel):
     password: Optional[str] = None
     database: RedisDatabaseModel = RedisDatabaseModel()
 
+
 class RedisdbConfig:
     @staticmethod
-    def save(model: RedisdbConfigModel = RedisdbConfigModel(), target=REDIS_CONFIG_PATH):
+    def save(
+        model: RedisdbConfigModel = RedisdbConfigModel(), target=REDIS_CONFIG_PATH
+    ):
         with open(target, "w") as fd:
             json.dump(model.model_dump(), fd, indent=4)
 

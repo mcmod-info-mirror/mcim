@@ -16,9 +16,12 @@ class MongodbConfigModel(BaseModel):
     password: str = "password"
     database: str = "database"
 
+
 class MongodbConfig:
     @staticmethod
-    def save(model: MongodbConfigModel = MongodbConfigModel(), target=MONGODB_CONFIG_PATH):
+    def save(
+        model: MongodbConfigModel = MongodbConfigModel(), target=MONGODB_CONFIG_PATH
+    ):
         with open(target, "w") as fd:
             json.dump(model.model_dump(), fd, indent=4)
 

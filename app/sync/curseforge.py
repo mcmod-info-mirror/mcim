@@ -240,7 +240,7 @@ def file_cdn_cache(file: dict):
             hash_=hash_,
             algo="sha1",
             size=file.fileLength,
-            ignore_exist=False
+            ignore_exist=False,
         )
         file.file_cdn_cached = True
         mongodb_engine.save(file)

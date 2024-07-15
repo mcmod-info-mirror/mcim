@@ -16,6 +16,7 @@ for i in range(255):
 
 print(aria2_api.get_stats().__dict__)
 
+
 def download():
     if not os.path.exists(MOUNT_POINT):
         print(f"Mount point {MOUNT_POINT} not found.")
@@ -24,12 +25,19 @@ def download():
         print(f"Data file {DATA_PATH} not found.")
         exit(1)
 
-
     with open(DATA_PATH) as f:
         data = json.load(f)
         for file in data.values():
-            if not os.path.exists(os.path.join(MOUNT_POINT, file["sha1"][:2], file["sha1"])):
-                aria2_api.add(file["url"], options={"dir": f'{MOUNT_POINT}/{file["sha1"][:2]}', "out": file["sha1"]})
+            if not os.path.exists(
+                os.path.join(MOUNT_POINT, file["sha1"][:2], file["sha1"])
+            ):
+                aria2_api.add(
+                    file["url"],
+                    options={
+                        "dir": f'{MOUNT_POINT}/{file["sha1"][:2]}',
+                        "out": file["sha1"],
+                    },
+                )
 
                 # w = 0
                 # while True:
@@ -47,5 +55,7 @@ def download():
                 #                 aria2_deamin()
                 #     else:
                 #         break
+
+
 if __name__ == "__main__":
     download()

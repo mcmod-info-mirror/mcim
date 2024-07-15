@@ -8,11 +8,13 @@ from .constants import CONFIG_PATH
 # ARIA2 config path
 ARIA2_CONFIG_PATH = os.path.join(CONFIG_PATH, "aria2.json")
 
+
 class Aria2ConfigModel(BaseModel):
     host: str = "http://localhost"
     port: int = 6800
     secret: str = ""
-        
+
+
 class Aria2Config:
     @staticmethod
     def save(model: Aria2ConfigModel = Aria2ConfigModel(), target=ARIA2_CONFIG_PATH):

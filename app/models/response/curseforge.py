@@ -70,13 +70,13 @@ class FileInfo(BaseModel):
     fileFingerprint: int = None
 
 
-
 class FingerprintResponse(BaseModel):
     isCacheBuilt: bool = True
     exactMatches: List[Fingerprint] = []
     exactFingerprints: List[int] = []
     installedFingerprints: List[int] = []
     unmatchedFingerprints: List[int] = []
+
 
 {
     "id": 0,
@@ -89,8 +89,10 @@ class FingerprintResponse(BaseModel):
     "isClass": True,
     "classId": 0,
     "parentCategoryId": 0,
-    "displayIndex": 0
+    "displayIndex": 0,
 }
+
+
 class Category(BaseModel):
     id: int
     gameId: int
@@ -104,8 +106,10 @@ class Category(BaseModel):
     parentCategoryId: int
     displayIndex: int
 
+
 class CurseforgeBaseResponse(BaseModel):
     data: Union[Mod, File, dict, List]
+
 
 class CurseforgePageBaseResponse(BaseModel):
     data: Union[Mod, File, dict, List]

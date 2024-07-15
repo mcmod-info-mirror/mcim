@@ -8,23 +8,27 @@ from .constants import CONFIG_PATH
 # MCIM config path
 MICM_CONFIG_PATH = os.path.join(CONFIG_PATH, "mcim.json")
 
+
 class Curseforge(BaseModel):
     mod: int = 86400
     file: int = 86400
-    fingerprint: int = 86400 * 7 # 一般不刷新
+    fingerprint: int = 86400 * 7  # 一般不刷新
     search: int = 7200
     categories: int = 86400 * 7
+
 
 class Modrinth(BaseModel):
     project: int = 86400
     version: int = 86400
-    file: int = 86400 * 7 # 一般不刷新
+    file: int = 86400 * 7  # 一般不刷新
     search: int = 7200
     category: int = 86400 * 7
+
 
 class ExpireSecond(BaseModel):
     curseforge: Curseforge = Curseforge()
     modrinth: Modrinth = Modrinth()
+
 
 class MCIMConfigModel(BaseModel):
     host: str = "127.0.0.1"
@@ -40,12 +44,12 @@ class MCIMConfigModel(BaseModel):
     aria2: bool = False
     modrinth_download_path: str = "./data/modrinth"
     curseforge_download_path: str = "./data/curseforge"
-    
+
     redis_cache: bool = True
     alist_endpoint: str = "http://127.0.0.1:5244"
     alist_username: str = "admin"
     alist_password: str = "admin"
-    
+
     expire_second: ExpireSecond = ExpireSecond()
     expire_status_code: int = 404
     uncache_status_code: int = 404
@@ -53,7 +57,8 @@ class MCIMConfigModel(BaseModel):
     favicon_url: str = (
         "https://thirdqq.qlogo.cn/g?b=sdk&k=ABmaVOlfKKPceB5qfiajxqg&s=640"
     )
-    
+
+
 class MCIMConfig:
     @staticmethod
     def save(model: MCIMConfigModel = MCIMConfigModel(), target=MICM_CONFIG_PATH):

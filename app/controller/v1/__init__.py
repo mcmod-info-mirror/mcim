@@ -7,6 +7,7 @@ v1 router
 
 TODO: 优化任务队列，聚合多个任务，在积累一定值/定时批量拉取
 """
+
 from fastapi import APIRouter
 
 from app.controller.v1.curseforge import curseforge_router as curseforge_router

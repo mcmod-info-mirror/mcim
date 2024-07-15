@@ -68,7 +68,7 @@ def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
                 elif "Cache-Control" in result.headers:
                     if "no-cache" in result.headers["Cache-Control"]:
                         return result
-                 
+
                 to_set = ResponseBuilder.encode(result)
             else:
                 return result

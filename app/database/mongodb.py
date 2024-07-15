@@ -19,7 +19,7 @@ def init_mongodb_syncengine() -> SyncEngine:
     :return:
     """
     global sync_mongo_engine
-    sync_mongo_engine =  SyncEngine(
+    sync_mongo_engine = SyncEngine(
         client=MongoClient(
             f"mongodb://{_mongodb_config.user}:{_mongodb_config.password}@{_mongodb_config.host}:{_mongodb_config.port}"
             if _mongodb_config.auth

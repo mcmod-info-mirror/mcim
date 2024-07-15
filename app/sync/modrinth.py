@@ -232,6 +232,7 @@ def process_multi_hashes(res: dict):
         models.append(Version(found=True, **version))
     return models
 
+
 @actor
 def sync_multi_hashes(hashes: List[str], algorithm: str):
     try:

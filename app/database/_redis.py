@@ -11,15 +11,17 @@ sync_redis_engine: Redis = None
 file_cdn_redis_async_engine: AioRedis = None
 file_cdn_redis_sync_engine: Redis = None
 
+
 def init_redis_aioengine() -> AioRedis:
     global aio_redis_engine
     aio_redis_engine = AioRedis(
         host=_redis_config.host,
         port=_redis_config.port,
         password=_redis_config.password,
-        db=_redis_config.database.info_cache
+        db=_redis_config.database.info_cache,
     )
     return aio_redis_engine
+
 
 def init_sync_redis_engine() -> Redis:
     global sync_redis_engine
@@ -27,9 +29,10 @@ def init_sync_redis_engine() -> Redis:
         host=_redis_config.host,
         port=_redis_config.port,
         password=_redis_config.password,
-        db=_redis_config.database.info_cache
+        db=_redis_config.database.info_cache,
     )
     return sync_redis_engine
+
 
 def init_file_cdn_redis_async_engine() -> AioRedis:
     global file_cdn_redis_async_engine
@@ -37,9 +40,10 @@ def init_file_cdn_redis_async_engine() -> AioRedis:
         host=_redis_config.host,
         port=_redis_config.port,
         password=_redis_config.password,
-        db=_redis_config.database.file_cdn
+        db=_redis_config.database.file_cdn,
     )
     return file_cdn_redis_async_engine
+
 
 def init_file_cdn_redis_sync_engine() -> Redis:
     global file_cdn_redis_sync_engine
@@ -47,9 +51,10 @@ def init_file_cdn_redis_sync_engine() -> Redis:
         host=_redis_config.host,
         port=_redis_config.port,
         password=_redis_config.password,
-        db=_redis_config.database.file_cdn
+        db=_redis_config.database.file_cdn,
     )
     return file_cdn_redis_sync_engine
+
 
 def init_task_redis_client() -> Redis:
     global task_redis_client
@@ -57,9 +62,10 @@ def init_task_redis_client() -> Redis:
         host=_redis_config.host,
         port=_redis_config.port,
         password=_redis_config.password,
-        db=_redis_config.database.tasks_queue
+        db=_redis_config.database.tasks_queue,
     )
     return task_redis_client
+
 
 async def close_aio_redis_engine():
     """
@@ -73,6 +79,7 @@ async def close_aio_redis_engine():
         log.warning("no redis connection to close")
     aio_redis_engine = None
 
+
 def close_redis_engine():
     """
     Close redis when process stopped.
@@ -84,6 +91,7 @@ def close_redis_engine():
     else:
         log.warning("no redis connection to close")
     sync_redis_engine = None
+
 
 def close_file_cdn_redis_engine():
     """
@@ -97,9 +105,10 @@ def close_file_cdn_redis_engine():
         log.warning("no file cdn redis connection to close")
     file_cdn_redis_async_engine = None
 
+
 aio_redis_engine: AioRedis = init_redis_aioengine()
 sync_redis_engine: Redis = init_sync_redis_engine()
 file_cdn_redis_async_engine: AioRedis = init_file_cdn_redis_async_engine()
 file_cdn_redis_sync_engine: Redis = init_file_cdn_redis_sync_engine()
 
-log.info("Redis connection established") # noqa
+log.info("Redis connection established")  # noqa

@@ -152,7 +152,7 @@ class ScreenShot(BaseModel):
 class File(Model):
     id: int = Field(primary_field=True, index=True)
     gameId: int
-    modId: int  = Field(index=True)
+    modId: int = Field(index=True)
     displayName: Optional[str] = None
     fileName: Optional[str] = None
     releaseType: Optional[int] = None
@@ -164,7 +164,7 @@ class File(Model):
     downloadUrl: Optional[str] = None
     gameVersions: Optional[List[str]] = None
     sortableGameVersions: Optional[List[FileSortableGameVersions]] = None
-    dependencies: Optional[List[FileDependencies]] = None 
+    dependencies: Optional[List[FileDependencies]] = None
     fileFingerprint: Optional[int] = None
 
     file_cdn_cached: bool = False
@@ -175,10 +175,10 @@ class File(Model):
     def serialize_sync_Date(self, value: datetime, _info):
         return value.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    
     model_config = {
         "collection": "curseforge_files",
     }
+
 
 class FileInfo(BaseModel):
     id: int
@@ -195,7 +195,7 @@ class FileInfo(BaseModel):
     downloadUrl: Optional[str] = None
     gameVersions: Optional[List[str]] = None
     sortableGameVersions: Optional[List[FileSortableGameVersions]] = None
-    dependencies: Optional[List[FileDependencies]] = None 
+    dependencies: Optional[List[FileDependencies]] = None
     fileFingerprint: Optional[int] = None
 
 
@@ -274,7 +274,6 @@ class Fingerprint(Model):
     model_config = {
         "collection": "curseforge_fingerprints",
     }
-
 
     @field_serializer("sync_at")
     def serialize_sync_Date(self, value: datetime, _info):

@@ -73,9 +73,9 @@ class File(Model):
     size: Optional[int] = None
     file_type: Optional[Optional[str]] = None
 
-    version_id: Optional[str] = Field(index=True) # 有可能没有该 file...
+    version_id: Optional[str] = Field(index=True)  # 有可能没有该 file...
     project_id: Optional[str] = Field(index=True)
-    
+
     file_cdn_cached: Optional[bool] = False
     found: Optional[bool] = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)
@@ -85,6 +85,7 @@ class File(Model):
     @field_serializer("sync_at")
     def serialize_sync_Date(self, value: datetime, _info):
         return value.strftime("%Y-%m-%dT%H:%M:%SZ")
+
 
 class Version(Model):
     id: str = Field(primary_field=True, index=True)

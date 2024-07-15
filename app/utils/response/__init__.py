@@ -8,6 +8,7 @@ class TrustableResponse(ORJSONResponse):
     """
     A response that indicates that the content is trusted.
     """
+
     def __init__(
         self,
         status_code: int = 200,
@@ -29,7 +30,7 @@ class TrustableResponse(ORJSONResponse):
         # TODO: default cache headers
         if "Cache-Control" not in headers:
             headers["Cache-Control"] = "public, max-age=86400"
-            
+
         super().__init__(status_code=status_code, content=raw_content, headers=headers)
 
 
@@ -37,6 +38,7 @@ class UncachedResponse(Response):
     """
     A response that indicates that the content is not cached.
     """
+
     def __init__(self, status_code: int = 404, headers: dict = {}):
         headers = {}
         headers["Trustable"] = "False"
