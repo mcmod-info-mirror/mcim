@@ -391,7 +391,13 @@ async def modrinth_file_update(
             }
         },
         {"$sort": {"versions_fields.date_published": -1}},
-        {"$limit": 1},
+        # {
+        #     "$group": {
+        #         "_id": "$_id.sha1" if items.algorithm is Algorithm.sha1 else "$_id.sha512",
+        #         "latest_date": {"$first": "$versions_fields.date_published"},
+        #         "detail": ,  # 只保留第一个匹配版本
+        #     }
+        # },
         {"$replaceRoot": {"newRoot": "$versions_fields"}},
     ]
     version_result = await files_collection.aggregate(pipeline).to_list(length=None)
