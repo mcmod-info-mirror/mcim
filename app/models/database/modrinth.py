@@ -71,7 +71,7 @@ class File(Model):
     filename: Optional[str] = None
     primary: Optional[bool] = None
     size: Optional[int] = None
-    file_type: Optional[Optional[str]] = None
+    file_type: Optional[str] = None
 
     version_id: Optional[str] = Field(index=True)  # 有可能没有该 file...
     project_id: Optional[str] = Field(index=True)
@@ -86,6 +86,13 @@ class File(Model):
     def serialize_sync_Date(self, value: datetime, _info):
         return value.strftime("%Y-%m-%dT%H:%M:%SZ")
 
+class FileInfo(BaseModel):
+    hashes: Hashes
+    url: Optional[str] = None
+    filename: Optional[str] = None
+    primary: Optional[bool] = None
+    size: Optional[int]
+    file_type: Optional[str]
 
 class Version(Model):
     id: str = Field(primary_field=True, index=True)
@@ -105,7 +112,7 @@ class Version(Model):
     date_published: Optional[datetime] = None
     downloads: Optional[int] = None
     changelog_url: Optional[str] = None  # Deprecated
-    files: Optional[List[File]] = None
+    files: Optional[List[FileInfo]] = None
 
     found: bool = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)
