@@ -2,7 +2,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 from odmantic import query
 from typing import Optional
-from app.controller.v1 import v1_router
+from app.controller.modrinth import modrinth_router
+from app.controller.curseforge import curseforge_router
 from app.models.database.curseforge import File as cfFile
 from app.models.database.modrinth import File as mrFile
 from app.config import MCIMConfig
@@ -21,9 +22,9 @@ mcim_config = MCIMConfig.load()
 
 controller_router = APIRouter()
 
-controller_router.include_router(v1_router, prefix="/v1")
 
-
+controller_router.include_router(curseforge_router)
+controller_router.include_router(modrinth_router)
 # expire 3h
 
 ARIA2_ENABLED: bool = mcim_config.aria2
