@@ -18,7 +18,7 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
 
 ### Modrinth
 
-- `api.modrinth.com` or `staging-api.modrinth.com` -> `mod.mcmirror.top/modrinth`
+- `api.modrinth.com/v2` or `staging-api.modrinth.com/v2` -> `mod.mcmirror.top/modrinth`
 - `cdn.modrinth.com` -> `mod.mcimirror.top`
 
 ### Curseforge
