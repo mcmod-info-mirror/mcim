@@ -150,9 +150,9 @@ class ScreenShot(BaseModel):
 
 
 class File(Model):
-    id: int = Field(primary_field=True)
+    id: int = Field(primary_field=True, index=True)
     gameId: int
-    modId: int
+    modId: int  = Field(index=True)
     displayName: Optional[str] = None
     fileName: Optional[str] = None
     releaseType: Optional[int] = None
@@ -179,8 +179,9 @@ class File(Model):
     model_config = {
         "collection": "curseforge_files",
     }
+
 class FileInfo(BaseModel):
-    id: int = Field(primary_field=True)
+    id: int
     gameId: int
     modId: int
     displayName: Optional[str] = None
@@ -218,10 +219,10 @@ class FileIndex(BaseModel):
 
 
 class Mod(Model):
-    id: int = Field(primary_field=True)
+    id: int = Field(primary_field=True, index=True)
     gameId: int
     name: str
-    slug: str
+    slug: str = Field(index=True)
     links: Optional[Links] = None
     summary: str
     status: Optional[int] = None
@@ -263,7 +264,7 @@ class Pagination(BaseModel):
 
 # TODO: add latestFiles Mod reference but not refresh while refreshing File
 class Fingerprint(Model):
-    id: int = Field(primary_field=True)
+    id: int = Field(primary_field=True, index=True)
     file: FileInfo
     latestFiles: List[FileInfo]
 

@@ -39,6 +39,7 @@ def init_file_cdn():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.aio_redis_engine = init_redis_aioengine()
+    await app.state.aio_redis_engine.flushall()
     app.state.aio_mongo_engine = init_mongodb_aioengine()
     await setup_async_mongodb(app.state.aio_mongo_engine)
 
@@ -48,7 +49,6 @@ async def lifespan(app: FastAPI):
     if mcim_config.file_cdn:
         app.state.file_cdn_redis_async_engine = init_file_cdn_redis_async_engine()
         init_file_cdn()
-        
 
     yield
 
