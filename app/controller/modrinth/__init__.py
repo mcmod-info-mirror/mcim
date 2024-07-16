@@ -405,7 +405,7 @@ async def modrinth_file_update(
         ):
             sync_project.send(project_id=version_result["project_id"])
             log.debug(
-                f"Project {version_result["project_id"]} expired, send sync task."
+                f"Project {version_result['project_id']} expired, send sync task."
             )
             trustable = False
     else:
