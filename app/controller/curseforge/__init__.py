@@ -250,7 +250,7 @@ class fileIds_item(BaseModel):
 @curseforge_router.post(
     "/mods/files",
     description="Curseforge Mod 文件信息",
-    response_model=List[File],
+    response_model=CurseforgeBaseResponse,
 )
 @cache(expire=mcim_config.expire_second.curseforge.file)
 async def curseforge_mod_files(item: fileIds_item, request: Request):
