@@ -35,13 +35,14 @@ mcim_config = MCIMConfig.load()
 aria2_config = Aria2Config.load()
 
 API = mcim_config.modrinth_api
+MAX_LENGTH = 1024 * 10024 * 20
 
 
 def submit_models(models: List[Union[Project, File, Version]]):
     if mcim_config.file_cdn:
         for model in models:
             if isinstance(model, File):
-                if not model.file_cdn_cached:
+                if not model.file_cdn_cached and model.size <= MAX_LENGTH:
                     if not os.path.exists(
                         os.path.join(
                             mcim_config.modrinth_download_path, model.hashes.sha512
