@@ -34,16 +34,20 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
 
 不可信的响应将在 `headers` 内提供 `Trustable` 参数，提供 `sync_at` 缓存时间
 
+关于文件缓存，不会缓存**除 Mod 外**的整合包、资源包、材质包、地图等，以及文件大小大于 **20M** 的文件，curseforge 的类型限制为 `classId=6`，该限制会被可能更改。
+
+已缓存符合条件的所有 Modrinth 上的 Mod，Curseforge 技术受限正在缓慢添加。
+
 ## 注意事项
 
-请联系在 [启动器信息](https://github.com/mcmod-info-mirror/mcim/issues/4)，留下 UA 以方便统计
+请联系在 [启动器信息](https://github.com/mcmod-info-mirror/mcim/issues/4)，留下 UA 以方便统计。
 
 记得在 `headers` 加上您的项目的 UA，例如
 
 - PCL2/2.3.0.50 Mozilla/5.0 AppleWebKit/537.36 Chrome/63.0.3239.132 Safari/537.36
 - HMCL/3.3.172 Java/1.8.0_261
 
-**文件**下载可能存在一定的不稳定性，当前缺少多节点网盘的分流，建议启动器在未能成功下载的情况下才尝试使用镜像源
+**文件**下载可能存在一定的不稳定性，当前缺少多节点网盘的分流，建议启动器在未能成功下载的情况下才尝试使用镜像源。
 
 未缓存部分接口，如果有 API 需要更新或新增请联系。
 
