@@ -167,6 +167,7 @@ class File(Model):
     dependencies: Optional[List[FileDependencies]] = None
     fileFingerprint: Optional[int] = None
 
+    need_to_cache: bool = True # 不缓存 Mod 以外的东西，在获得 mod 类型的时候设置
     file_cdn_cached: bool = False
     found: bool = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)

@@ -18,15 +18,21 @@ mcim_config = MCIMConfig.load()
 aria2_config = Aria2Config.load()
 
 API = mcim_config.curseforge_api
-
-headers = {"x-api-key": mcim_config.curseforge_api_key}
+MAX_LENGTH = 1024 * 10024 * 20
+MIN_DOWNLOAD_COUNT = 500
+HEADERS = {"x-api-key": mcim_config.curseforge_api_key}
 
 
 def submit_models(models: List[Union[File, Mod, Fingerprint]]):
     if mcim_config.file_cdn:
         for model in models:
             if isinstance(model, File):
-                if not model.file_cdn_cached:
+                if (
+                    not model.file_cdn_cached
+                    and model.gameId == 432
+                    and model.fileLength <= MAX_LENGTH
+                    and model.downloadCount >= MIN_DOWNLOAD_COUNT
+                ):
                     if not os.path.exists(
                         os.path.join(
                             mcim_config.curseforge_download_path, model.hashes[0].value
@@ -44,15 +50,15 @@ def submit_models(models: List[Union[File, Mod, Fingerprint]]):
 
 @actor
 def check_alive():
-    return request_sync(API, headers=headers).text
+    return request_sync(API, headers=HEADERS).text
 
 
 def append_model_from_files_res(
-    res, latestFiles: dict
+    res, latestFiles: dict, need_to_cache: bool = True
 ) -> List[Union[File, Fingerprint]]:
     models = []
     for file in res["data"]:
-        models.append(File(found=True, **file))
+        models.append(File(found=True, need_to_cache=need_to_cache, **file))
         models.append(
             Fingerprint(
                 id=file["fileFingerprint"],
@@ -66,28 +72,34 @@ def append_model_from_files_res(
 
 @actor
 def sync_mod_all_files(
-    modId: int, latestFiles: List[dict] = None
+    modId: int, latestFiles: List[dict] = None, need_to_cache: bool = True
 ) -> List[Union[File, Mod]]:
     models = []
     if not latestFiles:
-        latestFiles = request_sync(f"{API}/v1/mods/{modId}", headers=headers).json()[
+        data = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()[
             "data"
-        ]["latestFiles"]
+        ]
+        latestFiles = data["latestFiles"]
+        need_to_cache = True if data["classId"] == 6 else False
 
     res = request_sync(
         f"{API}/v1/mods/{modId}/files",
-        headers=headers,
+        headers=HEADERS,
         params={"index": 0, "pageSize": 50},
     ).json()
-    models.extend(append_model_from_files_res(res, latestFiles))
+    models.extend(
+        append_model_from_files_res(res, latestFiles, need_to_cache=need_to_cache)
+    )
     page = Pagination(**res["pagination"])
     # index A zero based index of the first item to include in the response, the limit is: (index + pageSize <= 10,000).
     while page.index < page.totalCount - 1:
         params = {"index": page.index + page.pageSize, "pageSize": page.pageSize}
         res = request_sync(
-            f"{API}/v1/mods/{modId}/files", headers=headers, params=params
+            f"{API}/v1/mods/{modId}/files", headers=HEADERS, params=params
         ).json()
-        models.extend(append_model_from_files_res(res, latestFiles))
+        models.extend(
+            append_model_from_files_res(res, latestFiles, need_to_cache=need_to_cache)
+        )
         page = Pagination(**res["pagination"])
 
     return models
@@ -106,9 +118,15 @@ def sync_multi_mods_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
 @actor
 def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
-    res = request_sync(f"{API}/v1/mods/{modId}", headers=headers).json()["data"]
+    res = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()["data"]
     models.append(Mod(found=True, **res))
-    models.extend(sync_mod_all_files(modId, latestFiles=res["latestFiles"]))
+    models.extend(
+        sync_mod_all_files(
+            modId,
+            latestFiles=res["latestFiles"],
+            need_to_cache=True if res["classId"] == 6 else False,
+        )
+    )
     submit_models(models)
 
 
@@ -117,7 +135,7 @@ def sync_mutil_mods(modIds: List[int]):
     modIds = list(set(modIds))
     data = {"modIds": modIds}
     res = request_sync(
-        method="POST", url=f"{API}/v1/mods", json=data, headers=headers
+        method="POST", url=f"{API}/v1/mods", json=data, headers=HEADERS
     ).json()["data"]
     models: List[Union[File, Mod]] = []
     for mod in res:
@@ -131,9 +149,9 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     # res = request_sync(f"{API}/v1/mods/{modId}/files/{fileId}", headers=headers).json()[
     #     "data"
     # ]
-    latestFiles = request_sync(f"{API}/v1/mods/{modId}", headers=headers).json()[
-        "data"
-    ]["latestFiles"]
+    # latestFiles = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()[
+    #     "data"
+    # ]["latestFiles"]
     # models = [
     #     File(found=True, **res),
     #     Fingerprint(
@@ -142,8 +160,9 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     # ]
     # 下面会拉取所有文件，不重复添加
     models = []
-    if not expire:
-        models.extend(sync_mod_all_files(modId, latestFiles=latestFiles))
+    # if not expire:
+        # models.extend(sync_mod_all_files(modId, latestFiles=latestFiles))
+    models.extend(sync_mod_all_files(modId))
     submit_models(models)
 
 
@@ -153,7 +172,7 @@ def sync_mutil_files(fileIds: List[int]):
     res = request_sync(
         method="POST",
         url=f"{API}/v1/mods/files",
-        headers=headers,
+        headers=HEADERS,
         json={"fileIds": fileIds},
     ).json()["data"]
     for file in res:
@@ -167,10 +186,10 @@ def sync_fingerprints(fingerprints: List[int]):
     res = request_sync(
         method="POST",
         url=f"{API}/v1/fingerprints/432",
-        headers=headers,
+        headers=HEADERS,
         json={"fingerprints": fingerprints},
     ).json()
-    models = []
+    models: List[Fingerprint] = []
     for file in res["data"]["exactMatches"]:
         models.append(
             Fingerprint(
@@ -187,7 +206,7 @@ def sync_fingerprints(fingerprints: List[int]):
 @actor
 def sync_categories():
     res = request_sync(
-        f"{API}/v1/categories", headers=headers, params={"gameId": "432"}
+        f"{API}/v1/categories", headers=HEADERS, params={"gameId": "432"}
     ).json()["data"]
     redis_engine.hset("curseforge", "categories", json.dumps(res))
 

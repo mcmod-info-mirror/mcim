@@ -110,6 +110,11 @@ if mcim_config.file_cdn:
                         url=alist_url, headers={"Cache-Control": "public, no-cache"}
                     )
                 else:
+                    if not file.need_to_cache:
+                        return RedirectResponse(
+                            url=file.downloadUrl,
+                            headers={"Cache-Control": "public, max-age=31536000"}, # 我就没打算存你
+                        )
                     if ARIA2_ENABLED:
                         cf_file_cdn_cache_add_task.send(file.model_dump())
                         log.debug(
