@@ -13,6 +13,7 @@ mcim_config = MCIMConfig.load()
 LOG_PATH = "logs"
 os.makedirs(LOG_PATH, exist_ok=True)
 
+ENABLED: bool = False
 
 class Logger:
     """输出日志到文件和控制台"""
@@ -63,18 +64,21 @@ class Logger:
         return self.logger
 
     def init_config(self):
-        LOGGER_NAMES = ("uvicorn.asgi", "uvicorn.access", "uvicorn")
+        global ENABLED
+        if not ENABLED:
+            LOGGER_NAMES = ("uvicorn.asgi", "uvicorn.access", "uvicorn")
 
-        # change handler for default uvicorn logger
-        logging.getLogger().handlers = [InterceptHandler()]
-        for logger_name in LOGGER_NAMES:
-            logging_logger = logging.getLogger(logger_name)
-            # log level
-            if not mcim_config.debug:
-                logging_logger.setLevel(logging.INFO)
-            else:
-                logging_logger.setLevel(logging.DEBUG)
-            logging_logger.handlers = [InterceptHandler()]
+            # change handler for default uvicorn logger
+            logging.getLogger().handlers = [InterceptHandler()]
+            for logger_name in LOGGER_NAMES:
+                logging_logger = logging.getLogger(logger_name)
+                # log level
+                if not mcim_config.debug:
+                    logging_logger.setLevel(logging.INFO)
+                else:
+                    logging_logger.setLevel(logging.DEBUG)
+                logging_logger.handlers = [InterceptHandler()]
+            ENABLED = True
 
 
 class InterceptHandler(logging.Handler):
@@ -98,4 +102,5 @@ class InterceptHandler(logging.Handler):
 
 
 Loggers = Logger()
+Loggers.init_config()
 log = Loggers.get_logger()

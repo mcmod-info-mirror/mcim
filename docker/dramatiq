@@ -7,4 +7,4 @@ RUN --mount=type=cache,target=/root/.cache/pip pip install -r requirements.txt
 
 COPY ./app ./app
 
-ENTRYPOINT [ "python", "-m", "dramatiq", "app.sync"]
+ENTRYPOINT ["python", "-m", "dramatiq", "app.sync"]

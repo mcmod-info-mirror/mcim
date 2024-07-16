@@ -45,6 +45,23 @@ services:
       - /opt/mcim/config:/config
       - /opt/mcim/logs:/logs
 
+  # mcim_api_gunicorn:
+  #   container_name: mcim_api_gunicorn
+  #   image: mcim_api
+  #   build:
+  #     context: .
+  #     dockerfile: ./docker/fastapi_gunicorn
+
+  #   ports:
+  #     - 8000:8000
+  #   restart: always
+  #   depends_on:
+  #     - mongodb
+  #     - redis
+  #   volumes:
+  #     - /opt/mcim/config:/config
+  #     - /opt/mcim/logs:/logs
+
   mcim_sync:
     container_name: mcim_sync
     image: mcim_sync

@@ -10,4 +10,4 @@ RUN --mount=type=cache,target=/root/.cache/pip pip install -r requirements.txt
 COPY start.py .
 COPY ./app ./app
 
-ENTRYPOINT ["python", "start.py"]
+ENTRYPOINT ["uvicorn", "app:APP", "--host", "0.0.0.0", "--port", "8000"]
