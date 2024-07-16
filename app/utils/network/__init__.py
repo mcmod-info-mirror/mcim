@@ -196,8 +196,11 @@ def download_file_sync(
     下载文件
     """
     if not ignore_exist and os.path.exists(path):
-        if os.path.getsize(path) == size and verify_hash(
-            path=path, hash_=hash_, algo=algo
+        if (os.path.getsize(path) == size 
+        #     and 
+        #     verify_hash(
+        #     path=path, hash_=hash_, algo=algo
+        # )
         ):
             log.debug(f"File {path} exists {hash_}")
     log.debug(f"Downloading file from {url} to {path}")
