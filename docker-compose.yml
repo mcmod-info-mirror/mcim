@@ -76,4 +76,4 @@ services:
     volumes:
       - /opt/mcim/config:/config
       - /opt/mcim/logs:/logs
-      - /data:alist:/data # rclone 挂载位置
+      - /data/alist:/data # rclone 挂载位置
