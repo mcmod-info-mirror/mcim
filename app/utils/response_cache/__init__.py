@@ -57,7 +57,7 @@ def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
 
             if value is not None:
                 value = orjson.loads(value)
-                log.debug(f"Cached response: [{key}]:[{value}]")
+                log.debug(f"Cached response: [{key}]")
                 return ResponseBuilder.decode(value)
 
             result = await func(*args, **kwargs)
@@ -78,7 +78,7 @@ def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
                 await Cache.backend.set(key, value)
             else:
                 await Cache.backend.set(key, value, ex=expire)
-            log.debug(f"Set cache: [{key}]:[{to_set}]")
+            log.debug(f"Set cache: [{key}]")
 
             return result
 
