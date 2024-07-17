@@ -104,3 +104,5 @@ class InterceptHandler(logging.Handler):
 Loggers = Logger()
 Loggers.init_config()
 log = Loggers.get_logger()
+
+logging.getLogger("httpx").propagate = False
