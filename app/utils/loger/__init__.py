@@ -101,17 +101,6 @@ class InterceptHandler(logging.Handler):
             record.getMessage(),
         )
 
-def beijing(sec, what):
-    """日志返回北京时间的处理"""
-    utc_dt = datetime.now(timezone.utc) # 获取当前时间
-    beijing_time = utc_dt.astimezone(timezone(timedelta(hours=8))) # 转换为北京时间
-    return beijing_time.timetuple()
-
-# 日志时间改为北京时间
-logging.Formatter.converter = beijing
-
 Loggers = Logger()
 Loggers.init_config()
 log = Loggers.get_logger()
-
-logging.getLogger("httpx").propagate = False

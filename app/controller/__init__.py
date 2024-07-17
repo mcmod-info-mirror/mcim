@@ -7,6 +7,8 @@ from app.controller.curseforge import curseforge_router
 from app.models.database.curseforge import File as cfFile
 from app.models.database.modrinth import File as mrFile
 from app.config import MCIMConfig
+from app.utils.loger import log
+from app.utils.response_cache import cache
 from app.sync.curseforge import file_cdn_url_cache as cf_file_cdn_url_cache
 from app.sync.modrinth import file_cdn_url_cache as mr_file_cdn_url_cache
 from app.sync.modrinth import file_cdn_cache_add_task as mr_file_cdn_cache_add_task
@@ -15,16 +17,14 @@ from app.sync.curseforge import file_cdn_cache as cf_file_cdn_cache
 from app.sync.modrinth import file_cdn_cache as mr_file_cdn_cache
 from app.sync.modrinth import sync_project
 from app.sync.curseforge import sync_mutil_files
-from app.utils.loger import log
-from app.utils.response_cache import cache
+
 
 mcim_config = MCIMConfig.load()
 
 controller_router = APIRouter()
-
-
 controller_router.include_router(curseforge_router)
 controller_router.include_router(modrinth_router)
+
 # expire 3h
 
 ARIA2_ENABLED: bool = mcim_config.aria2
@@ -33,7 +33,7 @@ if mcim_config.file_cdn:
     # modrinth | example: https://cdn.modrinth.com/data/AANobbMI/versions/IZskON6d/sodium-fabric-0.5.8%2Bmc1.20.6.jar
     # WARNING: 直接查 version_id 忽略 project_id
     # WARNING: 必须文件名一致
-    @controller_router.get("/data/{project_id}/versions/{version_id}/{file_name}")
+    @controller_router.get("/data/{project_id}/versions/{version_id}/{file_name}", tags=["modrinth"])
     @cache(expire=int(60 * 60 * 2.8))
     async def get_modrinth_file(
         project_id: str, version_id: str, file_name: str, request: Request
@@ -80,7 +80,7 @@ if mcim_config.file_cdn:
         return RedirectResponse(url=url, headers={"Cache-Control": "public, no-cache"})
 
     # curseforge | example: https://edge.forgecdn.net/files/3040/523/jei_1.12.2-4.16.1.301.jar
-    @controller_router.get("/files/{fileid1}/{fileid2}/{file_name}")
+    @controller_router.get("/files/{fileid1}/{fileid2}/{file_name}", tags=["curseforge"])
     @cache(expire=int(60 * 60 * 2.8))
     async def get_curseforge_file(
         fileid1: str, fileid2: str, file_name: str, request: Request
