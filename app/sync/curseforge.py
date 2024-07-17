@@ -251,18 +251,20 @@ def file_cdn_cache(file: dict):
         if hash_info.algo == 1:
             hash_ = hash_info.value
             break
-    url = file.downloadUrl.replace("edge", "mediafilez")
-    try:
-        download_file_sync(
-            url=url,
-            path=os.path.join(mcim_config.curseforge_download_path, hash_[:2], hash_),
-            hash_=hash_,
-            algo="sha1",
-            size=file.fileLength,
-            ignore_exist=False,
-        )
-        file.file_cdn_cached = True
-        mongodb_engine.save(file)
-        log.debug(f"Cached file {file.hashes}")
-    except Exception as e:
-        log.debug(f"Failed to cache file {file.hashes} {e}")
+    url = file.downloadUrl
+    # url = file.downloadUrl.replace("edge", "mediafilez")
+    if url is not None:
+        try:
+            download_file_sync(
+                url=url,
+                path=os.path.join(mcim_config.curseforge_download_path, hash_[:2], hash_),
+                hash_=hash_,
+                algo="sha1",
+                size=file.fileLength,
+                ignore_exist=False,
+            )
+            file.file_cdn_cached = True
+            mongodb_engine.save(file)
+            log.debug(f"Cached file {file.hashes}")
+        except Exception as e:
+            log.debug(f"Failed to cache file {file.hashes} {e}")
