@@ -5,6 +5,9 @@
 import os
 import hashlib
 import httpx
+import tempfile
+import shutil
+
 from tenacity import retry, stop_after_attempt
 from typing import Optional, Union
 from app.exceptions import ApiException, ResponseCodeException
@@ -186,28 +189,46 @@ async def request(
 @retry(stop=stop_after_attempt(RETRY_TIMES), reraise=True)
 def download_file_sync(
     url: str,
-    path: str,
-    hash_: Optional[str] = None,
+    path: Optional[str] = None,
+    hash_: Optional[dict] = None,
     algo: Optional[str] = None,
     size: Optional[int] = None,
     ignore_exist: bool = True,
 ):
     """
     下载文件
+
+    path: /data/curseforge
+
+    hash_: {"sha1": "xxx", "md5": "xxx", "sha512": "xxx"}
     """
-    if not ignore_exist:
-        if os.path.exists(path):
-            if (os.path.getsize(path) == size 
-        #     and 
-        #     verify_hash(
-        #     path=path, hash_=hash_, algo=algo
-        # )
-            ):
-                log.debug(f"File {path} exists {hash_}")
-    log.debug(f"Downloading file from {url} to {path}")
+    if not hash_:
+        sha1 = hashlib.sha1()
+        sha512 = hashlib.sha512()
+        md5 = hashlib.md5()
+    if not ignore_exist and hash_:
+        raw_path = os.path.join(path, hash_["sha1"][:2], hash_["sha1"])
+        if os.path.exists(raw_path):
+            if os.path.getsize(raw_path) == size:
+                log.debug(f"File {path} exists {raw_path}")
+                return
+    log.debug(f"Downloading file from {url}")
     client = get_session()
-    with open(path, "wb") as f:
+    with tempfile.NamedTemporaryFile(delete=False) as f:
         with client.stream("GET", url, timeout=30) as response:
             for chunk in response.iter_bytes(1024):
                 f.write(chunk)
-    log.debug(f"Downloaded file from {url} to {path}")
+                if not hash_:
+                    sha1.update(chunk)
+                    md5.update(chunk)
+                    sha512.update(chunk)
+        tmp_file_path = f.name
+        if not hash_:
+            hash_["sha1"] = sha1.hexdigest()
+            hash_["md5"] = md5.hexdigest()
+            hash_["sha512"] = sha512.hexdigest()
+        raw_path = os.path.join(path, hash_["sha1"][:2], hash_["sha1"])
+        shutil.move(tmp_file_path, raw_path)
+
+    log.debug(f"Downloaded file from {url} to {raw_path}")
+    return hash_
