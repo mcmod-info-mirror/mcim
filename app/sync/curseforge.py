@@ -261,7 +261,7 @@ def file_cdn_cache(file: dict):
     # url = file.downloadUrl.replace("edge", "mediafilez")
     if url is not None:
         try:
-            if hash_:
+            if len(hash_) == 2:
                 hashes_dict = download_file_sync(
                     url=url,
                     path=mcim_config.curseforge_download_path,
@@ -275,13 +275,15 @@ def file_cdn_cache(file: dict):
                     path=mcim_config.curseforge_download_path,
                     ignore_exist=False,
                 )
+            
             if len(file.hashes) == 0:
                 file.hashes = [
                     {"algo": 1, "value": hashes_dict["sha1"]},
                     {"algo": 2, "value": hashes_dict["md5"]},
                 ]
+        except Exception as e:
+            log.debug(f"Failed to cache file {file.hashes} {e}")
             file.file_cdn_cached = True
             mongodb_engine.save(file)
             log.debug(f"Cached file {file.hashes}")
-        except Exception as e:
-            log.debug(f"Failed to cache file {file.hashes} {e}")
+
