@@ -82,7 +82,6 @@ def sync_mod_all_files(
         )
         page = Pagination(**res["pagination"])
 
-    log.debug(f"Start send mod {modId} files cache tasks")
     if mcim_config.file_cdn:
         for model in models:
             if isinstance(model, File):
@@ -104,7 +103,7 @@ def sync_mod_all_files(
                             else:
                                 file_cdn_cache.send(model.model_dump())
 
-                            log.debug(f"File {model.id} cache task added")
+                            log.trace(f"File {model.id} cache task added")
                         else:
                             model.file_cdn_cached = True
                     else:
