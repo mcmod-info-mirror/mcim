@@ -67,7 +67,7 @@ def append_model_from_files_res(
         models.append(File(found=True, need_to_cache=need_to_cache, **file))
         models.append(
             Fingerprint(
-                fingerprint=file["fileFingerprint"],
+                id=file["fileFingerprint"],
                 file=file,
                 latestFiles=latestFiles,
                 found=True,
@@ -123,8 +123,6 @@ def sync_multi_mods_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
 def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
     res = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()["data"]
-    res["modId"] = modId
-    del res["id"]
     models.append(Mod(found=True, **res))
     models.extend(
         sync_mod_all_files(
@@ -145,8 +143,6 @@ def sync_mutil_mods(modIds: List[int]):
     ).json()["data"]
     models: List[Union[File, Mod]] = []
     for mod in res:
-        res["modId"] = mod["id"]
-        del res["id"]
         models.append(Mod(found=True, **mod))
     models.extend(sync_multi_mods_all_files([model.modId for model in models]))
     submit_models(models)
@@ -201,7 +197,7 @@ def sync_fingerprints(fingerprints: List[int]):
     for file in res["data"]["exactMatches"]:
         models.append(
             Fingerprint(
-                fingerprint=file["file"]["fileFingerprint"],
+                id=file["file"]["fileFingerprint"],
                 file=file["file"],
                 latestFiles=file["latestFiles"],
                 found=True,
@@ -265,7 +261,7 @@ def file_cdn_cache(file: dict):
     # url = file.downloadUrl.replace("edge", "mediafilez")
     if url is not None:
         try:
-            if hash_:
+            if len(hash_) == 2:
                 hashes_dict = download_file_sync(
                     url=url,
                     path=mcim_config.curseforge_download_path,
@@ -279,13 +275,15 @@ def file_cdn_cache(file: dict):
                     path=mcim_config.curseforge_download_path,
                     ignore_exist=False,
                 )
+            
             if len(file.hashes) == 0:
                 file.hashes = [
                     {"algo": 1, "value": hashes_dict["sha1"]},
                     {"algo": 2, "value": hashes_dict["md5"]},
                 ]
+        except Exception as e:
+            log.debug(f"Failed to cache file {file.hashes} {e}")
             file.file_cdn_cached = True
             mongodb_engine.save(file)
             log.debug(f"Cached file {file.hashes}")
-        except Exception as e:
-            log.debug(f"Failed to cache file {file.hashes} {e}")
+
