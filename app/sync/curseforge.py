@@ -3,6 +3,7 @@ from dramatiq import actor
 import json
 import os
 import time
+from traceback import print_exc
 
 
 from app.sync import sync_mongo_engine as mongodb_engine
@@ -20,12 +21,13 @@ aria2_config = Aria2Config.load()
 
 API = mcim_config.curseforge_api
 MAX_LENGTH = 1024 * 10024 * 20
-MIN_DOWNLOAD_COUNT = 500
+MIN_DOWNLOAD_COUNT = 0
 HEADERS = {"x-api-key": mcim_config.curseforge_api_key}
 
 
 def submit_models(models: List[Union[File, Mod, Fingerprint]]):
     mongodb_engine.save_all(models)
+    log.debug(f"Submited {len(models)}")
 
 
 @actor
@@ -80,7 +82,6 @@ def sync_mod_all_files(
         )
         page = Pagination(**res["pagination"])
 
-    log.debug(f"Start send mod {modId} files cache tasks")
     if mcim_config.file_cdn:
         for model in models:
             if isinstance(model, File):
@@ -102,7 +103,7 @@ def sync_mod_all_files(
                             else:
                                 file_cdn_cache.send(model.model_dump())
 
-                            log.debug(f"File {model.id} cache task added")
+                            log.trace(f"File {model.id} cache task added")
                         else:
                             model.file_cdn_cached = True
                     else:
@@ -264,7 +265,7 @@ def file_cdn_cache(file: dict):
     # url = file.downloadUrl.replace("edge", "mediafilez")
     if url is not None:
         try:
-            if len(hash_) == 2:
+            if len(hash_.values()) == 2:
                 hashes_dict = download_file_sync(
                     url=url,
                     path=mcim_config.curseforge_download_path,
@@ -278,15 +279,15 @@ def file_cdn_cache(file: dict):
                     path=mcim_config.curseforge_download_path,
                     ignore_exist=False,
                 )
-            
-            if len(file.hashes) == 0:
-                file.hashes = [
-                    {"algo": 1, "value": hashes_dict["sha1"]},
-                    {"algo": 2, "value": hashes_dict["md5"]},
-                ]
-        except Exception as e:
-            log.debug(f"Failed to cache file {file.hashes} {e}")
+            if file.hashes is not None:
+                if len(file.hashes) == 0:
+                    file.hashes = [
+                        {"algo": 1, "value": hashes_dict["sha1"]},
+                        {"algo": 2, "value": hashes_dict["md5"]},
+                    ]
             file.file_cdn_cached = True
             mongodb_engine.save(file)
-            log.debug(f"Cached file {file.hashes}")
+        except Exception as e:
+            log.exception(e)
+            log.error(f"Failed to cache file {file.hashes}")
 
