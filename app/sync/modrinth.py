@@ -306,17 +306,17 @@ def file_cdn_cache_add_task(file: dict):
         elif download.has_failed:
             return download.error_message
 
-
+# 默认 modrinth 提供 hashes 我累了
 @actor(actor_name="mr_file_cdn_cache")
 def file_cdn_cache(file: dict):
     file: File = File(**file)
-    sha1 = file.hashes.sha1
+    if file.hashes:
+        hash_ = {"sha1": file.hashes.sha1}
     try:
         download_file_sync(
             url=file.url,
-            path=os.path.join(mcim_config.modrinth_download_path, sha1[:2], sha1),
-            hash_=sha1,
-            algo="sha1",
+            path=mcim_config.modrinth_download_path,
+            hash_=hash_,
             size=file.size,
             ignore_exist=False,
         )

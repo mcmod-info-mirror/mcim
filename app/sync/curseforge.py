@@ -4,6 +4,7 @@ import json
 import os
 import time
 
+
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
 from app.sync import file_cdn_redis_sync_engine
@@ -33,18 +34,23 @@ def submit_models(models: List[Union[File, Mod, Fingerprint]]):
                     and model.fileLength <= MAX_LENGTH
                     and model.downloadCount >= MIN_DOWNLOAD_COUNT
                 ):
-                    if not os.path.exists(
-                        os.path.join(
-                            mcim_config.curseforge_download_path, model.hashes[0].value
-                        )
-                    ):
-                        if mcim_config.aria2:
-                            file_cdn_cache_add_task.send(model.model_dump())
+                    if len(model.hashes) != 0:
+                        if not os.path.exists(
+                            os.path.join(
+                                mcim_config.curseforge_download_path,
+                                model.hashes[0].value,
+                            )
+                        ):
+                            if mcim_config.aria2:
+                                file_cdn_cache_add_task.send(model.model_dump())
+                            else:
+                                file_cdn_cache.send(model.model_dump())
                         else:
-                            file_cdn_cache.send(model.model_dump())
+                            model.file_cdn_cached = True
                     else:
-                        model.file_cdn_cached = True
-                        mongodb_engine.save(model)
+                        file_cdn_cache.send(model.model_dump())
+                        log.debug(f"File {model.id} has no hash")
+
     mongodb_engine.save_all(models)
 
 
@@ -61,7 +67,7 @@ def append_model_from_files_res(
         models.append(File(found=True, need_to_cache=need_to_cache, **file))
         models.append(
             Fingerprint(
-                id=file["fileFingerprint"],
+                fingerprint=file["fileFingerprint"],
                 file=file,
                 latestFiles=latestFiles,
                 found=True,
@@ -76,9 +82,7 @@ def sync_mod_all_files(
 ) -> List[Union[File, Mod]]:
     models = []
     if not latestFiles:
-        data = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()[
-            "data"
-        ]
+        data = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()["data"]
         latestFiles = data["latestFiles"]
         need_to_cache = True if data["classId"] == 6 else False
 
@@ -119,6 +123,8 @@ def sync_multi_mods_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
 def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
     res = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()["data"]
+    res["modId"] = modId
+    del res["id"]
     models.append(Mod(found=True, **res))
     models.extend(
         sync_mod_all_files(
@@ -139,8 +145,10 @@ def sync_mutil_mods(modIds: List[int]):
     ).json()["data"]
     models: List[Union[File, Mod]] = []
     for mod in res:
+        res["modId"] = mod["id"]
+        del res["id"]
         models.append(Mod(found=True, **mod))
-    models.extend(sync_multi_mods_all_files([model.id for model in models]))
+    models.extend(sync_multi_mods_all_files([model.modId for model in models]))
     submit_models(models)
 
 
@@ -161,7 +169,7 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     # 下面会拉取所有文件，不重复添加
     models = []
     # if not expire:
-        # models.extend(sync_mod_all_files(modId, latestFiles=latestFiles))
+    # models.extend(sync_mod_all_files(modId, latestFiles=latestFiles))
     models.extend(sync_mod_all_files(modId))
     submit_models(models)
 
@@ -193,7 +201,7 @@ def sync_fingerprints(fingerprints: List[int]):
     for file in res["data"]["exactMatches"]:
         models.append(
             Fingerprint(
-                id=file["file"]["fileFingerprint"],
+                fingerprint=file["file"]["fileFingerprint"],
                 file=file["file"],
                 latestFiles=file["latestFiles"],
                 found=True,
@@ -247,22 +255,35 @@ def file_cdn_cache_add_task(file: dict):
 @actor(actor_name="cf_file_cdn_cache")
 def file_cdn_cache(file: dict):
     file: File = File(**file)
+    hash_ = {}
     for hash_info in file.hashes:
         if hash_info.algo == 1:
-            hash_ = hash_info.value
-            break
+            hash_["sha1"] = hash_info.value
+        if hash_info.algo == 2:
+            hash_["md5"] = hash_info.value
     url = file.downloadUrl
     # url = file.downloadUrl.replace("edge", "mediafilez")
     if url is not None:
         try:
-            download_file_sync(
-                url=url,
-                path=os.path.join(mcim_config.curseforge_download_path, hash_[:2], hash_),
-                hash_=hash_,
-                algo="sha1",
-                size=file.fileLength,
-                ignore_exist=False,
-            )
+            if hash_:
+                hashes_dict = download_file_sync(
+                    url=url,
+                    path=mcim_config.curseforge_download_path,
+                    hash_=hash_,
+                    size=file.fileLength,
+                    ignore_exist=False,
+                )
+            else:
+                hashes_dict = download_file_sync(
+                    url=url,
+                    path=mcim_config.curseforge_download_path,
+                    ignore_exist=False,
+                )
+            if len(file.hashes) == 0:
+                file.hashes = [
+                    {"algo": 1, "value": hashes_dict["sha1"]},
+                    {"algo": 2, "value": hashes_dict["md5"]},
+                ]
             file.file_cdn_cached = True
             mongodb_engine.save(file)
             log.debug(f"Cached file {file.hashes}")

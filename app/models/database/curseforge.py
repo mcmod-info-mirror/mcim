@@ -16,7 +16,10 @@ class FileSortableGameVersions(BaseModel):
     gameVersionReleaseDate: Optional[str] = None
     gameVersionTypeId: Optional[int] = None
 
-
+"""
+1=Sha1
+2=Md5
+"""
 class Hash(BaseModel):
     value: str
     algo: int
