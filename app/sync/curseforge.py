@@ -26,6 +26,7 @@ HEADERS = {"x-api-key": mcim_config.curseforge_api_key}
 
 def submit_models(models: List[Union[File, Mod, Fingerprint]]):
     mongodb_engine.save_all(models)
+    log.debug(f"Submited {len(models)}")
 
 
 @actor
@@ -264,7 +265,7 @@ def file_cdn_cache(file: dict):
     # url = file.downloadUrl.replace("edge", "mediafilez")
     if url is not None:
         try:
-            if len(hash_) == 2:
+            if len(hash_.values()) == 2:
                 hashes_dict = download_file_sync(
                     url=url,
                     path=mcim_config.curseforge_download_path,
@@ -278,14 +279,14 @@ def file_cdn_cache(file: dict):
                     path=mcim_config.curseforge_download_path,
                     ignore_exist=False,
                 )
-            
-            if len(file.hashes) == 0:
-                file.hashes = [
-                    {"algo": 1, "value": hashes_dict["sha1"]},
-                    {"algo": 2, "value": hashes_dict["md5"]},
-                ]
+            if file.hashes is not None:
+                if len(file.hashes) == 0:
+                    file.hashes = [
+                        {"algo": 1, "value": hashes_dict["sha1"]},
+                        {"algo": 2, "value": hashes_dict["md5"]},
+                    ]
         except Exception as e:
-            log.debug(f"Failed to cache file {file.hashes} {e}")
+            log.error(f"Failed to cache file {file.hashes} {e}")
             file.file_cdn_cached = True
             mongodb_engine.save(file)
             log.debug(f"Cached file {file.hashes}")
