@@ -25,32 +25,6 @@ HEADERS = {"x-api-key": mcim_config.curseforge_api_key}
 
 
 def submit_models(models: List[Union[File, Mod, Fingerprint]]):
-    if mcim_config.file_cdn:
-        for model in models:
-            if isinstance(model, File):
-                if (
-                    not model.file_cdn_cached
-                    and model.gameId == 432
-                    and model.fileLength <= MAX_LENGTH
-                    and model.downloadCount >= MIN_DOWNLOAD_COUNT
-                ):
-                    if len(model.hashes) != 0:
-                        if not os.path.exists(
-                            os.path.join(
-                                mcim_config.curseforge_download_path,
-                                model.hashes[0].value,
-                            )
-                        ):
-                            if mcim_config.aria2:
-                                file_cdn_cache_add_task.send(model.model_dump())
-                            else:
-                                file_cdn_cache.send(model.model_dump())
-                        else:
-                            model.file_cdn_cached = True
-                    else:
-                        file_cdn_cache.send(model.model_dump())
-                        log.debug(f"File {model.id} has no hash")
-
     mongodb_engine.save_all(models)
 
 
@@ -105,6 +79,35 @@ def sync_mod_all_files(
             append_model_from_files_res(res, latestFiles, need_to_cache=need_to_cache)
         )
         page = Pagination(**res["pagination"])
+
+    log.debug(f"Start send mod {modId} files cache tasks")
+    if mcim_config.file_cdn:
+        for model in models:
+            if isinstance(model, File):
+                if (
+                    not model.file_cdn_cached
+                    and model.gameId == 432
+                    and model.fileLength <= MAX_LENGTH
+                    and model.downloadCount >= MIN_DOWNLOAD_COUNT
+                ):
+                    if len(model.hashes) != 0:
+                        if not os.path.exists(
+                            os.path.join(
+                                mcim_config.curseforge_download_path,
+                                model.hashes[0].value,
+                            )
+                        ):
+                            if mcim_config.aria2:
+                                file_cdn_cache_add_task.send(model.model_dump())
+                            else:
+                                file_cdn_cache.send(model.model_dump())
+
+                            log.debug(f"File {model.id} cache task added")
+                        else:
+                            model.file_cdn_cached = True
+                    else:
+                        file_cdn_cache.send(model.model_dump())
+                        log.debug(f"File {model.id} has no hash")
 
     return models
 
