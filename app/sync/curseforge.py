@@ -67,7 +67,7 @@ def append_model_from_files_res(
         models.append(File(found=True, need_to_cache=need_to_cache, **file))
         models.append(
             Fingerprint(
-                id=file["fileFingerprint"],
+                fingerprint=file["fileFingerprint"],
                 file=file,
                 latestFiles=latestFiles,
                 found=True,
@@ -123,6 +123,8 @@ def sync_multi_mods_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
 def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
     res = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()["data"]
+    res["modId"] = modId
+    del res["id"]
     models.append(Mod(found=True, **res))
     models.extend(
         sync_mod_all_files(
@@ -143,6 +145,8 @@ def sync_mutil_mods(modIds: List[int]):
     ).json()["data"]
     models: List[Union[File, Mod]] = []
     for mod in res:
+        res["modId"] = mod["id"]
+        del res["id"]
         models.append(Mod(found=True, **mod))
     models.extend(sync_multi_mods_all_files([model.modId for model in models]))
     submit_models(models)
@@ -197,7 +201,7 @@ def sync_fingerprints(fingerprints: List[int]):
     for file in res["data"]["exactMatches"]:
         models.append(
             Fingerprint(
-                id=file["file"]["fileFingerprint"],
+                fingerprint=file["file"]["fileFingerprint"],
                 file=file["file"],
                 latestFiles=file["latestFiles"],
                 found=True,
