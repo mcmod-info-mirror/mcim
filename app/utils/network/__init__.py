@@ -190,7 +190,7 @@ async def request(
 def download_file_sync(
     url: str,
     path: Optional[str] = None,
-    hash_: Optional[dict] = None,
+    hash_: Optional[dict] = {},
     algo: Optional[str] = None,
     size: Optional[int] = None,
     ignore_exist: bool = True,
@@ -215,7 +215,7 @@ def download_file_sync(
     log.debug(f"Downloading file from {url}")
     client = get_session()
     with tempfile.NamedTemporaryFile(delete=False) as f:
-        with client.stream("GET", url, timeout=30) as response:
+        with client.stream("GET", url, timeout=30, follow_redirects=True) as response:
             for chunk in response.iter_bytes(1024):
                 f.write(chunk)
                 if not hash_:

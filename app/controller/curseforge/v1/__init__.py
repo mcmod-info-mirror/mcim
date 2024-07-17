@@ -247,7 +247,7 @@ class fileIds_item(BaseModel):
     response_model=CurseforgeBaseResponse,
 )
 @cache(expire=mcim_config.expire_second.curseforge.file)
-async def curseforge_mod_files(item: fileIds_item, request: Request):
+async def curseforge_files(item: fileIds_item, request: Request):
     trustable = True
     file_models = await request.app.state.aio_mongo_engine.find(
         File, query.in_(File.id, item.fileIds)
