@@ -123,8 +123,6 @@ def sync_multi_mods_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
 def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
     res = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()["data"]
-    res["modId"] = modId
-    del res["id"]
     models.append(Mod(found=True, **res))
     models.extend(
         sync_mod_all_files(
@@ -145,8 +143,6 @@ def sync_mutil_mods(modIds: List[int]):
     ).json()["data"]
     models: List[Union[File, Mod]] = []
     for mod in res:
-        res["modId"] = mod["id"]
-        del res["id"]
         models.append(Mod(found=True, **mod))
     models.extend(sync_multi_mods_all_files([model.modId for model in models]))
     submit_models(models)
