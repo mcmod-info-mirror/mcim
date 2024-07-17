@@ -67,7 +67,7 @@ def append_model_from_files_res(
         models.append(File(found=True, need_to_cache=need_to_cache, **file))
         models.append(
             Fingerprint(
-                fingerprint=file["fileFingerprint"],
+                id=file["fileFingerprint"],
                 file=file,
                 latestFiles=latestFiles,
                 found=True,
@@ -197,7 +197,7 @@ def sync_fingerprints(fingerprints: List[int]):
     for file in res["data"]["exactMatches"]:
         models.append(
             Fingerprint(
-                fingerprint=file["file"]["fileFingerprint"],
+                id=file["file"]["fileFingerprint"],
                 file=file["file"],
                 latestFiles=file["latestFiles"],
                 found=True,
