@@ -3,6 +3,7 @@ from dramatiq import actor
 import json
 import os
 import time
+from traceback import print_exc
 
 
 from app.sync import sync_mongo_engine as mongodb_engine
@@ -285,9 +286,9 @@ def file_cdn_cache(file: dict):
                         {"algo": 1, "value": hashes_dict["sha1"]},
                         {"algo": 2, "value": hashes_dict["md5"]},
                     ]
+            file.file_cdn_cached = True
+            mongodb_engine.save(file)
         except Exception as e:
-            log.error(f"Failed to cache file {file.hashes} {e}")
-            # file.file_cdn_cached = True
-            # mongodb_engine.save(file)
-            # log.debug(f"Cached file {file.hashes}")
+            log.exception(e)
+            log.error(f"Failed to cache file {file.hashes}")
 
