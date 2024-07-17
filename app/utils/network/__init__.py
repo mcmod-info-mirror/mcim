@@ -190,7 +190,7 @@ async def request(
 def download_file_sync(
     url: str,
     path: Optional[str] = None,
-    hash_: Optional[dict] = None,
+    hash_: Optional[dict] = {},
     algo: Optional[str] = None,
     size: Optional[int] = None,
     ignore_exist: bool = True,
