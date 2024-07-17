@@ -20,7 +20,7 @@ aria2_config = Aria2Config.load()
 
 API = mcim_config.curseforge_api
 MAX_LENGTH = 1024 * 10024 * 20
-MIN_DOWNLOAD_COUNT = 500
+MIN_DOWNLOAD_COUNT = 0
 HEADERS = {"x-api-key": mcim_config.curseforge_api_key}
 
 
@@ -287,7 +287,7 @@ def file_cdn_cache(file: dict):
                     ]
         except Exception as e:
             log.error(f"Failed to cache file {file.hashes} {e}")
-            file.file_cdn_cached = True
-            mongodb_engine.save(file)
-            log.debug(f"Cached file {file.hashes}")
+            # file.file_cdn_cached = True
+            # mongodb_engine.save(file)
+            # log.debug(f"Cached file {file.hashes}")
 
