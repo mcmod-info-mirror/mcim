@@ -202,8 +202,6 @@ def download_file_sync(
 
     hash_: {"sha1": "xxx", "md5": "xxx", "sha512": "xxx"}
     """
-    if "mediafilez" in url:
-        url.replace("+", "%2B")
     if not hash_:
         sha1 = hashlib.sha1()
         sha512 = hashlib.sha512()
