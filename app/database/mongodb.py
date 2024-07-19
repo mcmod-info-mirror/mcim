@@ -68,4 +68,4 @@ async def setup_async_mongodb(engine: AIOEngine) -> None:
 aio_mongo_engine: AIOEngine = init_mongodb_aioengine()
 sync_mongo_engine: SyncEngine = init_mongodb_syncengine()
 
-log.info("MongoDB connection established.")
+log.success("MongoDB connection established.")

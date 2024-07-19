@@ -5,12 +5,12 @@ from app.models.database.curseforge import Mod, File, Pagination
 from app.models.database.curseforge import Fingerprint
 
 
-class Hash(BaseModel):
+class _Hash(BaseModel):
     value: str
     algo: int
 
 
-class FileSortableGameVersions(BaseModel):
+class _FileSortableGameVersions(BaseModel):
     gameVersionName: str = None
     gameVersionPadded: str = None
     gameVersion: str = None
@@ -18,7 +18,7 @@ class FileSortableGameVersions(BaseModel):
     gameVersionTypeId: int = None
 
 
-class FileDependencies(BaseModel):
+class _FileDependencies(BaseModel):
     modId: int
     relationType: int = None
 
@@ -59,14 +59,14 @@ class FileInfo(BaseModel):
     fileName: str
     releaseType: int = None
     fileStatus: int = None
-    hashes: List[Hash]
+    hashes: List[_Hash]
     fileDate: str
     fileLength: int = None
     downloadCount: int = None
     downloadUrl: str
     gameVersions: List[str] = None
-    sortableGameVersions: List[FileSortableGameVersions] = None
-    dependencies: List[FileDependencies] = None
+    sortableGameVersions: List[_FileSortableGameVersions] = None
+    dependencies: List[_FileDependencies] = None
     fileFingerprint: int = None
 
 

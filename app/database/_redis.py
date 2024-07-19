@@ -111,4 +111,4 @@ sync_redis_engine: Redis = init_sync_redis_engine()
 file_cdn_redis_async_engine: AioRedis = init_file_cdn_redis_async_engine()
 file_cdn_redis_sync_engine: Redis = init_file_cdn_redis_sync_engine()
 
-log.info("Redis connection established")  # noqa
+log.success("Redis connection established")  # noqa

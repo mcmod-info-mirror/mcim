@@ -17,6 +17,7 @@ from app.database._redis import (
 from app.utils.response_cache import Cache
 from app.utils.response_cache import cache
 from app.utils.response_cache.key_builder import xxhash_key_builder
+from app.utils.response import BaseResponse
 
 mcim_config = MCIMConfig.load()
 
@@ -75,7 +76,21 @@ APP.add_middleware(
 @APP.get("/favicon.ico")
 @cache(never_expire=True)
 async def favicon():
-    return RedirectResponse(url=mcim_config.favicon_url)
+    return RedirectResponse(url=mcim_config.favicon_url, status_code=301)
+
+
+WELCOME_MESSAGE = {
+    "status": "success",
+    "message": "mcimirror",
+    "information": {
+        "Status": "https://status.mcimirror.top",
+        "Docs": [
+            "https://mod.mcimirror.top/docs",
+        ],
+        "Github": "https://github.com/mcmod-info-mirror/mcim",
+        "contact": {"Eamil": "z0z0r4@outlook.com", "QQ": "3531890582"},
+    },
+}
 
 
 @APP.get(
@@ -85,26 +100,13 @@ async def favicon():
             "description": "MCIM API status",
             "content": {
                 "APPlication/json": {
-                    "example": {"status": "success", "message": "mcimirror"}
+                    "example": WELCOME_MESSAGE,
                 }
             },
         }
     },
     description="MCIM API",
 )
-@cache()
+@cache(never_expire=True)
 async def root():
-    return ORJSONResponse(
-        content={
-            "status": "success",
-            "message": "mcimirror",
-            "information": {
-                "Status": "https://status.mcimirror.top",
-                "Docs": [
-                    "https://mod.mcimirror.top/docs",
-                ],
-                "Github": "https://github.com/mcmod-info-mirror/mcim",
-                "contact": {"Eamil": "z0z0r4@outlook.com", "QQ": "3531890582"},
-            },
-        }
-    )
+    return BaseResponse(content=WELCOME_MESSAGE)

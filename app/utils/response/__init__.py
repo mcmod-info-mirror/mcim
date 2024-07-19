@@ -1,10 +1,30 @@
 from fastapi.responses import ORJSONResponse, Response
-
 from typing import Union, Optional
 from pydantic import BaseModel
 
 
-class TrustableResponse(ORJSONResponse):
+class BaseResponse(ORJSONResponse):
+    """
+    BaseResponse 类
+
+    用于返回 JSON 响应
+
+    默认 Cache-Control: public, max-age=86400
+    """
+
+    def __init__(
+        self,
+        status_code: int = 200,
+        content: Union[dict, BaseModel, list] = None,
+        headers: dict = {},
+    ):
+        # 默认 Cache-Control: public, max-age=86400
+        if status_code == 200 and "Cache-Control" not in headers:
+            headers["Cache-Control"] = "public, max-age=86400"
+        super().__init__(status_code=status_code, content=content, headers=headers)
+
+
+class TrustableResponse(BaseResponse):
     """
     A response that indicates that the content is trusted.
     """
@@ -16,6 +36,7 @@ class TrustableResponse(ORJSONResponse):
         headers: dict = {},
         trustable: bool = True,
     ):
+        # 自动序列化 BaseModel
         if isinstance(content, dict):
             raw_content = content
         elif isinstance(content, BaseModel):
@@ -27,14 +48,11 @@ class TrustableResponse(ORJSONResponse):
                     item = item.model_dump()
                 raw_content.append(item)
         headers["Trustable"] = "True" if trustable else "False"
-        # TODO: default cache headers
-        if "Cache-Control" not in headers:
-            headers["Cache-Control"] = "public, max-age=86400"
 
         super().__init__(status_code=status_code, content=raw_content, headers=headers)
 
 
-class UncachedResponse(Response):
+class UncachedResponse(BaseResponse):
     """
     A response that indicates that the content is not cached.
     """
