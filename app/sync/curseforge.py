@@ -27,7 +27,6 @@ HEADERS = {"x-api-key": mcim_config.curseforge_api_key}
 def submit_models(models: List[Union[File, Mod, Fingerprint]]):
     mongodb_engine.save_all(models)
     log.debug(f"Submited {len(models)}")
-    log.debug(f"Submited {len(models)}")
 
 
 @actor
@@ -43,7 +42,6 @@ def append_model_from_files_res(
         models.append(File(found=True, need_to_cache=need_to_cache, **file))
         models.append(
             Fingerprint(
-                id=file["fileFingerprint"],
                 id=file["fileFingerprint"],
                 file=file,
                 latestFiles=latestFiles,
