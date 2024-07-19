@@ -53,7 +53,6 @@ def append_model_from_files_res(
     return models
 
 
-@actor
 def sync_mod_all_files(
     modId: int, latestFiles: List[dict] = None, need_to_cache: bool = True
 ) -> List[Union[File, Mod]]:
@@ -114,7 +113,6 @@ def sync_mod_all_files(
     return models
 
 
-@actor
 def sync_multi_mods_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
     models = []
     # 去重
@@ -149,7 +147,7 @@ def sync_mutil_mods(modIds: List[int]):
     models: List[Union[File, Mod]] = []
     for mod in res:
         models.append(Mod(found=True, **mod))
-    models.extend(sync_multi_mods_all_files([model.modId for model in models]))
+    models.extend(sync_multi_mods_all_files([model.id for model in models]))
     submit_models(models)
 
 
