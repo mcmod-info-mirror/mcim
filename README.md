@@ -10,6 +10,10 @@
 - [Docs](https://mod.mcimirror.top/docs)
 - [Status](https://status.mcimirror.top)
 
+## 接入
+
+本镜像有 UA 白名单，请在使用前提交启动器的 UA [启动器信息](https://github.com/mcmod-info-mirror/mcim/issues/4)
+
 ## 使用
 
 以下所有内容均建立在已经能够成功从官方源下载数据的基础上，不了解的话请前往 [CFCore](https://docs.curseforge.com) 和 [Modrinth Docs](https://docs.modrinth.com) 参考。
@@ -39,13 +43,6 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
 已缓存符合条件的所有 Modrinth 上的 Mod，Curseforge 技术受限正在缓慢添加。
 
 ## 注意事项
-
-请联系在 [启动器信息](https://github.com/mcmod-info-mirror/mcim/issues/4)，留下 UA 以方便统计。
-
-记得在 `headers` 加上您的项目的 UA，例如
-
-- PCL2/2.3.0.50 Mozilla/5.0 AppleWebKit/537.36 Chrome/63.0.3239.132 Safari/537.36
-- HMCL/3.3.172 Java/1.8.0_261
 
 **文件**下载可能存在一定的不稳定性，当前缺少多节点网盘的分流，建议启动器在未能成功下载的情况下才尝试使用镜像源。
 
