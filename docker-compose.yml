@@ -61,6 +61,10 @@ services:
   #   volumes:
   #     - /opt/mcim/config:/config
   #     - /opt/mcim/logs:/logs
+  #   command: >
+  #   sh -c "rm -rf /tmp/prometheus &&
+  #          mkdir -p /tmp/prometheus &&
+  #          gunicorn -k uvicorn.workers.UvicornWorker -c gunicorn_config.py app:APP"
 
   mcim_sync:
     container_name: mcim_sync

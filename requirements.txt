@@ -13,3 +13,4 @@ redis==5.0.1
 aria2p==0.12.0
 tenacity==8.3.0
 xxhash==3.4.1
+prometheus-fastapi-instrumentator==7.0.0

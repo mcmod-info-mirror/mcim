@@ -1,9 +1,11 @@
 import os
+import shutil
 from fastapi import FastAPI
-from fastapi.responses import RedirectResponse, ORJSONResponse
+from fastapi.responses import RedirectResponse, ORJSONResponse, Response
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
+from prometheus_fastapi_instrumentator import Instrumentator, metrics
 
 from app.controller import controller_router
 from app.utils.loger import log
@@ -20,7 +22,6 @@ from app.utils.response_cache.key_builder import xxhash_key_builder
 from app.utils.response import BaseResponse
 
 mcim_config = MCIMConfig.load()
-
 
 def init_file_cdn():
     os.makedirs(mcim_config.modrinth_download_path, exist_ok=True)
@@ -59,6 +60,15 @@ async def lifespan(app: FastAPI):
 APP = FastAPI(
     title="MCIM", description="这是一个为 Mod 信息加速的 API", lifespan=lifespan
 )
+
+if mcim_config.prometheus:
+    instrumentator : Instrumentator = Instrumentator(
+        should_round_latency_decimals=True,
+        round_latency_decimals=1,
+    )
+    instrumentator.add(metrics.default())
+    instrumentator.instrument(APP).expose(APP)
+
 
 APP.include_router(controller_router)
 
@@ -110,3 +120,15 @@ WELCOME_MESSAGE = {
 @cache(never_expire=True)
 async def root():
     return BaseResponse(content=WELCOME_MESSAGE)
+
+# @APP.get("/metrics")
+# def get_metrics():
+#     # Note the ephemeral registry being used here. This follows the Prometheus
+#     # client library documentation. It comes with multiple caveats. Using a
+#     # persistent registry might work on first glance but it will lead to issues.
+#     # For a long time PFI used a persistent registry, which was wrong.
+#     registry = CollectorRegistry()
+#     multiprocess.MultiProcessCollector(registry)
+#     resp = Response(content=generate_latest(registry))
+#     resp.headers["Content-Type"] = CONTENT_TYPE_LATEST
+#     return resp

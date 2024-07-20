@@ -11,4 +11,4 @@ RUN --mount=type=cache,target=/root/.cache/pip pip install gunicorn==22.0.0 uvic
 COPY ./app ./app
 COPY ./scripts/gunicorn_config.py ./gunicorn_config.py
 
-ENTRYPOINT ["gunicorn", "app:APP", "-k", "uvicorn_worker.UvicornWorker", "-n", "mcim_api", "-c", "gunicorn_config.py"]
+# ENTRYPOINT ["gunicorn", "app:APP", "-k", "uvicorn_worker.UvicornWorker", "-n", "mcim_api", "-c", "gunicorn_config.py"]
