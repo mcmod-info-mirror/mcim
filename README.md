@@ -1,6 +1,6 @@
 # MCmod-info-mirror
 
-为各平台的 Mod 的缓存加速，由 [MCLF-CN #3](https://github.com/MCLF-CN/docs/issues/3) 提议
+为各平台的 Mod 的缓存加速，由 [MCLF-CN #3](https://github.com/MCLF-CN/docs/issues/3) 提议，由 [Pysio](https://github.com/pysio2007) 提供 CDN 支持
 
 基于 [BMCLAPI](https://bmclapidoc.bangbang93.com) 使用网盘缓存的先例，当前文件缓存在 [Mr.yang](https://github.com/YangHaoNing-CN) 和 [八蓝米](https://alist.8mi.tech) 支持下试运行！
 
@@ -48,9 +48,13 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
 
 未缓存部分接口，如果有 API 需要更新或新增请联系。
 
+关于 Mod 开发者收益问题，由于 CDN 下载量并不计入 curseforge 收益，因此无论从启动器官方源下载还是镜像源下载都是无法为 Mod 开发者提供收益的，不接受影响 Mod 开发者收益的指责。详情见 [MCLF-CN #3](https://github.com/MCLF-CN/docs/issues/3) 的讨论。
+
+本镜像可能会在滥用的情况下切换到 Cloudflare CDN 或开启 URL 鉴权，或者暂时关闭。
+
 ## 部署
 
-先安装 docker，clone 到本地后直接 `docker-compose up -d` 即可，记得修改 `docker-compose.yml` 里面的 `config` 挂载目录，以及 `config` 内容
+先安装 docker，clone 到本地后直接 `docker-compose up -d` 即可，记得修改 `docker-compose.yml` 里面的 `config` 挂载目录，以及 `config` 内容。
 
 ## 鸣谢
 
