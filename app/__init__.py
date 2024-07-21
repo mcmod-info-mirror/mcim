@@ -122,15 +122,3 @@ WELCOME_MESSAGE = {
 @cache(never_expire=True)
 async def root():
     return BaseResponse(content=WELCOME_MESSAGE)
-
-# @APP.get("/metrics")
-# def get_metrics():
-#     # Note the ephemeral registry being used here. This follows the Prometheus
-#     # client library documentation. It comes with multiple caveats. Using a
-#     # persistent registry might work on first glance but it will lead to issues.
-#     # For a long time PFI used a persistent registry, which was wrong.
-#     registry = CollectorRegistry()
-#     multiprocess.MultiProcessCollector(registry)
-#     resp = Response(content=generate_latest(registry))
-#     resp.headers["Content-Type"] = CONTENT_TYPE_LATEST
-#     return resp
