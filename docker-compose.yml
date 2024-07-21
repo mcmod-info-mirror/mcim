@@ -28,29 +28,12 @@ services:
       - 6379:6379
     restart: always
 
-  mcim_api:
-    container_name: mcim_api
-    image: mcim_api
-    build:
-      context: .
-      dockerfile: ./docker/fastapi
-
-    ports:
-      - 8000:8000
-    restart: always
-    depends_on:
-      - mongodb
-      - redis
-    volumes:
-      - /opt/mcim/config:/config
-      - /opt/mcim/logs:/logs
-
-  # mcim_api_gunicorn:
-  #   container_name: mcim_api_gunicorn
+  # mcim_api:
+  #   container_name: mcim_api
   #   image: mcim_api
   #   build:
   #     context: .
-  #     dockerfile: ./docker/fastapi_gunicorn
+  #     dockerfile: ./docker/fastapi
 
   #   ports:
   #     - 8000:8000
@@ -61,10 +44,27 @@ services:
   #   volumes:
   #     - /opt/mcim/config:/config
   #     - /opt/mcim/logs:/logs
-  #   command: >
-  #   sh -c "rm -rf /tmp/prometheus &&
-  #          mkdir -p /tmp/prometheus &&
-  #          gunicorn -k uvicorn.workers.UvicornWorker -c gunicorn_config.py app:APP"
+
+  mcim_api_gunicorn:
+    container_name: mcim_api_gunicorn
+    image: mcim_api
+    build:
+      context: .
+      dockerfile: ./docker/fastapi_gunicorn
+
+    ports:
+      - 8000:8000
+    restart: always
+    depends_on:
+      - mongodb
+      - redis
+    volumes:
+      - /opt/mcim/config:/config
+      - /opt/mcim/logs:/logs
+    command: >
+      sh -c "rm -rf /tmp/prometheus &&
+            mkdir -p /tmp/prometheus &&
+            gunicorn -k uvicorn.workers.UvicornWorker -c gunicorn_config.py app:APP"
 
   mcim_sync:
     container_name: mcim_sync
@@ -72,6 +72,8 @@ services:
     build:
       context: .
       dockerfile: ./docker/dramatiq
+    ports:
+      - 9191:9191
 
     restart: always
     depends_on:
@@ -103,3 +105,16 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning
     env_file:
       - ./grafana/config.monitoring
+
+  node_exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    container_name: node_exporter
+    ports:
+      - 9100:9100
+    command:
+      - '--path.rootfs=/host'
+    restart: unless-stopped
+    volumes:
+      - /:/host:ro,rslave
+      - /proc:/host/proc:ro"
+      - /sys:/host/sys:ro"
