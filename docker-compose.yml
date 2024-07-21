@@ -47,11 +47,10 @@ services:
 
   mcim_api_gunicorn:
     container_name: mcim_api_gunicorn
-    image: mcim_api
+    image: mcim_api_gunicorn
     build:
       context: .
       dockerfile: ./docker/fastapi_gunicorn
-
     ports:
       - 8000:8000
     restart: always
@@ -74,7 +73,6 @@ services:
       dockerfile: ./docker/dramatiq
     ports:
       - 9191:9191
-
     restart: always
     depends_on:
       - mongodb
@@ -83,6 +81,12 @@ services:
       - /opt/mcim/config:/config
       - /opt/mcim/logs:/logs
       - /data/alist:/data # rclone 挂载位置
+    command: >
+      sh -c "mkdir -p /tmp/dramatiq-prometheus \
+      && rm -r /tmp/dramatiq-prometheus/* \
+      && env prometheus_multiproc_dir=/tmp/dramatiq-prometheus \
+            dramatiq_prom_db=/tmp/dramatiq-prometheus \
+            dramatiq app.sync"
 
   prometheus:
     image: prom/prometheus:latest
