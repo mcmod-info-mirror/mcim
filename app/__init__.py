@@ -64,7 +64,6 @@ APP = FastAPI(
 if mcim_config.prometheus:
     instrumentator : Instrumentator = Instrumentator(
         should_round_latency_decimals=True,
-        round_latency_decimals=1,
         excluded_handlers=["/metrics", "/docs", "/favicon.ico", "/openapi.json"],
         inprogress_name="inprogress",
         inprogress_labels=True,
