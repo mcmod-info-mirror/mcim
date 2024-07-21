@@ -65,9 +65,10 @@ if mcim_config.prometheus:
     instrumentator : Instrumentator = Instrumentator(
         should_round_latency_decimals=True,
         round_latency_decimals=1,
+        excluded_handlers=["metrics"]
     )
     instrumentator.add(metrics.default())
-    instrumentator.instrument(APP).expose(APP)
+    instrumentator.instrument(APP).expose(APP, include_in_schema=False)
 
 
 APP.include_router(controller_router)
