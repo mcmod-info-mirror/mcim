@@ -1,18 +1,18 @@
-import time
+
 import os
 import sys
 import logging
 from types import FrameType
 from typing import cast
 from loguru import logger
-from datetime import datetime, timezone, timedelta
 
 from app.config import MCIMConfig
 
 mcim_config = MCIMConfig.load()
 
-LOG_PATH = "logs"
-os.makedirs(LOG_PATH, exist_ok=True)
+LOG_PATH = mcim_config.log_path
+if mcim_config.log_to_file:
+    os.makedirs(LOG_PATH, exist_ok=True)
 
 ENABLED: bool = False
 
@@ -42,24 +42,25 @@ class Logger:
             backtrace=False,
             diagnose=False,
         )
-        # 日志写入文件
-        self.logger.add(
-            log_path,  # 写入目录指定文件
-            format="{time:YYYYMMDD HH:mm:ss} - "  # 时间
-            #    "{process.name} | "  # 进程名
-            #    "{thread.name} | "  # 进程名
-            "{module}.{function}:{line} - {level} -{message}",  # 模块名.方法名:行号
-            encoding="utf-8",
-            retention="7 days",  # 设置历史保留时长
-            backtrace=True,  # 回溯
-            diagnose=True,  # 诊断
-            enqueue=True,  # 异步写入
-            rotation="00:00",  # 每日更新时间
-            # rotation="5kb",  # 切割，设置文件大小，rotation="12:00"，rotation="1 week"
-            # filter="my_module"  # 过滤模块
-            # compression="zip"   # 文件压缩
-            level="INFO" if not mcim_config.debug else "DEBUG",
-        )
+        if mcim_config.log_to_file:
+            # 日志写入文件
+            self.logger.add(
+                log_path,  # 写入目录指定文件
+                format="{time:YYYYMMDD HH:mm:ss} - "  # 时间
+                #    "{process.name} | "  # 进程名
+                #    "{thread.name} | "  # 进程名
+                "{module}.{function}:{line} - {level} -{message}",  # 模块名.方法名:行号
+                encoding="utf-8",
+                retention="7 days",  # 设置历史保留时长
+                backtrace=True,  # 回溯
+                diagnose=True,  # 诊断
+                enqueue=True,  # 异步写入
+                rotation="00:00",  # 每日更新时间
+                # rotation="5kb",  # 切割，设置文件大小，rotation="12:00"，rotation="1 week"
+                # filter="my_module"  # 过滤模块
+                # compression="zip"   # 文件压缩
+                level="INFO" if not mcim_config.debug else "DEBUG",
+            )
 
     def get_logger(self):
         return self.logger
