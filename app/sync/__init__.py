@@ -4,7 +4,6 @@ from dramatiq.middleware import Prometheus
 
 from app.database.mongodb import init_mongodb_syncengine, sync_mongo_engine
 from app.database._redis import (
-    # init_task_redis_client,
     init_sync_redis_engine,
     sync_redis_engine,
     file_cdn_redis_sync_engine,
@@ -29,8 +28,6 @@ redis_broker = RedisBroker(
     password=_redis_config.password,
     db=_redis_config.database.tasks_queue,
 )
-
-redis_broker.add_middleware(Prometheus())
 
 dramatiq.set_broker(redis_broker)
 

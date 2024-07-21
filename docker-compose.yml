@@ -7,7 +7,6 @@ services:
     # 当 docker 服务启动后，自动启动 mongodb 容器
     restart: always
     # 对外映射的端口
-
     ports:
       - 27017:27017
     environment:
@@ -23,7 +22,6 @@ services:
   redis:
     container_name: redis
     image: redis:alpine
-
     ports:
       - 6379:6379
     restart: always
@@ -73,6 +71,9 @@ services:
     build:
       context: .
       dockerfile: ./docker/dramatiq
+    environment:
+      - PROMETHEUS_MULTIPROC_DIR: /tmp/dramatiq-prometheus
+      - dramatiq_prom_db: /tmp/dramatiq-prometheus
     ports:
       - 9191:9191
     restart: always
@@ -84,10 +85,8 @@ services:
       - /opt/mcim/logs:/logs
       - /data/alist:/data # rclone 挂载位置
     command: >
-      sh -c "mkdir -p /tmp/dramatiq-prometheus \
-      && rm -r /tmp/dramatiq-prometheus/* \
-      && env prometheus_multiproc_dir=/tmp/dramatiq-prometheus \
-            dramatiq_prom_db=/tmp/dramatiq-prometheus \
+      sh -c "mkdir -p /tmp/dramatiq-prometheus &&
+            rm -r /tmp/dramatiq-prometheus/* &&
             dramatiq app.sync"
 
   prometheus:

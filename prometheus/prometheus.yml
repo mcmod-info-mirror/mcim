@@ -17,3 +17,8 @@ scrape_configs:
     scrape_interval: 5s
     static_configs:
     - targets: ['node_exporter:9100']
+
+  - job_name: dramatiq
+    scrape_interval: 5s
+    static_configs:
+    - targets: ['mcim_sync:9191']
