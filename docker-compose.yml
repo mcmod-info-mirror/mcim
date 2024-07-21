@@ -51,6 +51,8 @@ services:
     build:
       context: .
       dockerfile: ./docker/fastapi_gunicorn
+    environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
     ports:
       - 8000:8000
     restart: always
