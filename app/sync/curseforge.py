@@ -286,3 +286,5 @@ def file_cdn_cache(file: dict):
         except Exception as e:
             log.exception(e)
             log.error(f"Failed to cache file {file.hashes}")
+    else:
+        log.debug(f"File {file.id} has no download url")
