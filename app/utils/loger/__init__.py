@@ -5,8 +5,12 @@ import logging
 from types import FrameType
 from typing import cast
 from loguru import logger
+import time
 
 from app.config import MCIMConfig
+
+if os.getenv("TZ") is not None:
+    time.tzset()
 
 mcim_config = MCIMConfig.load()
 

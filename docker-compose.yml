@@ -51,6 +51,7 @@ services:
       dockerfile: ./docker/fastapi_gunicorn
     environment:
       PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
+      TZ: Asia/Shanghai
     ports:
       - 8000:8000
     restart: always
@@ -74,6 +75,7 @@ services:
     environment:
       PROMETHEUS_MULTIPROC_DIR: /tmp/dramatiq-prometheus
       dramatiq_prom_db: /tmp/dramatiq-prometheus
+      TZ: Asia/Shanghai
     ports:
       - 9191:9191
     restart: always
