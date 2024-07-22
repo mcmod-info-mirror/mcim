@@ -1,3 +1,10 @@
+x-logging: 
+  &default-logging
+  driver: "local"
+  options:
+    max-size: "20m"
+    max-file: "3"
+
 services:
   mongodb:
     # 容器的名称为 mongo
@@ -18,6 +25,7 @@ services:
     # 增加启动参数，--auth，表示连接 mongodb 需要用户名和密码
     # command:
     #   - "--auth"
+    logging: *default-logging
 
   redis:
     container_name: redis
@@ -25,6 +33,7 @@ services:
     ports:
       - 6379:6379
     restart: always
+    logging: *default-logging
 
   # mcim_api:
   #   container_name: mcim_api
@@ -65,6 +74,7 @@ services:
       sh -c "rm -rf /tmp/prometheus &&
             mkdir -p /tmp/prometheus &&
             gunicorn -k uvicorn.workers.UvicornWorker -c gunicorn_config.py app:APP"
+    logging: *default-logging
 
   mcim_sync:
     container_name: mcim_sync
@@ -90,6 +100,7 @@ services:
       sh -c "rm -rf /tmp/dramatiq-prometheus/ &&
             mkdir -p /tmp/dramatiq-prometheus &&
             dramatiq app.sync"
+    logging: *default-logging
 
   prometheus:
     image: prom/prometheus:latest
@@ -112,6 +123,7 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning
     env_file:
       - ./grafana/config.monitoring
+    logging: *default-logging
 
   node_exporter:
     image: quay.io/prometheus/node-exporter:latest
@@ -125,3 +137,4 @@ services:
       - /:/host:ro,rslave
       - /proc:/host/proc:ro"
       - /sys:/host/sys:ro"
+    logging: *default-logging
