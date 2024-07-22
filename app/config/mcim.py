@@ -45,6 +45,8 @@ class MCIMConfigModel(BaseModel):
     modrinth_download_path: str = "./data/modrinth"
     curseforge_download_path: str = "./data/curseforge"
 
+    prometheus: bool = False
+
     redis_cache: bool = True
     alist_endpoint: str = "http://127.0.0.1:5244"
     alist_username: str = "admin"
@@ -53,6 +55,9 @@ class MCIMConfigModel(BaseModel):
     expire_second: ExpireSecond = ExpireSecond()
     expire_status_code: int = 404
     uncache_status_code: int = 404
+
+    log_to_file: bool = False
+    log_path: str = "./logs"
 
     favicon_url: str = (
         "https://thirdqq.qlogo.cn/g?b=sdk&k=ABmaVOlfKKPceB5qfiajxqg&s=640"

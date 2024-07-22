@@ -22,7 +22,7 @@ from app.sync.modrinth import (
     sync_tags,
 )
 from app.config.mcim import MCIMConfig
-from app.utils.response import TrustableResponse, UncachedResponse
+from app.utils.response import TrustableResponse, UncachedResponse, ForceSyncResponse
 from app.utils.network import request_sync
 from app.utils.loger import log
 from app.utils.response_cache import cache
@@ -43,6 +43,10 @@ v2_router = APIRouter(prefix="/v2", tags=["modrinth"])
 )
 @cache(expire=mcim_config.expire_second.modrinth.project)
 async def modrinth_project(idslug: str, request: Request):
+    if request.state.force_sync:
+        sync_project.send(idslug)
+        log.debug(f"Project {idslug} force sync.")
+        return ForceSyncResponse()
     trustable = True
     model = await request.app.state.aio_mongo_engine.find_one(
         Project, query.or_(Project.id == idslug, Project.slug == idslug)
@@ -69,6 +73,10 @@ async def modrinth_project(idslug: str, request: Request):
 @cache(expire=mcim_config.expire_second.modrinth.project)
 async def modrinth_projects(ids: str, request: Request):
     ids_list = json.loads(ids)
+    if request.state.force_sync:
+        sync_multi_projects.send(project_ids=ids_list)
+        log.debug(f"Projects {ids_list} force sync.")
+        return ForceSyncResponse()
     trustable = True
     # id or slug
     models = await request.app.state.aio_mongo_engine.find(
@@ -112,6 +120,10 @@ async def modrinth_projects(ids: str, request: Request):
 )
 @cache(expire=mcim_config.expire_second.modrinth.version)
 async def modrinth_project_versions(idslug: str, request: Request):
+    if request.state.force_sync:
+        sync_project.send(idslug)
+        log.debug(f"Project {idslug} force sync.")
+        return ForceSyncResponse()
     trustable = True
     model = await request.app.state.aio_mongo_engine.find(
         Version, query.or_(Version.project_id == idslug, Version.slug == idslug)
@@ -178,6 +190,10 @@ async def modrinth_search_projects(
 async def modrinth_version(
     version_id: Annotated[str, Path(alias="id")], request: Request
 ):
+    if request.state.force_sync:
+        sync_version.send(version_id=version_id)
+        log.debug(f"Version {version_id} force sync.")
+        return ForceSyncResponse()
     trustable = True
     model = await request.app.state.aio_mongo_engine.find_one(
         # Version, query.or_(Version.id == version_id, Version.slug == version_id)
@@ -208,6 +224,10 @@ async def modrinth_version(
 async def modrinth_versions(ids: str, request: Request):
     trustable = True
     ids_list = json.loads(ids)
+    if request.state.force_sync:
+        sync_multi_versions.send(ids_list=ids_list)
+        log.debug(f"Versions {ids} force sync.")
+        return ForceSyncResponse()
     models = await request.app.state.aio_mongo_engine.find(
         Version, query.in_(Version.id, ids_list)
     )
@@ -255,6 +275,10 @@ async def modrinth_file(
     hash_: Annotated[str, Path(alias="hash")],
     algorithm: Optional[Algorithm] = Algorithm.sha1,
 ):
+    if request.state.force_sync:
+        sync_hash.send(hash=hash_, algorithm=algorithm)
+        log.debug(f"File {hash_} force sync.")
+        return ForceSyncResponse()
     trustable = True
     # ignore algo
     file: Optional[File] = await request.app.state.aio_mongo_engine.find_one(
@@ -302,6 +326,10 @@ class HashesQuery(BaseModel):
 )
 @cache(expire=mcim_config.expire_second.modrinth.file)
 async def modrinth_files(items: HashesQuery, request: Request):
+    if request.state.force_sync:
+        sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm)
+        log.debug(f"Files {items.hashes} force sync.")
+        return ForceSyncResponse()
     trustable = True
     # ignore algo
     files_models: List[File] = await request.app.state.aio_mongo_engine.find(
@@ -360,6 +388,10 @@ async def modrinth_file_update(
     hash_: Annotated[str, Path(alias="hash")],
     algorithm: Optional[Algorithm] = Algorithm.sha1,
 ):
+    if request.state.force_sync:
+        sync_hash.send(hash=hash_, algorithm=algorithm)
+        log.debug(f"Hash {hash_} force sync.")
+        return ForceSyncResponse()
     trustable = True
     files_collection = request.app.state.aio_mongo_engine.get_collection(File)
     pipeline = [
@@ -418,6 +450,10 @@ class MultiUpdateItems(BaseModel):
 @v2_router.post("/version_files/update")
 @cache(expire=mcim_config.expire_second.modrinth.file)
 async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
+    if request.state.force_sync:
+        sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm)
+        log.debug(f"Hashes {items.hashes} force sync.")
+        return ForceSyncResponse()
     trustable = True
     files_collection = request.app.state.aio_mongo_engine.get_collection(File)
     pipeline = [
@@ -488,6 +524,10 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_categories(request: Request):
+    if request.state.force_sync:
+        sync_tags.send()
+        log.debug("Category force sync.")
+        return ForceSyncResponse()
     category = await request.app.state.aio_redis_engine.hget("modrinth", "categories")
     if category is None:
         sync_tags.send()
@@ -503,6 +543,10 @@ async def modrinth_tag_categories(request: Request):
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_loaders(request: Request):
+    if request.state.force_sync:
+        sync_tags.send()
+        log.debug("Loader force sync.")
+        return ForceSyncResponse()
     loader = await request.app.state.aio_redis_engine.hget("modrinth", "loaders")
     if loader is None:
         sync_tags.send()
@@ -518,6 +562,10 @@ async def modrinth_tag_loaders(request: Request):
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_game_versions(request: Request):
+    if request.state.force_sync:
+        sync_tags.send()
+        log.debug("Game Version force sync.")
+        return ForceSyncResponse()
     game_version = await request.app.state.aio_redis_engine.hget(
         "modrinth", "game_versions"
     )
@@ -535,6 +583,10 @@ async def modrinth_tag_game_versions(request: Request):
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_donation_platforms(request: Request):
+    if request.state.force_sync:
+        sync_tags.send()
+        log.debug("Donation Platform force sync.")
+        return ForceSyncResponse()
     donation_platform = await request.app.state.aio_redis_engine.hget(
         "modrinth", "donation_platform"
     )
@@ -552,6 +604,10 @@ async def modrinth_tag_donation_platforms(request: Request):
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_project_types(request: Request):
+    if request.state.force_sync:
+        sync_tags.send()
+        log.debug("Project Type force sync.")
+        return ForceSyncResponse()
     project_type = await request.app.state.aio_redis_engine.hget(
         "modrinth", "project_type"
     )
@@ -569,6 +625,10 @@ async def modrinth_tag_project_types(request: Request):
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_side_types(request: Request):
+    if request.state.force_sync:
+        sync_tags.send()
+        log.debug("Side Type force sync.")
+        return ForceSyncResponse()
     side_type = await request.app.state.aio_redis_engine.hget("modrinth", "side_type")
     if side_type is None:
         sync_tags.send()

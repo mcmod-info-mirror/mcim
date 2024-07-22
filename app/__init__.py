@@ -1,9 +1,11 @@
 import os
+import shutil
 from fastapi import FastAPI
-from fastapi.responses import RedirectResponse, ORJSONResponse
+from fastapi.responses import RedirectResponse, ORJSONResponse, Response
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
+from prometheus_fastapi_instrumentator import Instrumentator, metrics
 
 from app.controller import controller_router
 from app.utils.loger import log
@@ -18,6 +20,7 @@ from app.utils.response_cache import Cache
 from app.utils.response_cache import cache
 from app.utils.response_cache.key_builder import xxhash_key_builder
 from app.utils.response import BaseResponse
+from app.utils.middleware import ForceSyncMiddleware
 
 mcim_config = MCIMConfig.load()
 
@@ -60,9 +63,25 @@ APP = FastAPI(
     title="MCIM", description="这是一个为 Mod 信息加速的 API", lifespan=lifespan
 )
 
+if mcim_config.prometheus:
+    instrumentator: Instrumentator = Instrumentator(
+        should_round_latency_decimals=True,
+        excluded_handlers=["/metrics", "/docs", "/favicon.ico", "/openapi.json"],
+        inprogress_name="inprogress",
+        inprogress_labels=True,
+    )
+    instrumentator.add(metrics.default())
+    instrumentator.instrument(APP).expose(
+        APP, include_in_schema=False, should_gzip=True
+    )
+
+
 APP.include_router(controller_router)
 
 APP.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# 强制同步中间件 force=True
+APP.add_middleware(ForceSyncMiddleware)
 
 APP.add_middleware(
     CORSMiddleware,
