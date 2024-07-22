@@ -20,7 +20,7 @@ from app.utils.response_cache import Cache
 from app.utils.response_cache import cache
 from app.utils.response_cache.key_builder import xxhash_key_builder
 from app.utils.response import BaseResponse
-from app.utils.middleware import ForceSyncMiddleware
+from app.utils.middleware import ForceSyncMiddleware, TimingMiddleware
 
 mcim_config = MCIMConfig.load()
 
@@ -79,6 +79,8 @@ if mcim_config.prometheus:
 APP.include_router(controller_router)
 
 APP.add_middleware(GZipMiddleware, minimum_size=1000)
+
+APP.add_middleware(TimingMiddleware)
 
 # 强制同步中间件 force=True
 APP.add_middleware(ForceSyncMiddleware)
