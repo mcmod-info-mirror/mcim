@@ -149,6 +149,10 @@ async def curseforge_search(
 )
 @cache(expire=mcim_config.expire_second.curseforge.mod)
 async def curseforge_mod(modId: int, request: Request):
+    if request.state.force_sync:
+        sync_mod.send(modId=modId)
+        log.debug(f"modId: {modId} force sync.")
+        return UncachedResponse()
     trustable: bool = True
     mod_model = await request.app.state.aio_mongo_engine.find_one(Mod, Mod.id == modId)
     if mod_model is None:
@@ -180,6 +184,10 @@ class modIds_item(BaseModel):
 )
 @cache(expire=mcim_config.expire_second.curseforge.mod)
 async def curseforge_mods(item: modIds_item, request: Request):
+    if request.state.force_sync:
+        sync_mutil_mods.send(modIds=item.modIds)
+        log.debug(f"modIds: {item.modIds} force sync.")
+        return UncachedResponse()
     trustable: bool = True
     mod_models = await request.app.state.aio_mongo_engine.find(
         Mod, query.in_(Mod.id, item.modIds)
@@ -222,6 +230,10 @@ async def curseforge_mods(item: modIds_item, request: Request):
 )
 @cache(expire=mcim_config.expire_second.curseforge.file)
 async def curseforge_mod_files(modId: int, request: Request):
+    if request.state.force_sync:
+        sync_mod.send(modId=modId)
+        log.debug(f"modId: {modId} force sync.")
+        return UncachedResponse()
     mod_models = await request.app.state.aio_mongo_engine.find(
         File, File.modId == modId
     )
@@ -248,6 +260,10 @@ class fileIds_item(BaseModel):
 )
 @cache(expire=mcim_config.expire_second.curseforge.file)
 async def curseforge_files(item: fileIds_item, request: Request):
+    if request.state.force_sync:
+        sync_mutil_files.send(fileIds=item.fileIds)
+        log.debug(f"fileIds: {item.fileIds} force sync.")
+        return UncachedResponse()
     trustable = True
     file_models = await request.app.state.aio_mongo_engine.find(
         File, query.in_(File.id, item.fileIds)
@@ -284,6 +300,10 @@ async def curseforge_files(item: fileIds_item, request: Request):
 )
 @cache(expire=mcim_config.expire_second.curseforge.file)
 async def curseforge_mod_file(modId: int, fileId: int, request: Request):
+    if request.state.force_sync:
+        sync_file.send(modId=modId, fileId=fileId)
+        log.debug(f"modId: {modId} fileId: {fileId} force sync.")
+        return UncachedResponse()
     trustable = True
     model = await request.app.state.aio_mongo_engine.find_one(
         File, File.modId == modId, File.id == fileId
@@ -316,6 +336,10 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
     """
     未找到所有 fingerprint 会视为不可信，因为不存在的 fingerprint 会被记录
     """
+    if request.state.force_sync:
+        sync_fingerprints.send(fingerprints=item.fingerprints)
+        log.debug(f"fingerprints: {item.fingerprints} force sync.")
+        return UncachedResponse()
     trustable = True
     fingerprints_models = await request.app.state.aio_mongo_engine.find(
         Fingerprint, query.in_(Fingerprint.id, item.fingerprints)
@@ -359,6 +383,10 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
 )
 @cache(expire=mcim_config.expire_second.curseforge.categories)
 async def curseforge_categories(request: Request):
+    if request.state.force_sync:
+        sync_categories.send()
+        log.debug("categories force sync.")
+        return UncachedResponse()
     categories = await request.app.state.aio_redis_engine.hget(
         "curseforge", "categories"
     )

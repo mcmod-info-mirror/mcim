@@ -62,3 +62,14 @@ class UncachedResponse(BaseResponse):
         headers["Trustable"] = "False"
         headers["Cache-Control"] = "public, no-cache"
         super().__init__(status_code=status_code, headers=headers)
+
+class ForceSyncResponse(BaseResponse):
+    """
+    A response that indicates that the content is not cached.
+    """
+
+    def __init__(self, status_code: int = 202):
+        headers = {}
+        headers["Trustable"] = "False"
+        headers["Cache-Control"] = "public, no-cache"
+        super().__init__(status_code=status_code, headers=headers)

@@ -48,7 +48,7 @@ def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            if not Cache.enabled:
+            if kwargs.get("force") is True or not Cache.enabled:
                 return await func(*args, **kwargs)
             key = default_key_builder(
                 func, namespace=Cache.namespace, args=args, kwargs=kwargs
