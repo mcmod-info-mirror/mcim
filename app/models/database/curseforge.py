@@ -228,7 +228,7 @@ class Mod(Model):
     name: str
     slug: str = Field(index=True)
     links: Optional[Links] = None
-    summary: str
+    summary: Optional[str] = None
     status: Optional[int] = None
     downloadCount: Optional[int] = None
     primaryCategoryId: Optional[int] = None
@@ -244,6 +244,7 @@ class Mod(Model):
     gamePopularityRank: Optional[int] = None
     thumbsUpCount: Optional[int] = None
 
+    translated_summary: Optional[str] = None
     found: bool = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)
 

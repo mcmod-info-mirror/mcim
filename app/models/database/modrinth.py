@@ -1,5 +1,5 @@
 from odmantic import Model, Field, EmbeddedModel
-from pydantic import BaseModel, field_serializer, field_validator
+from pydantic import BaseModel, field_serializer, field_validator, model_validator
 
 from typing import List, Optional, Union
 from datetime import datetime
@@ -40,6 +40,7 @@ class Project(Model):
     loaders: Optional[List[str]] = None
     gallery: Optional[List[Gallery]] = None
 
+    translated_description: Optional[str] = None
     found: bool = Field(default=True)
     sync_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -50,7 +51,7 @@ class Project(Model):
     @field_serializer("sync_at")
     def serialize_sync_Date(self, value: datetime, _info):
         return value.strftime("%Y-%m-%dT%H:%M:%SZ")
-
+    
 
 class Dependencies(BaseModel):
     version_id: Optional[str] = None
