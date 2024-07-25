@@ -114,7 +114,7 @@ WELCOME_MESSAGE = {
     "information": {
         "Status": "https://status.mcimirror.top",
         "Docs": [
-            "https://mod.mcimirror.top/redoc",
+            "https://mod.mcimirror.top/docs",
         ],
         "Github": "https://github.com/mcmod-info-mirror/mcim",
         "contact": {"Eamil": "z0z0r4@outlook.com", "QQ": "3531890582"},
