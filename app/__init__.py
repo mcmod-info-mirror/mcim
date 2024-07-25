@@ -60,13 +60,21 @@ async def lifespan(app: FastAPI):
 
 
 APP = FastAPI(
-    title="MCIM", description="这是一个为 Mod 信息加速的 API", lifespan=lifespan
+    title="MCIM",
+    description="这是一个为 Mod 信息加速的 API\n你不应该直接浏览器中测试接口，有 UA 限制",
+    lifespan=lifespan,
 )
 
 if mcim_config.prometheus:
     instrumentator: Instrumentator = Instrumentator(
         should_round_latency_decimals=True,
-        excluded_handlers=["/metrics", "/docs", "/favicon.ico", "/openapi.json"],
+        excluded_handlers=[
+            "/metrics",
+            "/docs",
+            "/redoc",
+            "/favicon.ico",
+            "/openapi.json",
+        ],
         inprogress_name="inprogress",
         inprogress_labels=True,
     )
@@ -106,7 +114,7 @@ WELCOME_MESSAGE = {
     "information": {
         "Status": "https://status.mcimirror.top",
         "Docs": [
-            "https://mod.mcimirror.top/docs",
+            "https://mod.mcimirror.top/redoc",
         ],
         "Github": "https://github.com/mcmod-info-mirror/mcim",
         "contact": {"Eamil": "z0z0r4@outlook.com", "QQ": "3531890582"},
