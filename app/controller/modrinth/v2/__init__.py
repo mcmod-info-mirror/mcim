@@ -81,12 +81,14 @@ async def modrinth_project(idslug: str, request: Request):
         log.debug(f"Project {idslug} force sync.")
         return ForceSyncResponse()
     trustable = True
-    model = await request.app.state.aio_mongo_engine.find_one(
+    model: Optional[Project] = await request.app.state.aio_mongo_engine.find_one(
         Project, query.or_(Project.id == idslug, Project.slug == idslug)
     )
     if model is None:
         sync_project.send(idslug)
         log.debug(f"Project {idslug} not found, send sync task.")
+        return UncachedResponse()
+    elif model.found == False:
         return UncachedResponse()
     elif (
         model.sync_at.timestamp() + mcim_config.expire_second.modrinth.project
@@ -114,7 +116,12 @@ async def modrinth_projects(ids: str, request: Request):
     # id or slug
     models = await request.app.state.aio_mongo_engine.find(
         Project,
-        query.or_(query.in_(Project.id, ids_list), query.in_(Project.slug, ids_list)),
+        query.and_(
+            query.or_(
+                query.in_(Project.id, ids_list), query.in_(Project.slug, ids_list)
+            ),
+            Project.found == True,
+        ),
     )
     models_count = len(models)
     ids_count = len(ids_list)
@@ -228,7 +235,7 @@ async def modrinth_version(
         log.debug(f"Version {version_id} force sync.")
         return ForceSyncResponse()
     trustable = True
-    model = await request.app.state.aio_mongo_engine.find_one(
+    model: Optional[Version] = await request.app.state.aio_mongo_engine.find_one(
         # Version, query.or_(Version.id == version_id, Version.slug == version_id)
         Version,
         Version.id == version_id,
@@ -236,6 +243,8 @@ async def modrinth_version(
     if model is None:
         sync_version.send(version_id=version_id)
         log.debug(f"Version {version_id} not found, send sync task.")
+        return UncachedResponse()
+    elif model.found == False:
         return UncachedResponse()
     elif (
         model.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
@@ -261,8 +270,8 @@ async def modrinth_versions(ids: str, request: Request):
         sync_multi_versions.send(ids_list=ids_list)
         log.debug(f"Versions {ids} force sync.")
         return ForceSyncResponse()
-    models = await request.app.state.aio_mongo_engine.find(
-        Version, query.in_(Version.id, ids_list)
+    models: List[Version] = await request.app.state.aio_mongo_engine.find(
+        Version, query.and_(query.in_(Version.id, ids_list), Version.found == True)
     )
     models_count = len(models)
     ids_count = len(ids_list)
@@ -321,6 +330,8 @@ async def modrinth_file(
         sync_hash.send(hash=hash_, algorithm=algorithm)
         log.debug(f"File {hash_} not found, send sync task.")
         return UncachedResponse()
+    elif file.found == False:
+        return UncachedResponse()
     # Don't need to check file expire
     # elif file.sync_at.timestamp() + mcim_config.expire_second.modrinth.file < time.time():
     #     sync_hash.send(hash=hash_, algorithm=algorithm)
@@ -330,7 +341,7 @@ async def modrinth_file(
     # TODO: Add Version reference directly but not query File again
     # get version object
     version: Optional[Version] = await request.app.state.aio_mongo_engine.find_one(
-        Version, Version.id == file.version_id
+        Version, query.and_(Version.id == file.version_id, Version.found == True)
     )
     if version is None:
         sync_version.send(version_id=file.version_id)
@@ -367,10 +378,11 @@ async def modrinth_files(items: HashesQuery, request: Request):
     # ignore algo
     files_models: List[File] = await request.app.state.aio_mongo_engine.find(
         File,
-        query.or_(
+        query.and_(
+            query.or_(
             query.in_(File.hashes.sha1, items.hashes),
             query.in_(File.hashes.sha512, items.hashes),
-        ),
+        ), File.found == True)
     )
     model_count = len(files_models)
     hashes_count = len(items.hashes)
@@ -429,7 +441,7 @@ async def modrinth_file_update(
     files_collection = request.app.state.aio_mongo_engine.get_collection(File)
     pipeline = [
         (
-            {"$match": {"_id.sha1": hash_}}
+            {"$match": {"_id.sha1": hash_, "found": True}}
             if algorithm is Algorithm.sha1
             else {"$match": {"_id.sha512": hash_}}
         ),
@@ -491,7 +503,7 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
     files_collection = request.app.state.aio_mongo_engine.get_collection(File)
     pipeline = [
         (
-            {"$match": {"_id.sha1": {"$in": items.hashes}}}
+            {"$match": {"_id.sha1": {"$in": items.hashes}, "found": True}}
             if items.algorithm is Algorithm.sha1
             else {"$match": {"_id.sha512": {"$in": items.hashes}}}
         ),
