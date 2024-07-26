@@ -92,6 +92,7 @@ services:
     depends_on:
       - mongodb
       - redis
+      - sync_redis
     volumes:
       - /opt/mcim/config:/config
       - /opt/mcim/logs:/logs
@@ -150,4 +151,10 @@ services:
       - mongodb
     volumes:
       - /opt/mcim/translate-mod-summary/config:/translate-mod-summary/config
+    logging: *default-logging
+
+  sync_redis:
+    container_name: sync_redis
+    image: redis:alpine
+    restart: always
     logging: *default-logging

@@ -24,7 +24,7 @@ import httpx
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import file_cdn_redis_sync_engine
+from app.sync import file_cdn_redis_sync_engine, limiter
 from app.models.database.modrinth import Project, File, Version
 from app.utils.network import request_sync, download_file_sync
 from app.exceptions import ResponseCodeException
@@ -61,6 +61,15 @@ def submit_models(models: List[Union[Project, File, Version]]):
 def should_retry(retries_so_far, exception):
     return retries_so_far < 3 and isinstance(exception, httpx.TransportError)
 
+# limit decorator
+def limit(func):
+    def wrapper(*args, **kwargs):
+        with limiter.acquire():
+            return func(*args, **kwargs)
+
+    return wrapper
+
+
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
 def check_alive():
     res = request_sync("https://api.modrinth.com")
@@ -68,36 +77,38 @@ def check_alive():
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
-def sync_project_all_version(
+@limit
+def sync_project_all_version(        
     project_id: str,
     slug: Optional[str] = None,
 ) -> List[Union[Project, File, Version]]:
-    models = []
-    if not slug:
-        project = mongodb_engine.find_one(Project, {"id": project_id})
-        if project:
-            slug = project.slug
-        else:
-            try:
-                res = request_sync(f"{API}/project/{project_id}").json()
-            except ResponseCodeException as e:
-                if e.status_code == 404:
-                    models.append(Project(found=False, id=project_id, slug=project_id))
-                    return
-            slug = res["slug"]
-    try:
-        res = request_sync(f"{API}/project/{project_id}/version").json()
-    except ResponseCodeException as e:
-        if e.status_code == 404:
-            models.append(Project(found=False, id=project_id, slug=project_id))
-            return
-    for version in res:
-        for file in version["files"]:
-            file["version_id"] = version["id"]
-            file["project_id"] = version["project_id"]
-            models.append(File(found=True, slug=slug, **file))
-        models.append(Version(found=True, slug=slug, **version))
-    return models
+    with limiter.acquire():
+        models = []
+        if not slug:
+            project = mongodb_engine.find_one(Project, {"id": project_id})
+            if project:
+                slug = project.slug
+            else:
+                try:
+                    res = request_sync(f"{API}/project/{project_id}").json()
+                except ResponseCodeException as e:
+                    if e.status_code == 404:
+                        models.append(Project(found=False, id=project_id, slug=project_id))
+                        return
+                slug = res["slug"]
+        try:
+            res = request_sync(f"{API}/project/{project_id}/version").json()
+        except ResponseCodeException as e:
+            if e.status_code == 404:
+                models.append(Project(found=False, id=project_id, slug=project_id))
+                return
+        for version in res:
+            for file in version["files"]:
+                file["version_id"] = version["id"]
+                file["project_id"] = version["project_id"]
+                models.append(File(found=True, slug=slug, **file))
+            models.append(Version(found=True, slug=slug, **version))
+        return models
 
 
 def sync_multi_projects_all_version(
@@ -115,24 +126,27 @@ def sync_multi_projects_all_version(
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def sync_project(project_id: str):
-    models = []
-    try:
-        res = request_sync(f"{API}/project/{project_id}").json()
-        models.append(Project(found=True, **res))
-        models.extend(sync_project_all_version(project_id, slug=res["slug"]))
-        submit_models(models)
-    except ResponseCodeException as e:
-        if e.status_code == 404:
-            models = [Project(found=False, id=project_id, slug=project_id)]
+    with limiter.acquire():
+        models = []
+        try:
+            res = request_sync(f"{API}/project/{project_id}").json()
+            models.append(Project(found=True, **res))
+            models.extend(sync_project_all_version(project_id, slug=res["slug"]))
             submit_models(models)
-            return
-        elif e.status_code == 429:
-            pass
-            # delay task
+        except ResponseCodeException as e:
+            if e.status_code == 404:
+                models = [Project(found=False, id=project_id, slug=project_id)]
+                submit_models(models)
+                return
+            elif e.status_code == 429:
+                pass
+                # delay task
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def sync_multi_projects(project_ids: List[str]):
     try:
         res = request_sync(
@@ -165,6 +179,7 @@ def process_version_resp(res: dict) -> List[Union[Project, File, Version]]:
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def sync_version(version_id: str):
     try:
         res = request_sync(f"{API}/version/{version_id}").json()
@@ -192,6 +207,7 @@ def process_multi_versions(res: List[dict]):
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def sync_multi_versions(version_ids: List[str]):
     try:
         res = request_sync(
@@ -212,6 +228,7 @@ def sync_multi_versions(version_ids: List[str]):
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def sync_hash(hash: str, algorithm: str):
     try:
         res = request_sync(
@@ -241,6 +258,7 @@ def process_multi_hashes(res: dict):
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def sync_multi_hashes(hashes: List[str], algorithm: str):
     try:
         res = request_sync(
@@ -266,6 +284,7 @@ def sync_multi_hashes(hashes: List[str], algorithm: str):
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def sync_tags():
     # db 1
     categories = request_sync(f"{API}/tag/category").json()
@@ -285,6 +304,7 @@ def sync_tags():
 
 # file cdn url cache
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="mr_file_cdn_url_cache")
+@limit
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
     file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600 * 2.8))
@@ -292,6 +312,7 @@ def file_cdn_url_cache(url: str, key: str):
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def file_cdn_cache_add_task(file: dict):
     file = File(**file)
     sha1 = file.hashes.sha1
@@ -314,6 +335,7 @@ def file_cdn_cache_add_task(file: dict):
 
 # 默认 modrinth 提供 hashes 我累了
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="mr_file_cdn_cache")
+@limit
 def file_cdn_cache(file: dict):
     file: File = File(**file)
     if file.hashes:

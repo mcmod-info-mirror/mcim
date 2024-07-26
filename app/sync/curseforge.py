@@ -7,7 +7,7 @@ import time
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import file_cdn_redis_sync_engine
+from app.sync import file_cdn_redis_sync_engine, limiter
 from app.models.database.curseforge import File, Mod, Pagination, Fingerprint
 from app.utils.network import request_sync, download_file_sync
 from app.config import MCIMConfig, Aria2Config
@@ -32,7 +32,16 @@ def submit_models(models: List[Union[File, Mod, Fingerprint]]):
 def should_retry(retries_so_far, exception):
     return retries_so_far < 3 and isinstance(exception, httpx.TransportError)
 
+# limit decorator
+def limit(func):
+    def wrapper(*args, **kwargs):
+        with limiter.acquire():
+            return func(*args, **kwargs)
+
+    return wrapper
+
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def check_alive():
     return request_sync(API, headers=HEADERS).text
 
@@ -124,6 +133,7 @@ def sync_multi_mods_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
     res = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()["data"]
@@ -139,6 +149,7 @@ def sync_mod(modId: int):
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def sync_mutil_mods(modIds: List[int]):
     modIds = list(set(modIds))
     data = {"modIds": modIds}
@@ -153,6 +164,7 @@ def sync_mutil_mods(modIds: List[int]):
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def sync_file(modId: int, fileId: int, expire: bool = False):
     # res = request_sync(f"{API}/v1/mods/{modId}/files/{fileId}", headers=headers).json()[
     #     "data"
@@ -175,6 +187,7 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def sync_mutil_files(fileIds: List[int]):
     models: List[Union[File, Mod]] = []
     res = request_sync(
@@ -190,6 +203,7 @@ def sync_mutil_files(fileIds: List[int]):
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def sync_fingerprints(fingerprints: List[int]):
     res = request_sync(
         method="POST",
@@ -212,6 +226,7 @@ def sync_fingerprints(fingerprints: List[int]):
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def sync_categories():
     res = request_sync(
         f"{API}/v1/categories", headers=HEADERS, params={"gameId": "432"}
@@ -220,6 +235,7 @@ def sync_categories():
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*6, actor_name="cf_file_cdn_url_cache")
+@limit
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
     file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600 * 2.8))
@@ -227,6 +243,7 @@ def file_cdn_url_cache(url: str, key: str):
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@limit
 def file_cdn_cache_add_task(file: dict):
     file = File(**file)
     for hash_info in file.hashes:
@@ -253,6 +270,7 @@ def file_cdn_cache_add_task(file: dict):
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="cf_file_cdn_cache")
+@limit
 def file_cdn_cache(file: dict):
     file: File = File(**file)
     hash_ = {}
