@@ -25,7 +25,7 @@ import httpx
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import file_cdn_redis_sync_engine, limiter
+from app.sync import file_cdn_redis_sync_engine, MODRINTH_LIMITER
 from app.models.database.modrinth import Project, File, Version
 from app.utils.network import request_sync, download_file_sync
 from app.exceptions import ResponseCodeException
@@ -65,7 +65,7 @@ def should_retry(retries_so_far, exception):
 # limit decorator
 def limit(func):
     def wrapper(*args, **kwargs):
-        with limiter.acquire():
+        with MODRINTH_LIMITER.acquire():
             return func(*args, **kwargs)
 
     return wrapper

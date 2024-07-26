@@ -1,7 +1,7 @@
 import dramatiq
 from dramatiq.brokers.redis import RedisBroker
 from dramatiq.rate_limits.backends import RedisBackend
-from dramatiq.rate_limits import ConcurrentRateLimiter
+from dramatiq.rate_limits import BucketRateLimiter, WindowRateLimiter
 
 from app.database.mongodb import init_mongodb_syncengine, sync_mongo_engine
 from app.database._redis import (
@@ -37,7 +37,8 @@ redis_broker = RedisBroker(
     db=_redis_config.database.tasks_queue,
 )
 
-limiter = ConcurrentRateLimiter(rate_limit_backend, "sync-task-distributed-mutex", limit=8)
+MODRINTH_LIMITER = WindowRateLimiter(rate_limit_backend, "modrinth-sync-task-distributed-mutex", limit=250, window=60)
+CURSEFORGE_LIMITER = WindowRateLimiter(rate_limit_backend, "curseforge-sync-task-distributed-mutex", limit=250, window=60)
 
 dramatiq.set_broker(redis_broker)
 
