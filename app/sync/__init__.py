@@ -37,7 +37,7 @@ redis_broker = RedisBroker(
     db=_redis_config.database.tasks_queue,
 )
 
-limiter = ConcurrentRateLimiter(rate_limit_backend, "sync-task-distributed-mutex", limit=1)
+limiter = ConcurrentRateLimiter(rate_limit_backend, "sync-task-distributed-mutex", limit=8)
 
 dramatiq.set_broker(redis_broker)
 
