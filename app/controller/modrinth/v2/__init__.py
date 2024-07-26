@@ -53,6 +53,7 @@ class ModrinthStatistics(BaseModel):
     description="Modrinth 缓存统计信息",
     response_model=ModrinthStatistics,
 )
+@cache(expire=3600)
 async def modrinth_statistics(request: Request):
     """
     没有统计 author

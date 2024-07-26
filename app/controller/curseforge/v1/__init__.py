@@ -104,6 +104,7 @@ class CurseforgeStatistics(BaseModel):
     description="Curseforge 缓存统计信息",
     response_model=CurseforgeStatistics,
 )
+@cache(expire=3600)
 async def curseforge_statistics(request: Request):
     mods = await request.app.state.aio_mongo_engine.count(Mod)
     files = await request.app.state.aio_mongo_engine.count(File)
