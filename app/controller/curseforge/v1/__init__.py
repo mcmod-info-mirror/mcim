@@ -21,7 +21,7 @@ from app.models.response.curseforge import (
     CurseforgeBaseResponse,
 )
 from app.config.mcim import MCIMConfig
-from app.utils.response import TrustableResponse, UncachedResponse
+from app.utils.response import TrustableResponse, UncachedResponse, BaseResponse
 from app.utils.network import request_sync
 from app.utils.loger import log
 from app.utils.response_cache import cache
@@ -90,6 +90,27 @@ class ModLoaderType(int, Enum):
     Fabric = 4
     Quilt = 5
     NeoForge = 6
+
+
+class CurseforgeStatistics(BaseModel):
+    mods: int
+    files: int
+    fingerprints: int
+
+
+# statistics
+@v1_router.get(
+    "/statistics",
+    description="Curseforge 缓存统计信息",
+    response_model=CurseforgeStatistics,
+)
+async def curseforge_statistics(request: Request):
+    mods = await request.app.state.aio_mongo_engine.count(Mod)
+    files = await request.app.state.aio_mongo_engine.count(File)
+    fingerprints = await request.app.state.aio_mongo_engine.count(Fingerprint)
+    return BaseResponse(
+        content=CurseforgeStatistics(mods=mods, files=files, fingerprints=fingerprints)
+    )
 
 
 @v1_router.get(
