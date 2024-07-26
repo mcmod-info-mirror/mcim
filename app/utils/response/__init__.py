@@ -16,9 +16,11 @@ class BaseResponse(ORJSONResponse):
     def __init__(
         self,
         status_code: int = 200,
-        content: Union[dict, BaseModel, list] = None,
+        content: Optional[Union[dict, BaseModel, list]] = None,
         headers: dict = {},
     ):
+        if content is None:
+            raw_content = None
         # 自动序列化 BaseModel
         if isinstance(content, dict):
             raw_content = content
