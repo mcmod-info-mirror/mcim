@@ -61,13 +61,13 @@ def submit_models(models: List[Union[Project, File, Version]]):
 def should_retry(retries_so_far, exception):
     return retries_so_far < 3 and isinstance(exception, httpx.TransportError)
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def check_alive():
     res = request_sync("https://api.modrinth.com")
     return res.json()
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def sync_project_all_version(
     project_id: str,
     slug: Optional[str] = None,
@@ -114,7 +114,7 @@ def sync_multi_projects_all_version(
     return models
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def sync_project(project_id: str):
     models = []
     try:
@@ -132,7 +132,7 @@ def sync_project(project_id: str):
             # delay task
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def sync_multi_projects(project_ids: List[str]):
     try:
         res = request_sync(
@@ -164,7 +164,7 @@ def process_version_resp(res: dict) -> List[Union[Project, File, Version]]:
     return models
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def sync_version(version_id: str):
     try:
         res = request_sync(f"{API}/version/{version_id}").json()
@@ -191,7 +191,7 @@ def process_multi_versions(res: List[dict]):
     return models
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def sync_multi_versions(version_ids: List[str]):
     try:
         res = request_sync(
@@ -211,7 +211,7 @@ def sync_multi_versions(version_ids: List[str]):
     submit_models(models)
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def sync_hash(hash: str, algorithm: str):
     try:
         res = request_sync(
@@ -240,7 +240,7 @@ def process_multi_hashes(res: dict):
     return models
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def sync_multi_hashes(hashes: List[str], algorithm: str):
     try:
         res = request_sync(
@@ -265,7 +265,7 @@ def sync_multi_hashes(hashes: List[str], algorithm: str):
     submit_models(models)
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def sync_tags():
     # db 1
     categories = request_sync(f"{API}/tag/category").json()
@@ -284,14 +284,14 @@ def sync_tags():
 
 
 # file cdn url cache
-@actor(retry_when=should_retry)(actor_name="mr_file_cdn_url_cache")
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))(actor_name="mr_file_cdn_url_cache")
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
     file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600 * 2.8))
     log.debug(f"URL cache set [{key}]:[{res.headers['Location']}]")
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def file_cdn_cache_add_task(file: dict):
     file = File(**file)
     sha1 = file.hashes.sha1
@@ -313,7 +313,7 @@ def file_cdn_cache_add_task(file: dict):
             return download.error_message
 
 # 默认 modrinth 提供 hashes 我累了
-@actor(retry_when=should_retry)(actor_name="mr_file_cdn_cache")
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))(actor_name="mr_file_cdn_cache")
 def file_cdn_cache(file: dict):
     file: File = File(**file)
     if file.hashes:

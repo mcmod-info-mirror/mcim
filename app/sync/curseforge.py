@@ -13,6 +13,7 @@ from app.utils.network import request_sync, download_file_sync
 from app.config import MCIMConfig, Aria2Config
 from app.utils.aria2 import add_http_task, ARIA2_API
 from app.utils.loger import log
+from app.exceptions import ResponseCodeException
 
 
 mcim_config = MCIMConfig.load()
@@ -31,7 +32,7 @@ def submit_models(models: List[Union[File, Mod, Fingerprint]]):
 def should_retry(retries_so_far, exception):
     return retries_so_far < 3 and isinstance(exception, httpx.TransportError)
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def check_alive():
     return request_sync(API, headers=HEADERS).text
 
@@ -122,7 +123,7 @@ def sync_multi_mods_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
     return models
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
     res = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()["data"]
@@ -137,7 +138,7 @@ def sync_mod(modId: int):
     submit_models(models)
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def sync_mutil_mods(modIds: List[int]):
     modIds = list(set(modIds))
     data = {"modIds": modIds}
@@ -151,7 +152,7 @@ def sync_mutil_mods(modIds: List[int]):
     submit_models(models)
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def sync_file(modId: int, fileId: int, expire: bool = False):
     # res = request_sync(f"{API}/v1/mods/{modId}/files/{fileId}", headers=headers).json()[
     #     "data"
@@ -173,7 +174,7 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     submit_models(models)
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def sync_mutil_files(fileIds: List[int]):
     models: List[Union[File, Mod]] = []
     res = request_sync(
@@ -188,7 +189,7 @@ def sync_mutil_files(fileIds: List[int]):
     submit_models(models)
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def sync_fingerprints(fingerprints: List[int]):
     res = request_sync(
         method="POST",
@@ -210,7 +211,7 @@ def sync_fingerprints(fingerprints: List[int]):
     submit_models(models)
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def sync_categories():
     res = request_sync(
         f"{API}/v1/categories", headers=HEADERS, params={"gameId": "432"}
@@ -218,14 +219,14 @@ def sync_categories():
     redis_engine.hset("curseforge", "categories", json.dumps(res))
 
 
-@actor(retry_when=should_retry)(actor_name="cf_file_cdn_url_cache")
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))(actor_name="cf_file_cdn_url_cache")
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
     file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600 * 2.8))
     log.debug(f"URL cache {key} set {res.headers['Location']}")
 
 
-@actor(retry_when=should_retry)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))
 def file_cdn_cache_add_task(file: dict):
     file = File(**file)
     for hash_info in file.hashes:
@@ -251,7 +252,7 @@ def file_cdn_cache_add_task(file: dict):
             return download.error_message
 
 
-@actor(retry_when=should_retry)(actor_name="cf_file_cdn_cache")
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,))(actor_name="cf_file_cdn_cache")
 def file_cdn_cache(file: dict):
     file: File = File(**file)
     hash_ = {}
