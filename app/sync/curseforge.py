@@ -40,7 +40,7 @@ def limit(func):
 
     return wrapper
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="cf_check_alive")
 @limit
 def check_alive():
     return request_sync(API, headers=HEADERS).text
@@ -132,7 +132,7 @@ def sync_multi_mods_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
     return models
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_mod")
 @limit
 def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
@@ -148,7 +148,8 @@ def sync_mod(modId: int):
     submit_models(models)
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_mutil_mods")
 @limit
 def sync_mutil_mods(modIds: List[int]):
     modIds = list(set(modIds))
@@ -163,7 +164,7 @@ def sync_mutil_mods(modIds: List[int]):
     submit_models(models)
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_file")
 @limit
 def sync_file(modId: int, fileId: int, expire: bool = False):
     # res = request_sync(f"{API}/v1/mods/{modId}/files/{fileId}", headers=headers).json()[
@@ -186,7 +187,7 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     submit_models(models)
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_mutil_files")
 @limit
 def sync_mutil_files(fileIds: List[int]):
     models: List[Union[File, Mod]] = []
@@ -202,7 +203,7 @@ def sync_mutil_files(fileIds: List[int]):
     submit_models(models)
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_fingerprints")
 @limit
 def sync_fingerprints(fingerprints: List[int]):
     res = request_sync(
@@ -225,7 +226,7 @@ def sync_fingerprints(fingerprints: List[int]):
     submit_models(models)
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_categories")
 @limit
 def sync_categories():
     res = request_sync(
@@ -242,7 +243,7 @@ def file_cdn_url_cache(url: str, key: str):
     log.debug(f"URL cache {key} set {res.headers['Location']}")
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="cf_file_cdn_cache_add_task")
 @limit
 def file_cdn_cache_add_task(file: dict):
     file = File(**file)
