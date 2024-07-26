@@ -17,6 +17,7 @@ sync_project 只刷新 project 信息，不刷新 project 下的 version 信息
 
 from typing import List, Optional, Union
 from dramatiq import actor
+import dramatiq
 import json
 import os
 import time
@@ -59,7 +60,7 @@ def submit_models(models: List[Union[Project, File, Version]]):
     mongodb_engine.save_all(models)
 
 def should_retry(retries_so_far, exception):
-    return retries_so_far < 3 and isinstance(exception, httpx.TransportError)
+    return retries_so_far < 3 and (isinstance(exception, httpx.TransportError) or isinstance(exception, dramatiq.RateLimitExceeded))
 
 # limit decorator
 def limit(func):

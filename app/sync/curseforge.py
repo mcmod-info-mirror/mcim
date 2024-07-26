@@ -1,5 +1,6 @@
 from typing import List, Optional, Union
 from dramatiq import actor
+import dramatiq
 import httpx
 import json
 import os
@@ -30,7 +31,7 @@ def submit_models(models: List[Union[File, Mod, Fingerprint]]):
     log.debug(f"Submited {len(models)}")
 
 def should_retry(retries_so_far, exception):
-    return retries_so_far < 3 and isinstance(exception, httpx.TransportError)
+    return retries_so_far < 3 and (isinstance(exception, httpx.TransportError) or isinstance(exception, dramatiq.RateLimitExceeded))
 
 # limit decorator
 def limit(func):
