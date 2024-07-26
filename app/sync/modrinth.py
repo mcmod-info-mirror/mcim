@@ -284,7 +284,7 @@ def sync_tags():
 
 
 # file cdn url cache
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)(actor_name="mr_file_cdn_url_cache")
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="mr_file_cdn_url_cache")
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
     file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600 * 2.8))
@@ -313,7 +313,7 @@ def file_cdn_cache_add_task(file: dict):
             return download.error_message
 
 # 默认 modrinth 提供 hashes 我累了
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)(actor_name="mr_file_cdn_cache")
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="mr_file_cdn_cache")
 def file_cdn_cache(file: dict):
     file: File = File(**file)
     if file.hashes:
