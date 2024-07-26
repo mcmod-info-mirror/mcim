@@ -18,6 +18,17 @@ class BaseResponse(ORJSONResponse):
         content: Union[dict, BaseModel, list] = None,
         headers: dict = {},
     ):
+        # 自动序列化 BaseModel
+        if isinstance(content, dict):
+            raw_content = content
+        elif isinstance(content, BaseModel):
+            raw_content = content.model_dump()
+        elif isinstance(content, list):
+            raw_content = []
+            for item in content:
+                if isinstance(item, BaseModel):
+                    item = item.model_dump()
+                raw_content.append(item)
         # 默认 Cache-Control: public, max-age=86400
         if status_code == 200 and "Cache-Control" not in headers:
             headers["Cache-Control"] = "public, max-age=86400"
@@ -36,20 +47,9 @@ class TrustableResponse(BaseResponse):
         headers: dict = {},
         trustable: bool = True,
     ):
-        # 自动序列化 BaseModel
-        if isinstance(content, dict):
-            raw_content = content
-        elif isinstance(content, BaseModel):
-            raw_content = content.model_dump()
-        elif isinstance(content, list):
-            raw_content = []
-            for item in content:
-                if isinstance(item, BaseModel):
-                    item = item.model_dump()
-                raw_content.append(item)
         headers["Trustable"] = "True" if trustable else "False"
 
-        super().__init__(status_code=status_code, content=raw_content, headers=headers)
+        super().__init__(status_code=status_code, content=content, headers=headers)
 
 
 class UncachedResponse(BaseResponse):
