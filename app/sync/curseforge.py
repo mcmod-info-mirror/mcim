@@ -1,5 +1,6 @@
 from typing import List, Optional, Union
 from dramatiq import actor
+import httpx
 import json
 import os
 import time
@@ -27,8 +28,10 @@ def submit_models(models: List[Union[File, Mod, Fingerprint]]):
     mongodb_engine.save_all(models)
     log.debug(f"Submited {len(models)}")
 
+def should_retry(retries_so_far, exception):
+    return retries_so_far < 3 and isinstance(exception, httpx.TransportError)
 
-@actor
+@actor(retry_when=should_retry)
 def check_alive():
     return request_sync(API, headers=HEADERS).text
 
@@ -119,7 +122,7 @@ def sync_multi_mods_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
     return models
 
 
-@actor
+@actor(retry_when=should_retry)
 def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
     res = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()["data"]
@@ -134,7 +137,7 @@ def sync_mod(modId: int):
     submit_models(models)
 
 
-@actor
+@actor(retry_when=should_retry)
 def sync_mutil_mods(modIds: List[int]):
     modIds = list(set(modIds))
     data = {"modIds": modIds}
@@ -148,7 +151,7 @@ def sync_mutil_mods(modIds: List[int]):
     submit_models(models)
 
 
-@actor
+@actor(retry_when=should_retry)
 def sync_file(modId: int, fileId: int, expire: bool = False):
     # res = request_sync(f"{API}/v1/mods/{modId}/files/{fileId}", headers=headers).json()[
     #     "data"
@@ -170,7 +173,7 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     submit_models(models)
 
 
-@actor
+@actor(retry_when=should_retry)
 def sync_mutil_files(fileIds: List[int]):
     models: List[Union[File, Mod]] = []
     res = request_sync(
@@ -185,7 +188,7 @@ def sync_mutil_files(fileIds: List[int]):
     submit_models(models)
 
 
-@actor
+@actor(retry_when=should_retry)
 def sync_fingerprints(fingerprints: List[int]):
     res = request_sync(
         method="POST",
@@ -207,7 +210,7 @@ def sync_fingerprints(fingerprints: List[int]):
     submit_models(models)
 
 
-@actor
+@actor(retry_when=should_retry)
 def sync_categories():
     res = request_sync(
         f"{API}/v1/categories", headers=HEADERS, params={"gameId": "432"}
@@ -215,14 +218,14 @@ def sync_categories():
     redis_engine.hset("curseforge", "categories", json.dumps(res))
 
 
-@actor(actor_name="cf_file_cdn_url_cache")
+@actor(retry_when=should_retry)(actor_name="cf_file_cdn_url_cache")
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
     file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600 * 2.8))
     log.debug(f"URL cache {key} set {res.headers['Location']}")
 
 
-@actor
+@actor(retry_when=should_retry)
 def file_cdn_cache_add_task(file: dict):
     file = File(**file)
     for hash_info in file.hashes:
@@ -248,7 +251,7 @@ def file_cdn_cache_add_task(file: dict):
             return download.error_message
 
 
-@actor(actor_name="cf_file_cdn_cache")
+@actor(retry_when=should_retry)(actor_name="cf_file_cdn_cache")
 def file_cdn_cache(file: dict):
     file: File = File(**file)
     hash_ = {}
