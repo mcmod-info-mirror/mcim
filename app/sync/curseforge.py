@@ -8,7 +8,7 @@ import time
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import file_cdn_redis_sync_engine, limiter
+from app.sync import file_cdn_redis_sync_engine, CURSEFORGE_LIMITER
 from app.models.database.curseforge import File, Mod, Pagination, Fingerprint
 from app.utils.network import request_sync, download_file_sync
 from app.config import MCIMConfig, Aria2Config
@@ -36,7 +36,7 @@ def should_retry(retries_so_far, exception):
 # limit decorator
 def limit(func):
     def wrapper(*args, **kwargs):
-        with limiter.acquire():
+        with CURSEFORGE_LIMITER.acquire():
             return func(*args, **kwargs)
 
     return wrapper
