@@ -22,7 +22,7 @@ from app.sync.modrinth import (
     sync_tags,
 )
 from app.config.mcim import MCIMConfig
-from app.utils.response import TrustableResponse, UncachedResponse, ForceSyncResponse
+from app.utils.response import TrustableResponse, UncachedResponse, ForceSyncResponse, BaseResponse
 from app.utils.network import request_sync
 from app.utils.loger import log
 from app.utils.response_cache import cache
@@ -35,6 +35,32 @@ EXPIRE_STATUS_CODE = mcim_config.expire_status_code
 UNCACHE_STATUS_CODE = mcim_config.uncache_status_code
 
 v2_router = APIRouter(prefix="/v2", tags=["modrinth"])
+
+class ModrinthStatistics(BaseModel):
+    projects: int
+    versions: int
+    files: int
+
+@v2_router.get(
+    "/statistics",
+    description="Modrinth 缓存统计信息",
+    response_model=ModrinthStatistics,
+)
+async def modrinth_statistics(request: Request):
+    """
+    没有统计 author
+    """
+    file_collection = request.app.state.aio_mongo_engine.get_collection(File)
+    versions_collection = request.app.state.aio_mongo_engine.get_collection(Version)
+    projects_collection = request.app.state.aio_mongo_engine.get_collection(Project)
+
+    # count
+    project_count = await projects_collection.count_documents({})
+    version_count = await versions_collection.count_documents({})
+    file_count = await file_collection.count_documents({})
+    return BaseResponse(
+        content=ModrinthStatistics(projects=project_count, versions=version_count, files=file_count)
+    )
 
 @v2_router.get(
     "/project/{idslug}",
