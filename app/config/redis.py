@@ -7,6 +7,7 @@ from .constants import CONFIG_PATH
 
 # REDIS config path
 REDIS_CONFIG_PATH = os.path.join(CONFIG_PATH, "redis.json")
+SYNC_REDIS_CONFIG_PATH = os.path.join(CONFIG_PATH, "sync_redis.json")
 
 
 class RedisDatabaseModel(BaseModel):
@@ -23,6 +24,12 @@ class RedisdbConfigModel(BaseModel):
     password: Optional[str] = None
     database: RedisDatabaseModel = RedisDatabaseModel()
 
+class SyncRedisdbConfigModel(BaseModel):
+    host: str = "redis"
+    port: int = 6379
+    auth: bool = True
+    user: Optional[str] = None
+    password: Optional[str] = None
 
 class RedisdbConfig:
     @staticmethod
@@ -40,3 +47,20 @@ class RedisdbConfig:
         with open(target, "r") as fd:
             data = json.load(fd)
         return RedisdbConfigModel(**data)
+
+class SyncRedisdbConfig:
+    @staticmethod
+    def save(
+        model: SyncRedisdbConfigModel = SyncRedisdbConfigModel(), target=SYNC_REDIS_CONFIG_PATH
+    ):
+        with open(target, "w") as fd:
+            json.dump(model.model_dump(), fd, indent=4)
+
+    @staticmethod
+    def load(target=REDIS_CONFIG_PATH) -> SyncRedisdbConfigModel:
+        if not os.path.exists(target):
+            SyncRedisdbConfig.save(target=target)
+            return SyncRedisdbConfigModel()
+        with open(target, "r") as fd:
+            data = json.load(fd)
+        return SyncRedisdbConfigModel(**data)

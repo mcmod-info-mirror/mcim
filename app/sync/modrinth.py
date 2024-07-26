@@ -17,6 +17,7 @@ sync_project 只刷新 project 信息，不刷新 project 下的 version 信息
 
 from typing import List, Optional, Union
 from dramatiq import actor
+import dramatiq
 import json
 import os
 import time
@@ -24,7 +25,7 @@ import httpx
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import file_cdn_redis_sync_engine
+from app.sync import file_cdn_redis_sync_engine, limiter
 from app.models.database.modrinth import Project, File, Version
 from app.utils.network import request_sync, download_file_sync
 from app.exceptions import ResponseCodeException
@@ -59,16 +60,27 @@ def submit_models(models: List[Union[Project, File, Version]]):
     mongodb_engine.save_all(models)
 
 def should_retry(retries_so_far, exception):
-    return retries_so_far < 3 and isinstance(exception, httpx.TransportError)
+    return retries_so_far < 3 and (isinstance(exception, httpx.TransportError) or isinstance(exception, dramatiq.RateLimitExceeded))
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+# limit decorator
+def limit(func):
+    def wrapper(*args, **kwargs):
+        with limiter.acquire():
+            return func(*args, **kwargs)
+
+    return wrapper
+
+
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="check_alive")
+@limit
 def check_alive():
     res = request_sync("https://api.modrinth.com")
     return res.json()
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
-def sync_project_all_version(
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_project_all_version")
+@limit
+def sync_project_all_version(        
     project_id: str,
     slug: Optional[str] = None,
 ) -> List[Union[Project, File, Version]]:
@@ -114,7 +126,8 @@ def sync_multi_projects_all_version(
     return models
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_project")
+@limit
 def sync_project(project_id: str):
     models = []
     try:
@@ -127,12 +140,10 @@ def sync_project(project_id: str):
             models = [Project(found=False, id=project_id, slug=project_id)]
             submit_models(models)
             return
-        elif e.status_code == 429:
-            pass
-            # delay task
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_multi_projects")
+@limit
 def sync_multi_projects(project_ids: List[str]):
     try:
         res = request_sync(
@@ -164,7 +175,8 @@ def process_version_resp(res: dict) -> List[Union[Project, File, Version]]:
     return models
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_version")
+@limit
 def sync_version(version_id: str):
     try:
         res = request_sync(f"{API}/version/{version_id}").json()
@@ -191,7 +203,8 @@ def process_multi_versions(res: List[dict]):
     return models
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_multi_versions")
+@limit
 def sync_multi_versions(version_ids: List[str]):
     try:
         res = request_sync(
@@ -211,7 +224,8 @@ def sync_multi_versions(version_ids: List[str]):
     submit_models(models)
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_hash")
+@limit
 def sync_hash(hash: str, algorithm: str):
     try:
         res = request_sync(
@@ -240,7 +254,8 @@ def process_multi_hashes(res: dict):
     return models
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_multi_hashes")
+@limit
 def sync_multi_hashes(hashes: List[str], algorithm: str):
     try:
         res = request_sync(
@@ -265,7 +280,8 @@ def sync_multi_hashes(hashes: List[str], algorithm: str):
     submit_models(models)
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_tags")
+@limit
 def sync_tags():
     # db 1
     categories = request_sync(f"{API}/tag/category").json()
@@ -285,13 +301,15 @@ def sync_tags():
 
 # file cdn url cache
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="mr_file_cdn_url_cache")
+@limit
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
     file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600 * 2.8))
     log.debug(f"URL cache set [{key}]:[{res.headers['Location']}]")
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="mr_file_cdn_cache_add_task")
+@limit
 def file_cdn_cache_add_task(file: dict):
     file = File(**file)
     sha1 = file.hashes.sha1
@@ -314,6 +332,7 @@ def file_cdn_cache_add_task(file: dict):
 
 # 默认 modrinth 提供 hashes 我累了
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="mr_file_cdn_cache")
+@limit
 def file_cdn_cache(file: dict):
     file: File = File(**file)
     if file.hashes:
