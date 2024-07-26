@@ -20,6 +20,7 @@ from dramatiq import actor
 import json
 import os
 import time
+import httpx
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
@@ -57,14 +58,16 @@ def submit_models(models: List[Union[Project, File, Version]]):
                         mongodb_engine.save(model)
     mongodb_engine.save_all(models)
 
+def should_retry(retries_so_far, exception):
+    return retries_so_far < 3 and isinstance(exception, httpx.TransportError)
 
-@actor
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
 def check_alive():
     res = request_sync("https://api.modrinth.com")
     return res.json()
 
 
-@actor
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
 def sync_project_all_version(
     project_id: str,
     slug: Optional[str] = None,
@@ -111,22 +114,25 @@ def sync_multi_projects_all_version(
     return models
 
 
-@actor
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
 def sync_project(project_id: str):
     models = []
     try:
         res = request_sync(f"{API}/project/{project_id}").json()
         models.append(Project(found=True, **res))
+        models.extend(sync_project_all_version(project_id, slug=res["slug"]))
+        submit_models(models)
     except ResponseCodeException as e:
         if e.status_code == 404:
             models = [Project(found=False, id=project_id, slug=project_id)]
             submit_models(models)
             return
-    models.extend(sync_project_all_version(project_id, slug=res["slug"]))
-    submit_models(models)
+        elif e.status_code == 429:
+            pass
+            # delay task
 
 
-@actor
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
 def sync_multi_projects(project_ids: List[str]):
     try:
         res = request_sync(
@@ -158,7 +164,7 @@ def process_version_resp(res: dict) -> List[Union[Project, File, Version]]:
     return models
 
 
-@actor
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
 def sync_version(version_id: str):
     try:
         res = request_sync(f"{API}/version/{version_id}").json()
@@ -185,7 +191,7 @@ def process_multi_versions(res: List[dict]):
     return models
 
 
-@actor
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
 def sync_multi_versions(version_ids: List[str]):
     try:
         res = request_sync(
@@ -205,7 +211,7 @@ def sync_multi_versions(version_ids: List[str]):
     submit_models(models)
 
 
-@actor
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
 def sync_hash(hash: str, algorithm: str):
     try:
         res = request_sync(
@@ -234,7 +240,7 @@ def process_multi_hashes(res: dict):
     return models
 
 
-@actor
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
 def sync_multi_hashes(hashes: List[str], algorithm: str):
     try:
         res = request_sync(
@@ -259,7 +265,7 @@ def sync_multi_hashes(hashes: List[str], algorithm: str):
     submit_models(models)
 
 
-@actor
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
 def sync_tags():
     # db 1
     categories = request_sync(f"{API}/tag/category").json()
@@ -278,14 +284,14 @@ def sync_tags():
 
 
 # file cdn url cache
-@actor(actor_name="mr_file_cdn_url_cache")
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)(actor_name="mr_file_cdn_url_cache")
 def file_cdn_url_cache(url: str, key: str):
     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
     file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600 * 2.8))
     log.debug(f"URL cache set [{key}]:[{res.headers['Location']}]")
 
 
-@actor
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)
 def file_cdn_cache_add_task(file: dict):
     file = File(**file)
     sha1 = file.hashes.sha1
@@ -307,7 +313,7 @@ def file_cdn_cache_add_task(file: dict):
             return download.error_message
 
 # 默认 modrinth 提供 hashes 我累了
-@actor(actor_name="mr_file_cdn_cache")
+@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60)(actor_name="mr_file_cdn_cache")
 def file_cdn_cache(file: dict):
     file: File = File(**file)
     if file.hashes:
