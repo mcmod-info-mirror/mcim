@@ -51,7 +51,7 @@ class RedisdbConfig:
 class SyncRedisdbConfig:
     @staticmethod
     def save(
-        model: SyncRedisdbConfigModel = SyncRedisdbConfigModel(), target=REDIS_CONFIG_PATH
+        model: SyncRedisdbConfigModel = SyncRedisdbConfigModel(), target=SYNC_REDIS_CONFIG_PATH
     ):
         with open(target, "w") as fd:
             json.dump(model.model_dump(), fd, indent=4)
