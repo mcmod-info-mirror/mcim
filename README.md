@@ -43,13 +43,13 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
   <summary>Modrinth</summary>
   <pre><blockcode> 
   {
-  id: 'AANobbMI',
-  description: 'The fastest and most compatible rendering optimization mod for Minecraft',
-  ...
-  found: true,
-  slug: 'sodium',
-  sync_at: '2024-07-22T08:30:37Z',
-  translated_description: '一个为《我的世界》打造的现代渲染引擎，极大地提升了性能。'
+    id: 'AANobbMI',
+    description: 'The fastest and most compatible rendering optimization mod for Minecraft',
+    ...
+    found: true,
+    slug: 'sodium',
+    sync_at: '2024-07-22T08:30:37Z',
+    translated_description: '一个为《我的世界》打造的现代渲染引擎，极大地提升了性能。'
   }
   </blockcode></pre>
 </details>
@@ -58,12 +58,12 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
   <summary>Curseforge</summary>
   <pre><blockcode> 
   {
-  id: 975558,
-  slug: 'progetto-multiverso-ultra-adventure',
-  ...
-  summary: 'This mod adds many new RPG features to the game',
-  sync_at: '2024-06-06T01:23:21Z',
-  translated_summary: '此模组为游戏添加了许多新的角色扮演特性。'
+    id: 975558,
+    slug: 'progetto-multiverso-ultra-adventure',
+    ...
+    summary: 'This mod adds many new RPG features to the game',
+    sync_at: '2024-06-06T01:23:21Z',
+    translated_summary: '此模组为游戏添加了许多新的角色扮演特性。'
   }
   </blockcode></pre>
 </details>
