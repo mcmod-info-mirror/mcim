@@ -158,3 +158,16 @@ services:
     image: redis:alpine
     restart: always
     logging: *default-logging
+
+  alist:
+    image: xhofe/alist:latest
+    container_name: alist
+    environment:
+      - PUID=0 # Find your own user PUID and group PGID. https://docs.linuxserver.io/general/understanding-puid-and-pgid
+      - PGID=0 # When using volumes (-v flags) permissions issues can arise between the host OS and the container, we avoid this issue by allowing you to specify the user PUID and group PGID.
+      - TZ=Asia/Shanghai
+    volumes:
+      - ${PWD}/alist:/opt/alist/data
+    ports:
+      - 5244:5244
+    restart: always
