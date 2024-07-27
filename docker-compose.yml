@@ -93,6 +93,7 @@ services:
       - mongodb
       - redis
       - sync_redis
+      - alist
     volumes:
       - /opt/mcim/config:/config
       - /opt/mcim/logs:/logs
@@ -167,7 +168,7 @@ services:
       - PGID=0 # When using volumes (-v flags) permissions issues can arise between the host OS and the container, we avoid this issue by allowing you to specify the user PUID and group PGID.
       - TZ=Asia/Shanghai
     volumes:
-      - ${PWD}/alist:/opt/alist/data
+      - /opt/alist/data:/opt/alist/data
     ports:
       - 5244:5244
     restart: always
