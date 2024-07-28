@@ -29,7 +29,7 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
 
 ### Curseforge
 
-- `api.curseforge.com` -> `mod.mcmirror.top/curseforge`
+- `api.curseforge.com` -> `mod.mcimirror.top/curseforge`
 - `edge.forgecdn.net` or `mediafilez.forgecdn.net` -> `mod.mcimirror.top`
 
 ### 简介翻译
@@ -53,6 +53,7 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
     sync_at: '2024-07-22T08:30:37Z',
     translated_description: '一个为《我的世界》打造的现代渲染引擎，极大地提升了性能。'
   }
+    
   </blockcode></pre>
 </details>
 
