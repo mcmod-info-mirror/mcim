@@ -1,5 +1,7 @@
 # MCmod-info-mirror
 
+![mcim](https://socialify.git.ci/mcmod-info-mirror/mcim/image?description=1&font=Inter&issues=1&language=1&name=1&owner=1&pattern=Overlapping%20Hexagons&pulls=1&stargazers=1&theme=Auto)
+
 为各平台的 Mod 的缓存加速，由 [MCLF-CN #3](https://github.com/MCLF-CN/docs/issues/3) 提议，由 [Pysio](https://github.com/pysio2007) 提供 CDN 支持
 
 基于 [BMCLAPI](https://bmclapidoc.bangbang93.com) 使用网盘缓存的先例，当前文件缓存在 [Mr.yang](https://github.com/YangHaoNing-CN) 和 [八蓝米](https://alist.8mi.tech) 支持下试运行！
