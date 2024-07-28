@@ -8,7 +8,7 @@ import time
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import file_cdn_redis_sync_engine, CURSEFORGE_LIMITER
+from app.sync import CURSEFORGE_LIMITER # file_cdn_redis_sync_engine, 
 from app.models.database.curseforge import File, Mod, Pagination, Fingerprint
 from app.utils.network import request_sync, download_file_sync
 from app.config import MCIMConfig, Aria2Config
@@ -236,12 +236,12 @@ def sync_categories():
     redis_engine.hset("curseforge", "categories", json.dumps(res))
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*6, actor_name="cf_file_cdn_url_cache")
-@limit
-def file_cdn_url_cache(url: str, key: str):
-    res = request_sync(method="HEAD", url=url, ignore_status_code=True)
-    file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600 * 2.8))
-    log.debug(f"URL cache {key} set {res.headers['Location']}")
+# @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*6, actor_name="cf_file_cdn_url_cache")
+# @limit
+# def file_cdn_url_cache(url: str, key: str):
+#     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
+#     file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600 * 2.8))
+#     log.debug(f"URL cache {key} set {res.headers['Location']}")
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="cf_file_cdn_cache_add_task")

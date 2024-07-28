@@ -8,7 +8,7 @@ from app.database._redis import (
     init_sync_redis_engine,
     sync_redis_engine,
     file_cdn_redis_sync_engine,
-    init_file_cdn_redis_sync_engine,
+    # init_file_cdn_redis_sync_engine,
 )
 from app.config.redis import RedisdbConfig, SyncRedisdbConfig
 
@@ -17,7 +17,7 @@ _sync_redis_config = SyncRedisdbConfig.load()
 
 init_sync_redis_engine()
 init_mongodb_syncengine()
-init_file_cdn_redis_sync_engine()
+# init_file_cdn_redis_sync_engine()
 
 
 sync_redis_engine = sync_redis_engine

@@ -34,26 +34,26 @@ def init_sync_redis_engine() -> Redis:
     return sync_redis_engine
 
 
-def init_file_cdn_redis_async_engine() -> AioRedis:
-    global file_cdn_redis_async_engine
-    file_cdn_redis_async_engine = AioRedis(
-        host=_redis_config.host,
-        port=_redis_config.port,
-        password=_redis_config.password,
-        db=_redis_config.database.file_cdn,
-    )
-    return file_cdn_redis_async_engine
+# def init_file_cdn_redis_async_engine() -> AioRedis:
+#     global file_cdn_redis_async_engine
+#     file_cdn_redis_async_engine = AioRedis(
+#         host=_redis_config.host,
+#         port=_redis_config.port,
+#         password=_redis_config.password,
+#         db=_redis_config.database.file_cdn,
+#     )
+#     return file_cdn_redis_async_engine
 
 
-def init_file_cdn_redis_sync_engine() -> Redis:
-    global file_cdn_redis_sync_engine
-    file_cdn_redis_sync_engine = Redis(
-        host=_redis_config.host,
-        port=_redis_config.port,
-        password=_redis_config.password,
-        db=_redis_config.database.file_cdn,
-    )
-    return file_cdn_redis_sync_engine
+# def init_file_cdn_redis_sync_engine() -> Redis:
+#     global file_cdn_redis_sync_engine
+#     file_cdn_redis_sync_engine = Redis(
+#         host=_redis_config.host,
+#         port=_redis_config.port,
+#         password=_redis_config.password,
+#         db=_redis_config.database.file_cdn,
+#     )
+#     return file_cdn_redis_sync_engine
 
 
 def init_task_redis_client() -> Redis:
@@ -108,7 +108,7 @@ def close_file_cdn_redis_engine():
 
 aio_redis_engine: AioRedis = init_redis_aioengine()
 sync_redis_engine: Redis = init_sync_redis_engine()
-file_cdn_redis_async_engine: AioRedis = init_file_cdn_redis_async_engine()
-file_cdn_redis_sync_engine: Redis = init_file_cdn_redis_sync_engine()
+# file_cdn_redis_async_engine: AioRedis = init_file_cdn_redis_async_engine()
+# file_cdn_redis_sync_engine: Redis = init_file_cdn_redis_sync_engine()
 
 log.success("Redis connection established")  # noqa

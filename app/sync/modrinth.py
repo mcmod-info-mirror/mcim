@@ -25,7 +25,7 @@ import httpx
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import file_cdn_redis_sync_engine, MODRINTH_LIMITER
+from app.sync import MODRINTH_LIMITER # file_cdn_redis_sync_engine, 
 from app.models.database.modrinth import Project, File, Version
 from app.utils.network import request_sync, download_file_sync
 from app.exceptions import ResponseCodeException
@@ -299,13 +299,13 @@ def sync_tags():
     redis_engine.hset("modrinth", "side_type", json.dumps(side_type))
 
 
-# file cdn url cache
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="mr_file_cdn_url_cache")
-@limit
-def file_cdn_url_cache(url: str, key: str):
-    res = request_sync(method="HEAD", url=url, ignore_status_code=True)
-    file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600 * 2.8))
-    log.debug(f"URL cache set [{key}]:[{res.headers['Location']}]")
+# # file cdn url cache
+# @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="mr_file_cdn_url_cache")
+# @limit
+# def file_cdn_url_cache(url: str, key: str):
+#     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
+#     file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600 * 2.8))
+#     log.debug(f"URL cache set [{key}]:[{res.headers['Location']}]")
 
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="mr_file_cdn_cache_add_task")

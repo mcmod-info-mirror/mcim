@@ -14,7 +14,7 @@ from app.database.mongodb import setup_async_mongodb, init_mongodb_aioengine
 from app.database._redis import (
     init_redis_aioengine,
     close_aio_redis_engine,
-    init_file_cdn_redis_async_engine,
+    # init_file_cdn_redis_async_engine,
 )
 from app.utils.response_cache import Cache
 from app.utils.response_cache import cache
@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
         app.state.fastapi_cache = Cache.init(enabled=True)
 
     if mcim_config.file_cdn:
-        app.state.file_cdn_redis_async_engine = init_file_cdn_redis_async_engine()
+        # app.state.file_cdn_redis_async_engine = init_file_cdn_redis_async_engine()
         init_file_cdn()
 
     yield
