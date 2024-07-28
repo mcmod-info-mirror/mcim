@@ -66,7 +66,7 @@ if mcim_config.file_cdn:
                 if file.file_cdn_cached:
                     # 存在于网盘中
                     alist_res = await request_async(
-                        "HEAD", alist_url, ignore_status_code=True
+                        method="HEAD", url=alist_url, ignore_status_code=True
                     )
                     raw_url = alist_res.headers.get("Location")
                     if raw_url:
@@ -124,7 +124,7 @@ if mcim_config.file_cdn:
                 if file.file_cdn_cached:
                     # 存在于网盘中
                     alist_res = await request_async(
-                        "HEAD", alist_url, ignore_status_code=True
+                        method="HEAD", url=alist_url, ignore_status_code=True
                     )
                     raw_url = alist_res.headers.get("Location")
                     if raw_url:
