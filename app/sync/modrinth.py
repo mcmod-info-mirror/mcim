@@ -37,7 +37,7 @@ mcim_config = MCIMConfig.load()
 aria2_config = Aria2Config.load()
 
 API = mcim_config.modrinth_api
-MAX_LENGTH = 1024 * 10024 * 20
+MAX_LENGTH = mcim_config.max_file_size
 
 
 def submit_models(models: List[Union[Project, File, Version]]):

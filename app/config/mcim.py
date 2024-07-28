@@ -41,6 +41,7 @@ class MCIMConfigModel(BaseModel):
     proxies: Optional[str] = None
 
     file_cdn: bool = False
+    max_file_size: int = 1024 * 10024 * 20
     aria2: bool = False
     modrinth_download_path: str = "./data/modrinth"
     curseforge_download_path: str = "./data/curseforge"

@@ -167,25 +167,6 @@ async def request(
     return res
 
 
-# @retry(stop=stop_after_attempt(RETRY_TIMES), reraise=True)
-# async def download_file(url: str, path: str):
-#     """
-#     下载文件
-
-#     Args:
-#         url (str): 下载链接
-
-#         path (str): 保存路径
-#     """
-#     log.debug(f"Downloading file from {url} to {path}")
-#     client = get_async_session()
-#     async with client.stream("GET", url) as response:
-#         with open(path, "wb") as f:
-#             async for chunk in response.aiter_bytes():
-#                 f.write(chunk)
-#     log.debug(f"Downloaded file from {url} to {path}")
-
-
 @retry(stop=stop_after_attempt(RETRY_TIMES), reraise=True)
 def download_file_sync(
     url: str,

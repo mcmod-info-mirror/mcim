@@ -21,7 +21,7 @@ mcim_config = MCIMConfig.load()
 aria2_config = Aria2Config.load()
 
 API = mcim_config.curseforge_api
-MAX_LENGTH = 1024 * 10024 * 20
+MAX_LENGTH = mcim_config.max_file_size
 MIN_DOWNLOAD_COUNT = 0
 HEADERS = {"x-api-key": mcim_config.curseforge_api_key}
 
