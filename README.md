@@ -1,5 +1,7 @@
 # MCmod-info-mirror
 
+![mcim](https://socialify.git.ci/mcmod-info-mirror/mcim/image?description=1&font=Inter&issues=1&language=1&name=1&owner=1&pattern=Overlapping%20Hexagons&pulls=1&stargazers=1&theme=Auto)
+
 为各平台的 Mod 的缓存加速，由 [MCLF-CN #3](https://github.com/MCLF-CN/docs/issues/3) 提议，由 [Pysio](https://github.com/pysio2007) 提供 CDN 支持
 
 基于 [BMCLAPI](https://bmclapidoc.bangbang93.com) 使用网盘缓存的先例，当前文件缓存在 [Mr.yang](https://github.com/YangHaoNing-CN) 和 [八蓝米](https://alist.8mi.tech) 支持下试运行！
@@ -43,13 +45,13 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
   <summary>Modrinth</summary>
   <pre><blockcode> 
   {
-  id: 'AANobbMI',
-  description: 'The fastest and most compatible rendering optimization mod for Minecraft',
-  ...
-  found: true,
-  slug: 'sodium',
-  sync_at: '2024-07-22T08:30:37Z',
-  translated_description: '一个为《我的世界》打造的现代渲染引擎，极大地提升了性能。'
+    id: 'AANobbMI',
+    description: 'The fastest and most compatible rendering optimization mod for Minecraft',
+    ...
+    found: true,
+    slug: 'sodium',
+    sync_at: '2024-07-22T08:30:37Z',
+    translated_description: '一个为《我的世界》打造的现代渲染引擎，极大地提升了性能。'
   }
   </blockcode></pre>
 </details>
@@ -58,12 +60,12 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
   <summary>Curseforge</summary>
   <pre><blockcode> 
   {
-  id: 975558,
-  slug: 'progetto-multiverso-ultra-adventure',
-  ...
-  summary: 'This mod adds many new RPG features to the game',
-  sync_at: '2024-06-06T01:23:21Z',
-  translated_summary: '此模组为游戏添加了许多新的角色扮演特性。'
+    id: 975558,
+    slug: 'progetto-multiverso-ultra-adventure',
+    ...
+    summary: 'This mod adds many new RPG features to the game',
+    sync_at: '2024-06-06T01:23:21Z',
+    translated_summary: '此模组为游戏添加了许多新的角色扮演特性。'
   }
   </blockcode></pre>
 </details>
