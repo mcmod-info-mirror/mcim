@@ -13,7 +13,6 @@ from typing import Optional, Union
 from app.exceptions import ApiException, ResponseCodeException
 from app.config.mcim import MCIMConfig
 from app.utils.loger import log
-from app.utils.webdav import fs
 
 mcim_config = MCIMConfig.load()
 
@@ -190,9 +189,8 @@ def download_file_sync(
         md5 = hashlib.md5()
     if not ignore_exist and hash_:
         raw_path = os.path.join(path, hash_["sha1"][:2], hash_["sha1"])
-        if fs.exists(raw_path):
-            # check size
-            if fs.info(raw_path)["size"] == size:
+        if os.path.exists(raw_path):
+            if os.path.getsize(raw_path) == size:
                 log.debug(f"File {path} exists {raw_path}")
                 return
     log.debug(f"Downloading file from {url}")
@@ -205,13 +203,13 @@ def download_file_sync(
                     sha1.update(chunk)
                     md5.update(chunk)
                     sha512.update(chunk)
+        tmp_file_path = f.name
         if not hash_:
             hash_["sha1"] = sha1.hexdigest()
             hash_["md5"] = md5.hexdigest()
             hash_["sha512"] = sha512.hexdigest()
         raw_path = os.path.join(path, hash_["sha1"][:2], hash_["sha1"])
-        # shutil.move(tmp_file_path, raw_path)
-        fs.upload_fileobj(f, raw_path, overwrite=True, size=size)
+        shutil.move(tmp_file_path, raw_path)
 
     log.debug(f"Downloaded file from {url} to {raw_path}")
     return hash_

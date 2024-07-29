@@ -47,7 +47,7 @@ class Project(Model):
     monetization_status: Optional[str] = None
     team: Optional[str] = None
     body_url: Optional[str] = None
-    # moderator_message: Optional[str] = None Deprecated
+    moderator_message: Optional[str] = None
     published: Optional[str] = None
     updated: Optional[str] = None
     approved: Optional[str] = None
