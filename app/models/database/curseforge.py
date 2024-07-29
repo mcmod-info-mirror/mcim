@@ -69,10 +69,10 @@ class Logo(BaseModel):
 
 
 class Category(BaseModel):
-    id: int
-    gameId: int
-    name: str
-    slug: str
+    id: Optional[int] = None
+    gameId: Optional[int] = None
+    name: Optional[str] = None
+    slug: Optional[str] = None
     url: Optional[str] = None
     iconUrl: Optional[str] = None
     dateModified: Optional[str] = None
@@ -224,25 +224,31 @@ class FileIndex(BaseModel):
 
 class Mod(Model):
     id: int = Field(primary_field=True, index=True)
-    gameId: int
-    name: str
+    gameId: Optional[int] = None
+    name: Optional[str] = None
     slug: str = Field(index=True)
     links: Optional[Links] = None
     summary: Optional[str] = None
     status: Optional[int] = None
     downloadCount: Optional[int] = None
+    isFeatured: Optional[bool] = None
     primaryCategoryId: Optional[int] = None
+    categories: Optional[List[Category]] = None
     classId: Optional[int] = None
     authors: Optional[List[Author]] = None
     logo: Optional[Logo] = None
     screenshots: Optional[List[ScreenShot]] = None
+    mainFileId: Optional[int] = None
     latestFiles: Optional[List[FileInfo]] = None
     latestFilesIndexes: Optional[List[FileIndex]] = None
     dateCreated: Optional[str] = None
     dateModified: Optional[str] = None
     dateReleased: Optional[str] = None
+    allowModDistribution: Optional[bool] = None
     gamePopularityRank: Optional[int] = None
+    isAvailable: Optional[bool] = None
     thumbsUpCount: Optional[int] = None
+    rating: Optional[int] = None
 
     translated_summary: Optional[str] = None
     found: bool = True
