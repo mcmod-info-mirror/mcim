@@ -4,17 +4,23 @@ from pydantic import BaseModel, field_serializer, field_validator, model_validat
 from typing import List, Optional, Union
 from datetime import datetime
 
-expireAfterSeconds: int = 60 * 60 * 24
+class DonationUrl(BaseModel):
+    id: Optional[str] = None
+    platform: Optional[str] = None
+    url: Optional[str] = None
 
+class License(BaseModel):
+    id: Optional[str] = None
+    name: Optional[str] = None
+    url: Optional[str] = None
 
-class Gallery(BaseModel):
+class GalleryItem(BaseModel):
     url: Optional[str] = None
     featured: Optional[bool] = None
     title: Optional[str] = None
     description: Optional[str] = None
     created: Optional[str] = None
     ordering: Optional[int] = None
-
 
 class Project(Model):
     id: str = Field(primary_field=True, index=True)
@@ -24,21 +30,34 @@ class Project(Model):
     categories: Optional[List[str]] = None
     client_side: Optional[str] = None
     server_side: Optional[str] = None
+    body: Optional[str] = None
     status: Optional[str] = None
+    requested_status: Optional[str] = None
     additional_categories: Optional[List[str]] = None
     issues_url: Optional[str] = None
     source_url: Optional[str] = None
     wiki_url: Optional[str] = None
+    discord_url: Optional[str] = None
+    donation_urls: Optional[List[DonationUrl]] = None
     project_type: Optional[str] = None
     downloads: Optional[int] = None
     icon_url: Optional[str] = None
+    color: Optional[int] = None
+    thread_id: Optional[str] = None
+    monetization_status: Optional[str] = None
+    team: Optional[str] = None
+    body_url: Optional[str] = None
+    moderator_message: Optional[str] = None
     published: Optional[str] = None
     updated: Optional[str] = None
     approved: Optional[str] = None
+    queued: Optional[str] = None
+    followers: Optional[int] = None
+    license: Optional[License] = None
     versions: Optional[List[str]] = None
     game_versions: Optional[List[str]] = None
     loaders: Optional[List[str]] = None
-    gallery: Optional[List[Gallery]] = None
+    gallery: Optional[List[GalleryItem]] = None
 
     translated_description: Optional[str] = None
     found: bool = Field(default=True)

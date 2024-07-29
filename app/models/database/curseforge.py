@@ -16,10 +16,13 @@ class FileSortableGameVersions(BaseModel):
     gameVersionReleaseDate: Optional[str] = None
     gameVersionTypeId: Optional[int] = None
 
+
 """
 1=Sha1
 2=Md5
 """
+
+
 class Hash(BaseModel):
     value: str
     algo: int
@@ -116,6 +119,14 @@ class ScreenShot(BaseModel):
     url: Optional[str] = None
 
 
+{"name": "string", "fingerprint": 0}
+
+
+class Module(BaseModel):
+    name: Optional[str] = None
+    fingerprint: Optional[int] = None
+
+
 {
     "id": 0,
     "gameId": 0,
@@ -156,21 +167,31 @@ class File(Model):
     id: int = Field(primary_field=True, index=True)
     gameId: int
     modId: int = Field(index=True)
+    isAvailable: Optional[bool] = None
     displayName: Optional[str] = None
     fileName: Optional[str] = None
     releaseType: Optional[int] = None
     fileStatus: Optional[int] = None
-    hashes: List[Hash]
-    fileDate: Optional[str] = None
+    hashes: Optional[List[Hash]] = None
+    fileDate: Optional[datetime] = None
     fileLength: Optional[int] = None
     downloadCount: Optional[int] = None
+    fileSizeOnDisk: Optional[int] = None
     downloadUrl: Optional[str] = None
     gameVersions: Optional[List[str]] = None
     sortableGameVersions: Optional[List[FileSortableGameVersions]] = None
     dependencies: Optional[List[FileDependencies]] = None
+    exposeAsAlternative: Optional[bool] = None
+    parentProjectFileId: Optional[int] = None
+    alternateFileId: Optional[int] = None
+    isServerPack: Optional[bool] = None
+    serverPackFileId: Optional[int] = None
+    isEarlyAccessContent: Optional[bool] = None
+    earlyAccessEndDate: Optional[datetime] = None
     fileFingerprint: Optional[int] = None
+    modules: Optional[List[Module]] = None
 
-    need_to_cache: bool = True # 不缓存 Mod 以外的东西，在获得 mod 类型的时候设置
+    need_to_cache: bool = True  # 不缓存 Mod 以外的东西，在获得 mod 类型的时候设置
     file_cdn_cached: bool = False
     found: bool = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)
@@ -188,19 +209,29 @@ class FileInfo(BaseModel):
     id: int
     gameId: int
     modId: int
+    isAvailable: Optional[bool] = None
     displayName: Optional[str] = None
     fileName: Optional[str] = None
     releaseType: Optional[int] = None
     fileStatus: Optional[int] = None
-    hashes: List[Hash]
-    fileDate: Optional[str] = None
+    hashes: Optional[List[Hash]] = None
+    fileDate: Optional[datetime] = None
     fileLength: Optional[int] = None
     downloadCount: Optional[int] = None
+    fileSizeOnDisk: Optional[int] = None
     downloadUrl: Optional[str] = None
     gameVersions: Optional[List[str]] = None
     sortableGameVersions: Optional[List[FileSortableGameVersions]] = None
     dependencies: Optional[List[FileDependencies]] = None
+    exposeAsAlternative: Optional[bool] = None
+    parentProjectFileId: Optional[int] = None
+    alternateFileId: Optional[int] = None
+    isServerPack: Optional[bool] = None
+    serverPackFileId: Optional[int] = None
+    isEarlyAccessContent: Optional[bool] = None
+    earlyAccessEndDate: Optional[datetime] = None
     fileFingerprint: Optional[int] = None
+    modules: Optional[List[Module]] = None
 
 
 {
