@@ -205,14 +205,13 @@ def download_file_sync(
                     sha1.update(chunk)
                     md5.update(chunk)
                     sha512.update(chunk)
-        tmp_file_path = f.name
         if not hash_:
             hash_["sha1"] = sha1.hexdigest()
             hash_["md5"] = md5.hexdigest()
             hash_["sha512"] = sha512.hexdigest()
         raw_path = os.path.join(path, hash_["sha1"][:2], hash_["sha1"])
         # shutil.move(tmp_file_path, raw_path)
-        fs.upload_fileobj(f, raw_path, overwrite=True)
+        fs.upload_fileobj(f, raw_path, overwrite=True, size=size)
 
     log.debug(f"Downloaded file from {url} to {raw_path}")
     return hash_
