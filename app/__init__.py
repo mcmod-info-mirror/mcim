@@ -28,17 +28,29 @@ mcim_config = MCIMConfig.load()
 
 def init_file_cdn():
     client, fs = init_webdav()
-    fs.makedirs(mcim_config.modrinth_download_path, exist_ok=True)
-    fs.makedirs(mcim_config.curseforge_download_path, exist_ok=True)
-    for i in range(256):
-        fs.makedirs(
-            os.path.join(mcim_config.modrinth_download_path, format(i, "02x")),
-            exist_ok=True,
-        )
-        fs.makedirs(
-            os.path.join(mcim_config.curseforge_download_path, format(i, "02x")),
-            exist_ok=True,
-        )
+    if not fs.exists(mcim_config.modrinth_download_path):
+        fs.makedirs(mcim_config.modrinth_download_path)
+        for i in range(256):
+            fs.makedirs(
+                os.path.join(mcim_config.modrinth_download_path, format(i, "02x")),
+            )
+    if not fs.exists(mcim_config.curseforge_download_path):
+        fs.makedirs(mcim_config.curseforge_download_path)
+        for i in range(256):
+            fs.makedirs(
+                os.path.join(mcim_config.curseforge_download_path, format(i, "02x")),
+            )
+    # fs.makedirs(mcim_config.modrinth_download_path, exist_ok=True)
+    # fs.makedirs(mcim_config.curseforge_download_path, exist_ok=True)
+    # for i in range(256):
+    #     fs.makedirs(
+    #         os.path.join(mcim_config.modrinth_download_path, format(i, "02x")),
+    #         exist_ok=True,
+    #     )
+    #     fs.makedirs(
+    #         os.path.join(mcim_config.curseforge_download_path, format(i, "02x")),
+    #         exist_ok=True,
+    #     )
     log.success("File CDN enabled, cache folder ready.")
     return client, fs
 
