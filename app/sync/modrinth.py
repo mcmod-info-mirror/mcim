@@ -56,7 +56,7 @@ def submit_models(models: List[Union[Project, File, Version]]):
                         if mcim_config.aria2:
                             file_cdn_cache_add_task.send(model.model_dump())
                         else:
-                            file_cdn_cache.send(model.model_dump())
+                            file_cdn_cache.send(model.model_dump(), checked=True)
                     else:
                         model.file_cdn_cached = True
                         mongodb_engine.save(model)
@@ -408,7 +408,7 @@ def file_cdn_cache_add_task(file: dict):
     actor_name="mr_file_cdn_cache",
 )
 @limit
-def file_cdn_cache(file: dict):
+def file_cdn_cache(file: dict, checked: bool = False):
     file: File = File(**file)
     if file.hashes:
         hash_ = {"sha1": file.hashes.sha1}
@@ -418,7 +418,7 @@ def file_cdn_cache(file: dict):
             path=mcim_config.modrinth_download_path,
             hash_=hash_,
             size=file.size,
-            ignore_exist=False,
+            ignore_exist=False if not checked else True,
         )
         file.file_cdn_cached = True
         mongodb_engine.save(file)
