@@ -197,13 +197,15 @@ class File(Model):
     sync_at: datetime = Field(default_factory=datetime.utcnow)
 
     @field_serializer("sync_at", "earlyAccessEndDate", "fileDate")
-    def serialize_sync_Date(self, value: datetime, _info):
-        return value.strftime("%Y-%m-%dT%H:%M:%SZ")
+    def serialize_sync_Date(self, value: Optional[datetime], _info):
+        if isinstance(value, datetime):
+            return value.strftime("%Y-%m-%dT%H:%M:%SZ")
+        else:
+            return value
 
     model_config = {
         "collection": "curseforge_files",
     }
-
 
 class FileInfo(BaseModel):
     id: int
