@@ -14,6 +14,7 @@ from app.utils.network import request_sync, download_file_sync
 from app.config import MCIMConfig, Aria2Config
 from app.utils.aria2 import add_http_task, ARIA2_API
 from app.utils.loger import log
+from app.utils.webdav import client as webdav_client
 from app.exceptions import ResponseCodeException
 
 
@@ -103,16 +104,17 @@ def sync_mod_all_files(
                     and model.downloadCount >= MIN_DOWNLOAD_COUNT
                 ):
                     if len(model.hashes) != 0:
-                        if not os.path.exists(
+                        if not webdav_client.exists(
                             os.path.join(
                                 mcim_config.curseforge_download_path,
+                                model.hashes[0].value[:2],
                                 model.hashes[0].value,
                             )
                         ):
                             if mcim_config.aria2:
                                 file_cdn_cache_add_task.send(model.model_dump())
                             else:
-                                file_cdn_cache.send(model.model_dump())
+                                file_cdn_cache.send(model.model_dump(), checked=True)
 
                             log.trace(f"File {model.id} cache task added")
                         else:
@@ -273,7 +275,7 @@ def file_cdn_cache_add_task(file: dict):
 
 @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="cf_file_cdn_cache")
 @limit
-def file_cdn_cache(file: dict):
+def file_cdn_cache(file: dict, checked: bool = False):
     file: File = File(**file)
     hash_ = {}
     for hash_info in file.hashes:
@@ -291,13 +293,13 @@ def file_cdn_cache(file: dict):
                     path=mcim_config.curseforge_download_path,
                     hash_=hash_,
                     size=file.fileLength,
-                    ignore_exist=False,
+                    ignore_exist=False if not checked else True,
                 )
             else:
                 hashes_dict = download_file_sync(
                     url=url,
                     path=mcim_config.curseforge_download_path,
-                    ignore_exist=False,
+                    ignore_exist=False if not checked else True,
                 )
             if file.hashes is not None:
                 if len(file.hashes) == 0:
