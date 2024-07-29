@@ -25,13 +25,14 @@ import httpx
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import MODRINTH_LIMITER # file_cdn_redis_sync_engine, 
+from app.sync import MODRINTH_LIMITER  # file_cdn_redis_sync_engine,
 from app.models.database.modrinth import Project, File, Version
 from app.utils.network import request_sync, download_file_sync
 from app.exceptions import ResponseCodeException
 from app.config import MCIMConfig, Aria2Config
 from app.utils.aria2 import add_http_task, ARIA2_API
 from app.utils.loger import log
+from app.utils.webdav import fs
 
 mcim_config = MCIMConfig.load()
 aria2_config = Aria2Config.load()
@@ -45,22 +46,29 @@ def submit_models(models: List[Union[Project, File, Version]]):
         for model in models:
             if isinstance(model, File):
                 if not model.file_cdn_cached and model.size <= MAX_LENGTH:
-                    if not os.path.exists(
+                    if not fs.exists(
                         os.path.join(
-                            mcim_config.modrinth_download_path, model.hashes.sha512
+                            mcim_config.modrinth_download_path,
+                            model.hashes.sha1[:2],
+                            model.hashes.sha1,
                         )
                     ):
                         if mcim_config.aria2:
                             file_cdn_cache_add_task.send(model.model_dump())
                         else:
-                            file_cdn_cache.send(model.model_dump())
+                            file_cdn_cache.send(model.model_dump(), checked=True)
                     else:
                         model.file_cdn_cached = True
                         mongodb_engine.save(model)
     mongodb_engine.save_all(models)
 
+
 def should_retry(retries_so_far, exception):
-    return retries_so_far < 3 and (isinstance(exception, httpx.TransportError) or isinstance(exception, dramatiq.RateLimitExceeded))
+    return retries_so_far < 3 and (
+        isinstance(exception, httpx.TransportError)
+        or isinstance(exception, dramatiq.RateLimitExceeded)
+    )
+
 
 # limit decorator
 def limit(func):
@@ -71,16 +79,28 @@ def limit(func):
     return wrapper
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="check_alive")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="check_alive",
+)
 @limit
 def check_alive():
     res = request_sync("https://api.modrinth.com")
     return res.json()
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_project_all_version")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="sync_project_all_version",
+)
 @limit
-def sync_project_all_version(        
+def sync_project_all_version(
     project_id: str,
     slug: Optional[str] = None,
 ) -> List[Union[Project, File, Version]]:
@@ -126,7 +146,13 @@ def sync_multi_projects_all_version(
     return models
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_project")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="sync_project",
+)
 @limit
 def sync_project(project_id: str):
     models = []
@@ -142,7 +168,13 @@ def sync_project(project_id: str):
             return
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_multi_projects")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="sync_multi_projects",
+)
 @limit
 def sync_multi_projects(project_ids: List[str]):
     try:
@@ -175,7 +207,13 @@ def process_version_resp(res: dict) -> List[Union[Project, File, Version]]:
     return models
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_version")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="sync_version",
+)
 @limit
 def sync_version(version_id: str):
     try:
@@ -203,7 +241,13 @@ def process_multi_versions(res: List[dict]):
     return models
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_multi_versions")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="sync_multi_versions",
+)
 @limit
 def sync_multi_versions(version_ids: List[str]):
     try:
@@ -224,7 +268,13 @@ def sync_multi_versions(version_ids: List[str]):
     submit_models(models)
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_hash")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="sync_hash",
+)
 @limit
 def sync_hash(hash: str, algorithm: str):
     try:
@@ -254,7 +304,13 @@ def process_multi_hashes(res: dict):
     return models
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_multi_hashes")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="sync_multi_hashes",
+)
 @limit
 def sync_multi_hashes(hashes: List[str], algorithm: str):
     try:
@@ -280,7 +336,13 @@ def sync_multi_hashes(hashes: List[str], algorithm: str):
     submit_models(models)
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_tags")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="sync_tags",
+)
 @limit
 def sync_tags():
     # db 1
@@ -308,7 +370,13 @@ def sync_tags():
 #     log.debug(f"URL cache set [{key}]:[{res.headers['Location']}]")
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="mr_file_cdn_cache_add_task")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="mr_file_cdn_cache_add_task",
+)
 @limit
 def file_cdn_cache_add_task(file: dict):
     file = File(**file)
@@ -330,10 +398,17 @@ def file_cdn_cache_add_task(file: dict):
         elif download.has_failed:
             return download.error_message
 
+
 # 默认 modrinth 提供 hashes 我累了
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="mr_file_cdn_cache")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="mr_file_cdn_cache",
+)
 @limit
-def file_cdn_cache(file: dict):
+def file_cdn_cache(file: dict, checked: bool = False):
     file: File = File(**file)
     if file.hashes:
         hash_ = {"sha1": file.hashes.sha1}
@@ -343,7 +418,7 @@ def file_cdn_cache(file: dict):
             path=mcim_config.modrinth_download_path,
             hash_=hash_,
             size=file.size,
-            ignore_exist=False,
+            ignore_exist=False if not checked else True,
         )
         file.file_cdn_cached = True
         mongodb_engine.save(file)

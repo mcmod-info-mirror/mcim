@@ -43,15 +43,13 @@ class MCIMConfigModel(BaseModel):
     file_cdn: bool = False
     max_file_size: int = 1024 * 10024 * 20
     aria2: bool = False
-    modrinth_download_path: str = "./data/modrinth"
-    curseforge_download_path: str = "./data/curseforge"
+    modrinth_download_path: str = "/modrinth"
+    curseforge_download_path: str = "/curseforge"
 
     prometheus: bool = False
 
     redis_cache: bool = True
     alist_endpoint: str = "http://127.0.0.1:5244"
-    alist_username: str = "admin"
-    alist_password: str = "admin"
 
     expire_second: ExpireSecond = ExpireSecond()
     expire_status_code: int = 404
