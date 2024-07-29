@@ -16,6 +16,7 @@ from app.database._redis import (
     close_aio_redis_engine,
     # init_file_cdn_redis_async_engine,
 )
+from app.utils.webdav import init_webdav
 from app.utils.response_cache import Cache
 from app.utils.response_cache import cache
 from app.utils.response_cache.key_builder import xxhash_key_builder
@@ -26,18 +27,20 @@ mcim_config = MCIMConfig.load()
 
 
 def init_file_cdn():
-    os.makedirs(mcim_config.modrinth_download_path, exist_ok=True)
-    os.makedirs(mcim_config.curseforge_download_path, exist_ok=True)
+    client, fs = init_webdav()
+    fs.makedirs(mcim_config.modrinth_download_path, exist_ok=True)
+    fs.makedirs(mcim_config.curseforge_download_path, exist_ok=True)
     for i in range(256):
-        os.makedirs(
+        fs.makedirs(
             os.path.join(mcim_config.modrinth_download_path, format(i, "02x")),
             exist_ok=True,
         )
-        os.makedirs(
+        fs.makedirs(
             os.path.join(mcim_config.curseforge_download_path, format(i, "02x")),
             exist_ok=True,
         )
     log.success("File CDN enabled, cache folder ready.")
+    return client, fs
 
 
 @asynccontextmanager
@@ -51,8 +54,10 @@ async def lifespan(app: FastAPI):
         app.state.fastapi_cache = Cache.init(enabled=True)
 
     if mcim_config.file_cdn:
+        client, fs = init_file_cdn()
+        app.state.webdav_client = client
+        app.state.webdav_fs = fs
         # app.state.file_cdn_redis_async_engine = init_file_cdn_redis_async_engine()
-        init_file_cdn()
 
     yield
 

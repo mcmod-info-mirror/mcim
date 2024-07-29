@@ -14,6 +14,7 @@ from app.utils.network import request_sync, download_file_sync
 from app.config import MCIMConfig, Aria2Config
 from app.utils.aria2 import add_http_task, ARIA2_API
 from app.utils.loger import log
+from app.utils.webdav import client as webdav_client
 from app.exceptions import ResponseCodeException
 
 
@@ -103,9 +104,10 @@ def sync_mod_all_files(
                     and model.downloadCount >= MIN_DOWNLOAD_COUNT
                 ):
                     if len(model.hashes) != 0:
-                        if not os.path.exists(
+                        if not webdav_client.exists(
                             os.path.join(
                                 mcim_config.curseforge_download_path,
+                                model.hashes[0].value[:2],
                                 model.hashes[0].value,
                             )
                         ):
