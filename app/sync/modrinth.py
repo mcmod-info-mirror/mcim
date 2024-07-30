@@ -46,20 +46,21 @@ def submit_models(models: List[Union[Project, File, Version]]):
         for model in models:
             if isinstance(model, File):
                 if not model.file_cdn_cached and model.size <= MAX_LENGTH:
-                    if not fs.exists(
-                        os.path.join(
-                            mcim_config.modrinth_download_path,
-                            model.hashes.sha1[:2],
-                            model.hashes.sha1,
-                        )
-                    ):
-                        if mcim_config.aria2:
-                            file_cdn_cache_add_task.send(model.model_dump())
-                        else:
-                            file_cdn_cache.send(model.model_dump(), checked=True)
+                    # if not fs.exists(
+                    #     os.path.join(
+                    #         mcim_config.modrinth_download_path,
+                    #         model.hashes.sha1[:2],
+                    #         model.hashes.sha1,
+                    #     )
+                    # ):
+                    if mcim_config.aria2:
+                        file_cdn_cache_add_task.send(model.model_dump())
                     else:
-                        model.file_cdn_cached = True
-                        mongodb_engine.save(model)
+                        file_cdn_cache.send(model.model_dump(), checked=False)
+                    # else:
+                    model.file_cdn_cached = True
+                    # mongodb_engine.save(model)
+    log.debug(f"Submit models: {models}")
     mongodb_engine.save_all(models)
 
 
@@ -67,6 +68,7 @@ def should_retry(retries_so_far, exception):
     return retries_so_far < 3 and (
         isinstance(exception, httpx.TransportError)
         or isinstance(exception, dramatiq.RateLimitExceeded)
+        or isinstance(exception, dramatiq.middleware.time_limit.TimeLimitExceeded)
     )
 
 

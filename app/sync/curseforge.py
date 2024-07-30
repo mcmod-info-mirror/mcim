@@ -8,7 +8,7 @@ import time
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import CURSEFORGE_LIMITER # file_cdn_redis_sync_engine, 
+from app.sync import CURSEFORGE_LIMITER  # file_cdn_redis_sync_engine,
 from app.models.database.curseforge import File, Mod, Pagination, Fingerprint
 from app.utils.network import request_sync, download_file_sync
 from app.config import MCIMConfig, Aria2Config
@@ -31,8 +31,14 @@ def submit_models(models: List[Union[File, Mod, Fingerprint]]):
     mongodb_engine.save_all(models)
     log.debug(f"Submited {len(models)}")
 
+
 def should_retry(retries_so_far, exception):
-    return retries_so_far < 3 and (isinstance(exception, httpx.TransportError) or isinstance(exception, dramatiq.RateLimitExceeded))
+    return retries_so_far < 3 and (
+        isinstance(exception, httpx.TransportError)
+        or isinstance(exception, dramatiq.RateLimitExceeded)
+        or isinstance(exception, dramatiq.middleware.time_limit.TimeLimitExceeded)
+    )
+
 
 # limit decorator
 def limit(func):
@@ -42,7 +48,14 @@ def limit(func):
 
     return wrapper
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="cf_check_alive")
+
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="cf_check_alive",
+)
 @limit
 def check_alive():
     return request_sync(API, headers=HEADERS).text
@@ -104,20 +117,20 @@ def sync_mod_all_files(
                     and model.downloadCount >= MIN_DOWNLOAD_COUNT
                 ):
                     if len(model.hashes) != 0:
-                        if not webdav_client.exists(
-                            os.path.join(
-                                mcim_config.curseforge_download_path,
-                                model.hashes[0].value[:2],
-                                model.hashes[0].value,
-                            )
-                        ):
-                            if mcim_config.aria2:
-                                file_cdn_cache_add_task.send(model.model_dump())
-                            else:
-                                file_cdn_cache.send(model.model_dump(), checked=True)
+                        # if not webdav_client.exists(
+                        #     os.path.join(
+                        #         mcim_config.curseforge_download_path,
+                        #         model.hashes[0].value[:2],
+                        #         model.hashes[0].value,
+                        #     )
+                        # ):
+                        if mcim_config.aria2:
+                            file_cdn_cache_add_task.send(model.model_dump())
+                        else:
+                            file_cdn_cache.send(model.model_dump(), checked=False)
 
                             log.trace(f"File {model.id} cache task added")
-                        else:
+                            # else:
                             model.file_cdn_cached = True
                     else:
                         file_cdn_cache.send(model.model_dump())
@@ -135,7 +148,13 @@ def sync_multi_mods_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
     return models
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_mod")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="sync_mod",
+)
 @limit
 def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
@@ -151,8 +170,13 @@ def sync_mod(modId: int):
     submit_models(models)
 
 
-
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_mutil_mods")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="sync_mutil_mods",
+)
 @limit
 def sync_mutil_mods(modIds: List[int]):
     modIds = list(set(modIds))
@@ -167,7 +191,13 @@ def sync_mutil_mods(modIds: List[int]):
     submit_models(models)
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_file")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="sync_file",
+)
 @limit
 def sync_file(modId: int, fileId: int, expire: bool = False):
     # res = request_sync(f"{API}/v1/mods/{modId}/files/{fileId}", headers=headers).json()[
@@ -190,7 +220,13 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     submit_models(models)
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_mutil_files")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="sync_mutil_files",
+)
 @limit
 def sync_mutil_files(fileIds: List[int]):
     models: List[Union[File, Mod]] = []
@@ -206,7 +242,13 @@ def sync_mutil_files(fileIds: List[int]):
     submit_models(models)
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_fingerprints")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="sync_fingerprints",
+)
 @limit
 def sync_fingerprints(fingerprints: List[int]):
     res = request_sync(
@@ -229,7 +271,13 @@ def sync_fingerprints(fingerprints: List[int]):
     submit_models(models)
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="sync_categories")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="sync_categories",
+)
 @limit
 def sync_categories():
     res = request_sync(
@@ -246,7 +294,13 @@ def sync_categories():
 #     log.debug(f"URL cache {key} set {res.headers['Location']}")
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="cf_file_cdn_cache_add_task")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="cf_file_cdn_cache_add_task",
+)
 @limit
 def file_cdn_cache_add_task(file: dict):
     file = File(**file)
@@ -273,7 +327,13 @@ def file_cdn_cache_add_task(file: dict):
             return download.error_message
 
 
-@actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="cf_file_cdn_cache")
+@actor(
+    max_retries=3,
+    retry_when=should_retry,
+    throws=(ResponseCodeException,),
+    min_backoff=1000 * 60,
+    actor_name="cf_file_cdn_cache",
+)
 @limit
 def file_cdn_cache(file: dict, checked: bool = False):
     file: File = File(**file)
