@@ -215,6 +215,8 @@ def download_file_sync(
         # verify hash
         if not verify_hash(f.name, hash_["sha1"], "sha1"):
             raise Exception("Hash verification failed")
+        else:
+            log.debug(f"Hash verification passed, file {f.name} -> {hash_['sha1']}")
         fs.upload_fileobj(f, raw_path, overwrite=True, size=size)
 
     log.debug(f"Downloaded file from {url} to {raw_path}")
