@@ -309,6 +309,7 @@ def file_cdn_cache(file: dict, checked: bool = False):
                     ]
             file.file_cdn_cached = True
             mongodb_engine.save(file)
+            log.debug(f"Saved {file.id}")
         except Exception as e:
             log.exception(e)
             log.error(f"Failed to cache file {file.hashes}")

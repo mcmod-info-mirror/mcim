@@ -137,6 +137,8 @@ if mcim_config.file_cdn:
                                     "Expires": expires_date,
                                 },
                             )
+                        else:
+                            log.debug(f"Failed: alist_res: {alist_res.__dict__}")
                 else:
                     # if not file.need_to_cache:
                     #     return RedirectResponse(
@@ -155,6 +157,8 @@ if mcim_config.file_cdn:
                         log.debug(
                             f"file cache not found, {alist_url} send with normal mode."
                         )
+            else:
+                log.debug(f"File {fileid} is too large, {file.fileLength} > {MAX_LENGTH}")
         else:
             sync_mutil_files.send([fileid])
             log.debug(f"sync fileId {fileid} task send.")
