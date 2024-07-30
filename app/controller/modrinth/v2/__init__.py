@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, Path, Request
 from fastapi.responses import Response
 from typing_extensions import Annotated
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict
 from enum import Enum
 from pydantic import BaseModel
 from odmantic import query
@@ -366,7 +366,7 @@ class HashesQuery(BaseModel):
 @v2_router.post(
     "/version_files",
     description="Modrinth Files 信息",
-    response_model=dict[Version],
+    response_model=Dict[str, Version],
 )
 @cache(expire=mcim_config.expire_second.modrinth.file)
 async def modrinth_files(items: HashesQuery, request: Request):
