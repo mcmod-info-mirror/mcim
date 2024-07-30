@@ -75,6 +75,12 @@ services:
             mkdir -p /tmp/prometheus &&
             gunicorn -k uvicorn.workers.UvicornWorker -c gunicorn_config.py app:APP"
     logging: *default-logging
+    deploy:
+      resources:
+         limits:
+            memory: 800M
+         reservations:
+            memory: 200M
 
   mcim_sync:
     container_name: mcim_sync
@@ -103,6 +109,12 @@ services:
             mkdir -p /tmp/dramatiq-prometheus &&
             dramatiq app.sync"
     logging: *default-logging
+    deploy:
+      resources:
+         limits:
+            memory: 1024M
+         reservations:
+            memory: 200M
 
   prometheus:
     image: prom/prometheus:latest
@@ -153,6 +165,10 @@ services:
     volumes:
       - /opt/mcim/translate-mod-summary/config:/translate-mod-summary/config
     logging: *default-logging
+    deploy:
+      resources:
+         limits:
+            memory: 200M
 
   sync_redis:
     container_name: sync_redis
