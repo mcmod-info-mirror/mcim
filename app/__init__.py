@@ -134,7 +134,7 @@ WELCOME_MESSAGE = {
             "https://mod.mcimirror.top/docs",
         ],
         "Github": "https://github.com/mcmod-info-mirror/mcim",
-        "contact": {"Eamil": "z0z0r4@outlook.com", "QQ": "3531890582"},
+        "contact": {"Email": "z0z0r4@outlook.com", "QQ": "3531890582"},
     },
 }
 
