@@ -363,9 +363,10 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
         log.debug(f"fingerprints: {item.fingerprints} force sync.")
         return UncachedResponse()
     trustable = True
-    fingerprints_models = await request.app.state.aio_mongo_engine.find(
+    fingerprints_models: List[Fingerprint] = await request.app.state.aio_mongo_engine.find(
         Fingerprint, query.in_(Fingerprint.id, item.fingerprints)
     )
+    
     if not fingerprints_models:
         sync_fingerprints.send(fingerprints=item.fingerprints)
         trustable = False
@@ -378,7 +379,16 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
     elif len(fingerprints_models) != len(item.fingerprints):
         sync_fingerprints.send(fingerprints=item.fingerprints)
         trustable = False
-    exactFingerprints = [fingerprint.id for fingerprint in fingerprints_models]
+    exactFingerprints = []
+    result_fingerprints_models = []
+    for fingerprint_model in fingerprints_models:
+        # fingerprint_model.id = fingerprint_model.file.id
+        # 神奇 primary_key 不能修改，没辙只能这样了
+        fingerprint = fingerprint_model.model_dump()
+        fingerprint["id"] = fingerprint_model.file.id
+        result_fingerprints_models.append(fingerprint)
+        exactFingerprints.append(fingerprint_model.id)
+    # exactFingerprints = [fingerprint.id for fingerprint in fingerprints_models]
     unmatchedFingerprints = [
         fingerprint
         for fingerprint in item.fingerprints
@@ -389,7 +399,7 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
             data=FingerprintResponse(
                 isCacheBuilt=True,
                 exactFingerprints=exactFingerprints,
-                exactMatches=fingerprints_models,
+                exactMatches=result_fingerprints_models,
                 unmatchedFingerprints=unmatchedFingerprints,
                 installedFingerprints=[],
             ).model_dump()
@@ -412,7 +422,7 @@ async def curseforge_fingerprints_432(item: fingerprints_item, request: Request)
         log.debug(f"fingerprints: {item.fingerprints} force sync.")
         return UncachedResponse()
     trustable = True
-    fingerprints_models = await request.app.state.aio_mongo_engine.find(
+    fingerprints_models: List[Fingerprint] = await request.app.state.aio_mongo_engine.find(
         Fingerprint, query.in_(Fingerprint.id, item.fingerprints)
     )
     if not fingerprints_models:
@@ -427,7 +437,15 @@ async def curseforge_fingerprints_432(item: fingerprints_item, request: Request)
     elif len(fingerprints_models) != len(item.fingerprints):
         sync_fingerprints.send(fingerprints=item.fingerprints)
         trustable = False
-    exactFingerprints = [fingerprint.id for fingerprint in fingerprints_models]
+    exactFingerprints = []
+    result_fingerprints_models = []
+    for fingerprint_model in fingerprints_models:
+        # fingerprint_model.id = fingerprint_model.file.id
+        # 神奇 primary_key 不能修改，没辙只能这样了
+        fingerprint = fingerprint_model.model_dump()
+        fingerprint["id"] = fingerprint_model.file.id
+        result_fingerprints_models.append(fingerprint)
+        exactFingerprints.append(fingerprint_model.id)
     unmatchedFingerprints = [
         fingerprint
         for fingerprint in item.fingerprints
@@ -438,7 +456,7 @@ async def curseforge_fingerprints_432(item: fingerprints_item, request: Request)
             data=FingerprintResponse(
                 isCacheBuilt=True,
                 exactFingerprints=exactFingerprints,
-                exactMatches=fingerprints_models,
+                exactMatches=result_fingerprints_models,
                 unmatchedFingerprints=unmatchedFingerprints,
                 installedFingerprints=[],
             ).model_dump()
