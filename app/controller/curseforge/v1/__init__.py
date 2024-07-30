@@ -397,6 +397,54 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
         trustable=trustable,
     )
 
+@v1_router.post(
+    "/fingerprints/432",
+    description="Curseforge Fingerprint 文件信息",
+    response_model=FingerprintResponse,
+)
+@cache(expire=mcim_config.expire_second.curseforge.fingerprint)
+async def curseforge_fingerprints_432(item: fingerprints_item, request: Request):
+    """
+    未找到所有 fingerprint 会视为不可信，因为不存在的 fingerprint 会被记录
+    """
+    if request.state.force_sync:
+        sync_fingerprints.send(fingerprints=item.fingerprints)
+        log.debug(f"fingerprints: {item.fingerprints} force sync.")
+        return UncachedResponse()
+    trustable = True
+    fingerprints_models = await request.app.state.aio_mongo_engine.find(
+        Fingerprint, query.in_(Fingerprint.id, item.fingerprints)
+    )
+    if not fingerprints_models:
+        sync_fingerprints.send(fingerprints=item.fingerprints)
+        trustable = False
+        return TrustableResponse(
+            content=CurseforgeBaseResponse(
+                data=FingerprintResponse(unmatchedFingerprints=item.fingerprints)
+            ).model_dump(),
+            trustable=trustable,
+        )
+    elif len(fingerprints_models) != len(item.fingerprints):
+        sync_fingerprints.send(fingerprints=item.fingerprints)
+        trustable = False
+    exactFingerprints = [fingerprint.id for fingerprint in fingerprints_models]
+    unmatchedFingerprints = [
+        fingerprint
+        for fingerprint in item.fingerprints
+        if fingerprint not in exactFingerprints
+    ]
+    return TrustableResponse(
+        content=CurseforgeBaseResponse(
+            data=FingerprintResponse(
+                isCacheBuilt=True,
+                exactFingerprints=exactFingerprints,
+                exactMatches=fingerprints_models,
+                unmatchedFingerprints=unmatchedFingerprints,
+                installedFingerprints=[],
+            )
+        ).model_dump(),
+        trustable=trustable,
+    )
 
 @v1_router.get(
     "/categories",
