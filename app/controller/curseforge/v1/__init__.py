@@ -392,8 +392,8 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
                 exactMatches=fingerprints_models,
                 unmatchedFingerprints=unmatchedFingerprints,
                 installedFingerprints=[],
-            )
-        ).model_dump(),
+            ).model_dump()
+        ),
         trustable=trustable,
     )
 
@@ -441,8 +441,8 @@ async def curseforge_fingerprints_432(item: fingerprints_item, request: Request)
                 exactMatches=fingerprints_models,
                 unmatchedFingerprints=unmatchedFingerprints,
                 installedFingerprints=[],
-            )
-        ).model_dump(),
+            ).model_dump()
+        ),
         trustable=trustable,
     )
 

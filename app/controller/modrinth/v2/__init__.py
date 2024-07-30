@@ -309,7 +309,7 @@ class Algorithm(str, Enum):
 @v2_router.get(
     "/version_file/{hash}",
     description="Modrinth File 信息",
-    response_model=File,
+    response_model=Version,
 )
 @cache(expire=mcim_config.expire_second.modrinth.file)
 async def modrinth_file(
@@ -366,7 +366,7 @@ class HashesQuery(BaseModel):
 @v2_router.post(
     "/version_files",
     description="Modrinth Files 信息",
-    response_model=List[File],
+    response_model=dict[Version],
 )
 @cache(expire=mcim_config.expire_second.modrinth.file)
 async def modrinth_files(items: HashesQuery, request: Request):
@@ -380,9 +380,11 @@ async def modrinth_files(items: HashesQuery, request: Request):
         File,
         query.and_(
             query.or_(
-            query.in_(File.hashes.sha1, items.hashes),
-            query.in_(File.hashes.sha512, items.hashes),
-        ), File.found == True)
+                query.in_(File.hashes.sha1, items.hashes),
+                query.in_(File.hashes.sha512, items.hashes),
+            ),
+            File.found == True,
+        ),
     )
     model_count = len(files_models)
     hashes_count = len(items.hashes)
@@ -415,9 +417,17 @@ async def modrinth_files(items: HashesQuery, request: Request):
             f"Versions {version_ids} {version_model_count}/{file_model_count} not completely found, send sync task."
         )
         trustable = False
-    return TrustableResponse(
-        content=[model.model_dump() for model in version_models], trustable=trustable
-    )
+    result = {}
+    for version in version_models:
+        result[
+            (
+                version.files[0].hashes.sha1
+                if items.algorithm == Algorithm.sha1
+                else version.files[0].hashes.sha2
+            )
+        ] = version.model_dump()
+
+    return TrustableResponse(content=result, trustable=trustable)
 
 
 class UpdateItems(BaseModel):
