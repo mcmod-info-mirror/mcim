@@ -209,7 +209,10 @@ async def curseforge_mods(item: modIds_item, request: Request):
     if request.state.force_sync:
         sync_mutil_mods.send(modIds=item.modIds)
         log.debug(f"modIds: {item.modIds} force sync.")
-        return UncachedResponse()
+        # return UncachedResponse()
+        return TrustableResponse(
+            content=CurseforgeBaseResponse(data=[]).model_dump(), trustable=False
+        )
     trustable: bool = True
     mod_models = await request.app.state.aio_mongo_engine.find(
         Mod, query.in_(Mod.id, item.modIds)
@@ -219,7 +222,10 @@ async def curseforge_mods(item: modIds_item, request: Request):
     if not mod_models:
         sync_mutil_mods.send(modIds=item.modIds)
         log.debug(f"modIds: {item.modIds} not found, send sync task.")
-        return UncachedResponse()
+        # return UncachedResponse()
+        return TrustableResponse(
+            content=CurseforgeBaseResponse(data=[]).model_dump(), trustable=False
+        )
     elif mod_model_count != item_count:
         sync_mutil_mods.send(modIds=item.modIds)
         log.debug(
