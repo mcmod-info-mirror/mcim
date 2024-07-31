@@ -222,13 +222,14 @@ def download_file_sync(
             hash_["sha512"] = sha512.hexdigest()
         raw_path = os.path.join(path, hash_["sha1"][:2], hash_["sha1"])
         # shutil.move(tmp_file_path, raw_path)
-
+        log.debug(f"Downloaded file from {url} to {f.name}")
         # verify hash
         if not verify_hash(f.name, hash_["sha1"], "sha1"):
             raise Exception("Hash verification failed")
         else:
             log.debug(f"Hash verification passed, file {f.name} -> {hash_['sha1']}")
+        log.debug(f"Uploading file {url} to {raw_path}")
         fs.upload_fileobj(f, raw_path, overwrite=True, size=size)
 
-    log.debug(f"Downloaded file from {url} to {raw_path}")
+    log.debug(f"Uploaded file from {url} to {raw_path}")
     return hash_
