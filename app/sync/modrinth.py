@@ -60,7 +60,7 @@ def submit_models(models: List[Union[Project, File, Version]]):
                     # else:
                     model.file_cdn_cached = True
                     # mongodb_engine.save(model)
-    log.debug(f"Submit models: {models}")
+    log.debug(f"Submit models: {len(models)}")
     mongodb_engine.save_all(models)
 
 

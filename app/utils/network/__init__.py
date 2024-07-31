@@ -190,11 +190,22 @@ def download_file_sync(
         md5 = hashlib.md5()
     if not ignore_exist and hash_:
         raw_path = os.path.join(path, hash_["sha1"][:2], hash_["sha1"])
-        if fs.exists(raw_path):
+        # 直接查看 info 减少一次 PROPFIND
+        # if fs.exists(raw_path):
+        #     # check size
+        #     if fs.info(raw_path)["size"] == size:
+        #         log.debug(f"File {path} exists {raw_path}")
+        #         return
+        try:
+            file_info = fs.info(raw_path)
             # check size
-            if fs.info(raw_path)["size"] == size:
+            if file_info["size"] == size:
                 log.debug(f"File {path} exists {raw_path}")
                 return
+        except FileNotFoundError:
+            pass
+        except Exception as e:
+            log.error(f"Error while checking file {raw_path}: {e}")
     log.debug(f"Downloading file from {url}")
     client = get_session()
     with tempfile.NamedTemporaryFile(delete=False) as f:
