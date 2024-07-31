@@ -15,6 +15,7 @@ from app.exceptions import ApiException, ResponseCodeException
 from app.config.mcim import MCIMConfig
 from app.utils.loger import log
 from app.utils.webdav import fs
+from app.utils.webdav import client as webdav_client
 
 mcim_config = MCIMConfig.load()
 
@@ -221,26 +222,27 @@ def download_file_sync(
                 if not hash_:
                     md5.update(chunk)
                     sha512.update(chunk)
-        log.debug(f"Downloaded file from {url} to {f.name}")
-        if "sha1" in hash_:
-            if hash_["sha1"] != sha1.hexdigest():
-                raise Exception("Hash verification failed")
-            else:
-                log.debug(f"Hash verification passed, file {f.name} -> {hash_['sha1']}")
-        if not hash_:
-            hash_["md5"] = md5.hexdigest()
-            hash_["sha512"] = sha512.hexdigest()
+    log.debug(f"Downloaded file from {url} to {f.name}")
+    if "sha1" in hash_:
+        if hash_["sha1"] != sha1.hexdigest():
+            raise Exception("Hash verification failed")
+        else:
+            log.debug(f"Hash verification passed, file {f.name} -> {hash_['sha1']}")
+    if not hash_:
+        hash_["md5"] = md5.hexdigest()
+        hash_["sha512"] = sha512.hexdigest()
         
-        raw_path = os.path.join(path, hash_["sha1"][:2], hash_["sha1"])
+    raw_path = os.path.join(path, hash_["sha1"][:2], hash_["sha1"])
         # shutil.move(tmp_file_path, raw_path)
         # # verify hash
         # if not verify_hash(f.name, hash_["sha1"], "sha1"):
         #     raise Exception("Hash verification failed")
         # else:
         #     log.debug(f"Hash verification passed, file {f.name} -> {hash_['sha1']}")
-        log.debug(f"Uploading file {url} to {raw_path}")
-        fs.upload_fileobj(f, raw_path, overwrite=True, size=size)
-    os.remove(f.name)
+    log.debug(f"Uploading file {url} to {raw_path}")
+    # fs.upload_fileobj(f, raw_path, overwrite=True, size=size)
+    webdav_client.upload_file(tmp_file_name, raw_path, size=size)
+    os.remove(tmp_file_name)
     log.trace(f"Temporary file {f.name} removed")
     log.debug(f"Uploaded file from {url} to {raw_path}")
     return hash_
