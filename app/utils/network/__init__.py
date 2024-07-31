@@ -5,8 +5,9 @@
 import os
 import hashlib
 import httpx
-import tempfile
-import shutil
+# import tempfile
+import uuid
+# import shutil
 
 from tenacity import retry, stop_after_attempt
 from typing import Optional, Union
@@ -184,8 +185,8 @@ def download_file_sync(
 
     hash_: {"sha1": "xxx", "md5": "xxx", "sha512": "xxx"}
     """
+    sha1 = hashlib.sha1()
     if not hash_:
-        sha1 = hashlib.sha1()
         sha512 = hashlib.sha512()
         md5 = hashlib.md5()
     if not ignore_exist and hash_:
@@ -208,28 +209,38 @@ def download_file_sync(
             log.error(f"Error while checking file {raw_path}: {e}")
     log.debug(f"Downloading file from {url}")
     client = get_session()
-    with tempfile.NamedTemporaryFile(delete=False) as f:
+    # temfile 不能读？？？
+    # with tempfile.NamedTemporaryFile() as f:
+    tmp_file_name = f"/tmp/{uuid.uuid4()}"
+    log.trace(f"Temporary file {tmp_file_name} created")
+    with open(tmp_file_name, "wb") as f:
         with client.stream("GET", url, timeout=30, follow_redirects=True) as response:
             for chunk in response.iter_bytes(1024):
                 f.write(chunk)
+                sha1.update(chunk)
                 if not hash_:
-                    sha1.update(chunk)
                     md5.update(chunk)
                     sha512.update(chunk)
+        log.debug(f"Downloaded file from {url} to {f.name}")
+        if "sha1" in hash_:
+            if hash_["sha1"] != sha1.hexdigest():
+                raise Exception("Hash verification failed")
+            else:
+                log.debug(f"Hash verification passed, file {f.name} -> {hash_['sha1']}")
         if not hash_:
-            hash_["sha1"] = sha1.hexdigest()
             hash_["md5"] = md5.hexdigest()
             hash_["sha512"] = sha512.hexdigest()
+        
         raw_path = os.path.join(path, hash_["sha1"][:2], hash_["sha1"])
         # shutil.move(tmp_file_path, raw_path)
-        log.debug(f"Downloaded file from {url} to {f.name}")
-        # verify hash
-        if not verify_hash(f.name, hash_["sha1"], "sha1"):
-            raise Exception("Hash verification failed")
-        else:
-            log.debug(f"Hash verification passed, file {f.name} -> {hash_['sha1']}")
+        # # verify hash
+        # if not verify_hash(f.name, hash_["sha1"], "sha1"):
+        #     raise Exception("Hash verification failed")
+        # else:
+        #     log.debug(f"Hash verification passed, file {f.name} -> {hash_['sha1']}")
         log.debug(f"Uploading file {url} to {raw_path}")
         fs.upload_fileobj(f, raw_path, overwrite=True, size=size)
-
+    os.remove(f.name)
+    log.trace(f"Temporary file {f.name} removed")
     log.debug(f"Uploaded file from {url} to {raw_path}")
     return hash_
