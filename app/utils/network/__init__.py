@@ -241,7 +241,7 @@ def download_file_sync(
         #     log.debug(f"Hash verification passed, file {f.name} -> {hash_['sha1']}")
     log.debug(f"Uploading file {url} to {raw_path}")
     # fs.upload_fileobj(f, raw_path, overwrite=True, size=size)
-    webdav_client.upload_file(tmp_file_name, raw_path)
+    webdav_client.upload_file(tmp_file_name, raw_path, overwrite=True)
     os.remove(tmp_file_name)
     log.trace(f"Temporary file {f.name} removed")
     log.debug(f"Uploaded file from {url} to {raw_path}")

@@ -12,11 +12,15 @@ from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
+from app.utils.loger import log
+
 class ForceSyncMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # 检查 URL 参数 force 是否为 True
-        force_sync = request.query_params.get('force') == 'True'
-        
+        force_sync = False
+        if request.query_params.get('force') in ['true', 'True', True, 1]:
+            force_sync = True
+            
         if force_sync:
             # 设置 request.state.force_sync 为 True
             request.state.force_sync = True
