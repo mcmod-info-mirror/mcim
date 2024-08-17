@@ -20,31 +20,22 @@ if mcim_config.log_to_file:
 
 ENABLED: bool = False
 
-EXCLUDED_ENDPOINTS = ["/metrics"]
+EXCLUDED_KEYWORDS = ["metrics", "httpx"]
+EXCULDED_ENDPOINTS = ["/metrics"]
 
-class EndpointFilter(logging.Filter):
-    """Filter class to exclude specific endpoints from log entries."""
+def filter(record) -> bool:
+    """
+    Filter out log entries for excluded endpoints.
 
-    def __init__(self, excluded_endpoints: list[str]) -> None:
-        """
-        Initialize the EndpointFilter class.
+    Args:
+        record: The log record to be filtered.
 
-        Args:
-            excluded_endpoints: A list of endpoints to be excluded from log entries.
-        """
-        self.excluded_endpoints = excluded_endpoints
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        """
-        Filter out log entries for excluded endpoints.
-
-        Args:
-            record: The log record to be filtered.
-
-        Returns:
-            bool: True if the log entry should be included, False otherwise.
-        """
-        return record.args and len(record.args) >= 3 and record.args[2] not in self.excluded_endpoints
+    Returns:
+        bool: True if the log entry should be included, False otherwise.
+    """
+    if isinstance(record, logging.LogRecord):
+        return record.args and len(record.args) >= 3 and record.args[2] not in EXCULDED_ENDPOINTS
+    return not any(keyword in record["message"] for keyword in EXCLUDED_KEYWORDS)
 
 
 class Logger:
@@ -72,7 +63,7 @@ class Logger:
             level="INFO" if not mcim_config.debug else "DEBUG",
             backtrace=False,
             diagnose=False,
-            filter=EndpointFilter(EXCLUDED_ENDPOINTS),
+            filter=filter,
         )
         if mcim_config.log_to_file:
             # 日志写入文件
@@ -92,7 +83,7 @@ class Logger:
                 # filter="my_module"  # 过滤模块
                 # compression="zip"   # 文件压缩
                 level="INFO" if not mcim_config.debug else "DEBUG",
-                filter=EndpointFilter(EXCLUDED_ENDPOINTS),
+                filter=filter,
             )
 
     def get_logger(self):
@@ -113,6 +104,7 @@ class Logger:
                 else:
                     logging_logger.setLevel(logging.DEBUG)
                 logging_logger.handlers = [InterceptHandler()]
+                logging_logger.addFilter(filter)
             ENABLED = True
 
 
