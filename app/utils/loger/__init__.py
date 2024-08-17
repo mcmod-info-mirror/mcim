@@ -20,9 +20,9 @@ if mcim_config.log_to_file:
 
 ENABLED: bool = False
 
-EXCLUDED_ENDPOINTS = ["/metrics"]
+EXCLUDED_KEYWORDS = ["metrics", "httpx"]
 
-def filter(record: logging.LogRecord) -> bool:
+def filter(record) -> bool:
     """
     Filter out log entries for excluded endpoints.
 
@@ -32,7 +32,7 @@ def filter(record: logging.LogRecord) -> bool:
     Returns:
         bool: True if the log entry should be included, False otherwise.
     """
-    return record.args and len(record.args) >= 3 and record.args[2] not in EXCLUDED_ENDPOINTS
+    return not any(keyword in record["message"] for keyword in EXCLUDED_KEYWORDS)
 
 
 class Logger:
@@ -101,6 +101,7 @@ class Logger:
                 else:
                     logging_logger.setLevel(logging.DEBUG)
                 logging_logger.handlers = [InterceptHandler()]
+                logging_logger.addFilter(filter)
             ENABLED = True
 
 
