@@ -44,7 +44,7 @@ redis_broker = RedisBroker(
     port=_redis_config.port,
     password=_redis_config.password,
     db=_redis_config.database.tasks_queue,
-    namespace="file_cdn_cache" if SYNC_MODE == "SYNC_FILE_CDN" else "dramatiq",
+    # namespace="file_cdn_cache" if SYNC_MODE == "SYNC_FILE_CDN" else "dramatiq",
 )
 
 file_cdn_redis_broker = RedisBroker(
@@ -52,7 +52,7 @@ file_cdn_redis_broker = RedisBroker(
     port=_redis_config.port,
     password=_redis_config.password,
     db=_redis_config.database.file_cdn,
-    namespace="file_cdn_cache" if SYNC_MODE == "SYNC_FILE_CDN" else "dramatiq",
+    # namespace="file_cdn_cache" if SYNC_MODE == "SYNC_FILE_CDN" else "dramatiq",
 )
 
 MODRINTH_LIMITER = WindowRateLimiter(rate_limit_backend, "modrinth-sync-task-distributed-mutex", limit=250, window=60)

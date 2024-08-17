@@ -18,10 +18,14 @@ def init_webdav():
 
 
 client: Client = Client(
-    webdav_config.base_url, auth=(webdav_config.username, webdav_config.password)
+    webdav_config.base_url,
+    auth=(webdav_config.username, webdav_config.password),
+    timeout=60,
 )
 fs: WebdavFileSystem = WebdavFileSystem(
-    webdav_config.base_url, auth=(webdav_config.username, webdav_config.password)
+    webdav_config.base_url,
+    auth=(webdav_config.username, webdav_config.password),
+    timeout=60,
 )
 
 log.success("Webdav client and fs ready.")
