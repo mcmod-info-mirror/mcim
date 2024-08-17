@@ -21,6 +21,7 @@ if mcim_config.log_to_file:
 ENABLED: bool = False
 
 EXCLUDED_KEYWORDS = ["metrics", "httpx"]
+EXCULDED_ENDPOINTS = ["/metrics"]
 
 def filter(record) -> bool:
     """
@@ -32,6 +33,8 @@ def filter(record) -> bool:
     Returns:
         bool: True if the log entry should be included, False otherwise.
     """
+    if isinstance(record, logging.LogRecord):
+        return record.args and len(record.args) >= 3 and record.args[2] not in EXCULDED_ENDPOINTS
     return not any(keyword in record["message"] for keyword in EXCLUDED_KEYWORDS)
 
 
