@@ -135,9 +135,9 @@ def sync_mod_all_files(
                                 queue_name="file_cdn_cache",
                             )
 
-                            log.trace(f"File {model.id} cache task added")
+                            log.debug(f"File {model.id} cache task added")
                             # else:
-                            model.file_cdn_cached = True
+                            # model.file_cdn_cached = True
                     else:
                         file_cdn_cache.send(model.model_dump())
                         log.debug(f"File {model.id} has no hash")

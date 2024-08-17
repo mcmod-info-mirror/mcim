@@ -18,7 +18,8 @@ from app.utils.loger import log
 
 SYNC_MODE = os.getenv("SYNC_MODE") or "SYNC_ALL"
 
-log.info(f"{__name__}SYNC_MODE: {SYNC_MODE}")
+if __name__ == "app.sync":
+    log.info(f"SYNC_MODE: {SYNC_MODE}")
 
 _redis_config = RedisdbConfig.load()
 _sync_redis_config = SyncRedisdbConfig.load()
@@ -60,7 +61,7 @@ CURSEFORGE_LIMITER = WindowRateLimiter(rate_limit_backend, "curseforge-sync-task
 MODRINTH_FILE_CDN_LIMITER = WindowRateLimiter(rate_limit_backend, "modrinth-file-cdn-sync-task-distributed-mutex", limit=20, window=60)
 CURSEFORGE_FILE_CDN_LIMITER = WindowRateLimiter(rate_limit_backend, "curseforge-file-cdn-sync-task-distributed-mutex", limit=20, window=60)
 
-dramatiq.set_broker(redis_broker)
+dramatiq.set_broker(redis_broker if SYNC_MODE in ["SYNC_INFO", "SYNC_ALL"] else file_cdn_redis_broker)
 
 from app.sync.modrinth import *
 from app.sync.curseforge import *
