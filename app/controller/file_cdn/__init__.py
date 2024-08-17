@@ -104,7 +104,7 @@ if mcim_config.file_cdn:
     @file_cdn_router.get("/files/{fileid1}/{fileid2}/{file_name}", tags=["curseforge"])
     @cache(expire=MAX_AGE)
     async def get_curseforge_file(
-        fileid1: str, fileid2: str, file_name: str, request: Request
+        fileid1: int, fileid2: int, file_name: str, request: Request
     ):
         fileid = int(f"{fileid1}{fileid2}")
         file: Optional[cfFile] = await request.app.state.aio_mongo_engine.find_one(
