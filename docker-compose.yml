@@ -148,10 +148,13 @@ services:
     logging: *default-logging
     deploy:
       resources:
-         limits:
-            memory: 1024M
-         reservations:
-            memory: 200M
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 200M
+    labels:
+      com.docker-tc.enabled: 1
+      com.docker-tc.limit: 25mbps
 
   prometheus:
     image: prom/prometheus:latest
@@ -225,3 +228,20 @@ services:
     ports:
       - 5244:5244
     restart: always
+
+  tc:
+    image: "${DOCKER_IMAGE_TERMINAL:-lukaszlach/docker-tc}"
+    container_name: docker-tc
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/docker-tc:/var/docker-tc
+    deploy:
+      mode: global
+      restart_policy:
+        condition: any
+    environment:
+      HTTP_BIND: "${HTTP_BIND:-127.0.0.1}"
+      HTTP_PORT: "${HTTP_PORT:-4080}"
+    network_mode: host
