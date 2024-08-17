@@ -8,7 +8,7 @@ import time
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import CURSEFORGE_LIMITER, CURSEFORGE_FILE_CDN_LIMITER  # file_cdn_redis_sync_engine,
+from app.sync import CURSEFORGE_LIMITER, CURSEFORGE_FILE_CDN_LIMITER, file_cdn_redis_broker  # file_cdn_redis_sync_engine,
 from app.sync import SYNC_MODE
 from app.models.database.curseforge import File, Mod, Pagination, Fingerprint
 from app.utils.network import request_sync, download_file_sync
@@ -339,6 +339,7 @@ def file_cdn_cache_add_task(file: dict):
     min_backoff=1000 * 60,
     actor_name="cf_file_cdn_cache",
     queue_name="file_cdn_cache",
+    broker=file_cdn_redis_broker,
 )
 @limit
 def file_cdn_cache(file: dict, checked: bool = False):

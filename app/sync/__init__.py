@@ -18,7 +18,7 @@ from app.utils.loger import log
 
 SYNC_MODE = os.getenv("SYNC_MODE") or "SYNC_ALL"
 
-log.info(f"SYNC_MODE: {SYNC_MODE}")
+log.info(f"{__name__}SYNC_MODE: {SYNC_MODE}")
 
 _redis_config = RedisdbConfig.load()
 _sync_redis_config = SyncRedisdbConfig.load()
@@ -43,6 +43,14 @@ redis_broker = RedisBroker(
     port=_redis_config.port,
     password=_redis_config.password,
     db=_redis_config.database.tasks_queue,
+    namespace="file_cdn_cache" if SYNC_MODE == "SYNC_FILE_CDN" else "dramatiq",
+)
+
+file_cdn_redis_broker = RedisBroker(
+    host=_redis_config.host,
+    port=_redis_config.port,
+    password=_redis_config.password,
+    db=_redis_config.database.file_cdn,
     namespace="file_cdn_cache" if SYNC_MODE == "SYNC_FILE_CDN" else "dramatiq",
 )
 
