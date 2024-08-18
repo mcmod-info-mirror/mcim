@@ -3,6 +3,7 @@ from fastapi.responses import RedirectResponse
 from odmantic import query
 from typing import Optional
 import time
+import httpx
 from email.utils import formatdate
 
 from app.models.database.curseforge import File as cfFile
@@ -10,6 +11,7 @@ from app.models.database.modrinth import File as mrFile
 from app.config import MCIMConfig
 from app.utils.loger import log
 from app.utils.response_cache import cache
+from app.utils.network import ResponseCodeException
 from app.utils.network import request as request_async
 from app.sync.modrinth import file_cdn_cache_add_task as mr_file_cdn_cache_add_task
 from app.sync.curseforge import file_cdn_cache_add_task as cf_file_cdn_cache_add_task
@@ -65,20 +67,23 @@ if mcim_config.file_cdn:
                 alist_url = f"{mcim_config.alist_endpoint}/modrinth/{sha1[:2]}/{sha1}"
                 if file.file_cdn_cached:
                     # 存在于网盘中
-                    alist_res = await request_async(
-                        method="HEAD", url=alist_url, ignore_status_code=True
-                    )
-                    raw_url = alist_res.headers.get("Location")
-                    if raw_url:
-                        if 400 > alist_res.status_code > 200:
-                            expires_date = get_http_date()
-                            return RedirectResponse(
-                                url=raw_url,
-                                headers={
-                                    "Cache-Control": "public",
-                                    "Expires": expires_date,
-                                },
-                            )
+                    try:
+                        alist_res = await request_async(
+                            method="HEAD", url=alist_url, ignore_status_code=True
+                        )
+                        raw_url = alist_res.headers.get("Location")
+                        if raw_url:
+                            if 400 > alist_res.status_code > 200:
+                                expires_date = get_http_date()
+                                return RedirectResponse(
+                                    url=raw_url,
+                                    headers={
+                                        "Cache-Control": "public",
+                                        "Expires": expires_date,
+                                    },
+                                )
+                    except (httpx.ConnectError, httpx.ReadTimeout, ResponseCodeException) as e:
+                        log.error(f"Failed: {alist_url} {e}")
                 else:
                     # 文件不存在
                     if ARIA2_ENABLED:
@@ -123,22 +128,25 @@ if mcim_config.file_cdn:
                 alist_url = f"{mcim_config.alist_endpoint}/curseforge/{sha1[:2]}/{sha1}"
                 if file.file_cdn_cached:
                     # 存在于网盘中
-                    alist_res = await request_async(
-                        method="HEAD", url=alist_url, ignore_status_code=True
-                    )
-                    raw_url = alist_res.headers.get("Location")
-                    if raw_url:
-                        if 400 > alist_res.status_code > 200:
-                            expires_date = get_http_date()
-                            return RedirectResponse(
-                                url=raw_url,
-                                headers={
-                                    "Cache-Control": "public",
-                                    "Expires": expires_date,
-                                },
-                            )
-                        else:
-                            log.debug(f"Failed: alist_res: {alist_res.__dict__}")
+                    try:
+                        alist_res = await request_async(
+                            method="HEAD", url=alist_url, ignore_status_code=True
+                        )
+                        raw_url = alist_res.headers.get("Location")
+                        if raw_url:
+                            if 400 > alist_res.status_code > 200:
+                                expires_date = get_http_date()
+                                return RedirectResponse(
+                                    url=raw_url,
+                                    headers={
+                                        "Cache-Control": "public",
+                                        "Expires": expires_date,
+                                    },
+                                )
+                            else:
+                                log.debug(f"Failed: alist_res: {alist_res.__dict__}")
+                    except (httpx.ConnectError, httpx.ReadTimeout, ResponseCodeException) as e:
+                        log.error(f"Failed: {alist_url} {e}")
                 else:
                     # if not file.need_to_cache:
                     #     return RedirectResponse(
