@@ -26,6 +26,12 @@ services:
     # command:
     #   - "--auth"
     logging: *default-logging
+    deploy:
+      resources:
+         limits:
+            memory: 400M
+         reservations:
+            memory: 200M
 
   redis:
     container_name: redis
@@ -34,6 +40,15 @@ services:
       - 6379:6379
     restart: always
     logging: *default-logging
+    volumes:
+      -/opt/mcim/config/redis.conf:/etc/redis/redis.config
+    command: redis-server /etc/redis/redis.conf
+    deploy:
+      resources:
+         limits:
+            memory: 300M
+         reservations:
+            memory: 200M
 
   # mcim_api:
   #   container_name: mcim_api
