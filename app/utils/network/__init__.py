@@ -77,6 +77,7 @@ def request_sync(
     data: Optional[dict] = None,
     params: Optional[dict] = None,
     json: Optional[dict] = None,
+    timeout: Optional[Union[int, float]] = None,
     ignore_status_code: bool = False,
     **kwargs,
 ) -> httpx.Response:
@@ -101,11 +102,11 @@ def request_sync(
 
     if json is not None:
         res: httpx.Response = session.request(
-            method, url, json=json, params=params, **kwargs
+            method, url, json=json, params=params, timeout=timeout, **kwargs
         )
     else:
         res: httpx.Response = session.request(
-            method, url, data=data, params=params, **kwargs
+            method, url, data=data, params=params, timeout=timeout, **kwargs
         )
     if not ignore_status_code:
         if res.status_code != 200:
@@ -127,6 +128,7 @@ async def request(
     data: Optional[dict] = None,
     params: Optional[dict] = None,
     json: Optional[dict] = None,
+    timeout: Optional[Union[int, float]] = None,
     ignore_status_code: bool = False,
     **kwargs,
 ) -> httpx.Response:
@@ -151,11 +153,11 @@ async def request(
 
     if json is not None:
         res: httpx.Response = await session.request(
-            method, url, json=json, params=params, **kwargs
+            method, url, json=json, params=params, timeout=timeout, **kwargs
         )
     else:
         res: httpx.Response = await session.request(
-            method, url, data=data, params=params, **kwargs
+            method, url, data=data, params=params, timeout=timeout, **kwargs
         )
     if not ignore_status_code:
         if res.status_code != 200:

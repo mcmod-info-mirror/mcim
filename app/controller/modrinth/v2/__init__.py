@@ -28,18 +28,18 @@ from app.utils.response import (
     ForceSyncResponse,
     BaseResponse,
 )
-from app.utils.network import request_sync
+from app.utils.network import request_sync, request
 from app.utils.loger import log
 from app.utils.response_cache import cache
 
 mcim_config = MCIMConfig.load()
 
 API = mcim_config.modrinth_api
+v2_router = APIRouter(prefix="/v2", tags=["modrinth"])
 
 EXPIRE_STATUS_CODE = mcim_config.expire_status_code
 UNCACHE_STATUS_CODE = mcim_config.uncache_status_code
-
-v2_router = APIRouter(prefix="/v2", tags=["modrinth"])
+SEARCH_TIMEOUT = 3
 
 
 class ModrinthStatistics(BaseModel):
@@ -207,16 +207,18 @@ async def modrinth_search_projects(
     limit: Optional[int] = 10,
     index: Optional[SearchIndex] = SearchIndex.relevance,
 ):
-    # TODO: Search
-    res = request_sync(
-        f"{API}/search",
-        params={
-            "query": query,
-            "facets": facets,
-            "offset": offset,
-            "limit": limit,
-            "index": index.value,
-        },
+    res = (
+        await request(
+            f"{API}/search",
+            params={
+                "query": query,
+                "facets": facets,
+                "offset": offset,
+                "limit": limit,
+                "index": index.value,
+            },
+            timeout=SEARCH_TIMEOUT,
+        )
     ).json()
     return TrustableResponse(content=res)
 

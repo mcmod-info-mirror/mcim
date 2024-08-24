@@ -22,7 +22,7 @@ from app.models.response.curseforge import (
 )
 from app.config.mcim import MCIMConfig
 from app.utils.response import TrustableResponse, UncachedResponse, BaseResponse
-from app.utils.network import request_sync
+from app.utils.network import request_sync, request
 from app.utils.loger import log
 from app.utils.response_cache import cache
 
@@ -36,7 +36,7 @@ v1_router = APIRouter(prefix="/v1", tags=["curseforge"])
 
 EXPIRE_STATUS_CODE = mcim_config.expire_status_code
 UNCACHE_STATUS_CODE = mcim_config.uncache_status_code
-
+SEARCH_TIMEOUT = 3
 
 """
 ModsSearchSortField
@@ -158,9 +158,9 @@ async def curseforge_search(
         "index": index,
         "pageSize": pageSize,
     }
-    res = request_sync(
-        f"{API}/v1/mods/search", params=params, headers={"x-api-key": x_api_key}
-    ).json()
+    res = (await request(
+        f"{API}/v1/mods/search", params=params, headers={"x-api-key": x_api_key}, timeout=SEARCH_TIMEOUT
+    )).json()
     return TrustableResponse(content=res)
 
 

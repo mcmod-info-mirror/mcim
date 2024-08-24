@@ -29,6 +29,7 @@ ARIA2_ENABLED: bool = mcim_config.aria2
 MAX_AGE = int(60 * 60 * 2.5)
 CDN_MAX_AGE = int(60 * 60 * 2.8)
 MAX_LENGTH = mcim_config.max_file_size
+TIMEOUT = 2.5
 
 
 def get_http_date(delay: int = CDN_MAX_AGE):
@@ -69,7 +70,7 @@ if mcim_config.file_cdn:
                     # 存在于网盘中
                     try:
                         alist_res = await request_async(
-                            method="HEAD", url=alist_url, ignore_status_code=True
+                            method="HEAD", url=alist_url, ignore_status_code=True, timeout=TIMEOUT
                         )
                         raw_url = alist_res.headers.get("Location")
                         if raw_url:
@@ -131,7 +132,7 @@ if mcim_config.file_cdn:
                     # 存在于网盘中
                     try:
                         alist_res = await request_async(
-                            method="HEAD", url=alist_url, ignore_status_code=True
+                            method="HEAD", url=alist_url, ignore_status_code=True, timeout=TIMEOUT
                         )
                         raw_url = alist_res.headers.get("Location")
                         if raw_url:
