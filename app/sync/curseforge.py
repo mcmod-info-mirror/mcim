@@ -8,7 +8,11 @@ import time
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import CURSEFORGE_LIMITER, CURSEFORGE_FILE_CDN_LIMITER, file_cdn_redis_broker  # file_cdn_redis_sync_engine,
+from app.sync import (
+    CURSEFORGE_LIMITER,
+    CURSEFORGE_FILE_CDN_LIMITER,
+    file_cdn_redis_broker,
+)  # file_cdn_redis_sync_engine,
 from app.sync import SYNC_MODE
 from app.models.database.curseforge import File, Mod, Pagination, Fingerprint
 from app.utils.network import request_sync, download_file_sync
@@ -50,7 +54,9 @@ def limit(func):
         else:
             with CURSEFORGE_LIMITER.acquire():
                 return func(*args, **kwargs)
+
     return wrapper
+
 
 @actor(
     max_retries=3,
@@ -62,6 +68,33 @@ def limit(func):
 @limit
 def check_alive():
     return request_sync(API, headers=HEADERS).text
+
+
+def add_file_cdn_tasks(models: List[Union[File, Mod, Fingerprint]]):
+    if mcim_config.file_cdn:
+        for model in models:
+            if isinstance(model, File):
+                if (
+                    not model.file_cdn_cached
+                    and model.gameId == 432
+                    and model.fileLength <= MAX_LENGTH
+                    and model.downloadCount >= MIN_DOWNLOAD_COUNT
+                ):
+                    if len(model.hashes) != 0:
+                        if mcim_config.aria2:
+                            file_cdn_cache_add_task.send(model.model_dump())
+                        else:
+                            file_cdn_cache.send_with_options(
+                                kwargs={"file": model.model_dump(), "checked": False},
+                                queue_name="file_cdn_cache",
+                            )
+
+                            log.debug(f"File {model.id} cache task added")
+                            # else:
+                            # model.file_cdn_cached = True
+                    else:
+                        file_cdn_cache.send(model.model_dump())
+                        log.debug(f"File {model.id} has no hash")
 
 
 def append_model_from_files_res(
@@ -95,9 +128,16 @@ def sync_mod_all_files(
         headers=HEADERS,
         params={"index": 0, "pageSize": 50},
     ).json()
-    models.extend(
-        append_model_from_files_res(res, latestFiles, need_to_cache=need_to_cache)
+
+    # models.extend(
+    #     append_model_from_files_res(res, latestFiles, need_to_cache=need_to_cache)
+    # )
+    models = append_model_from_files_res(
+        res, latestFiles, need_to_cache=need_to_cache
     )
+    submit_models(models=models)
+    add_file_cdn_tasks(models=models)
+
     page = Pagination(**res["pagination"])
     # index A zero based index of the first item to include in the response, the limit is: (index + pageSize <= 10,000).
     while page.index < page.totalCount - 1:
@@ -105,53 +145,24 @@ def sync_mod_all_files(
         res = request_sync(
             f"{API}/v1/mods/{modId}/files", headers=HEADERS, params=params
         ).json()
-        models.extend(
-            append_model_from_files_res(res, latestFiles, need_to_cache=need_to_cache)
-        )
+        # models.extend(
+        #     append_model_from_files_res(res, latestFiles, need_to_cache=need_to_cache)
+        # )
         page = Pagination(**res["pagination"])
+        models = append_model_from_files_res(
+            res, latestFiles, need_to_cache=need_to_cache
+        )
+        submit_models(models=models)
+        add_file_cdn_tasks(models=models)
 
-    if mcim_config.file_cdn:
-        for model in models:
-            if isinstance(model, File):
-                if (
-                    not model.file_cdn_cached
-                    and model.gameId == 432
-                    and model.fileLength <= MAX_LENGTH
-                    and model.downloadCount >= MIN_DOWNLOAD_COUNT
-                ):
-                    if len(model.hashes) != 0:
-                        # if not webdav_client.exists(
-                        #     os.path.join(
-                        #         mcim_config.curseforge_download_path,
-                        #         model.hashes[0].value[:2],
-                        #         model.hashes[0].value,
-                        #     )
-                        # ):
-                        if mcim_config.aria2:
-                            file_cdn_cache_add_task.send(model.model_dump())
-                        else:
-                            file_cdn_cache.send_with_options(
-                                kwargs={"file": model.model_dump(), "checked": False},
-                                queue_name="file_cdn_cache",
-                            )
-
-                            log.debug(f"File {model.id} cache task added")
-                            # else:
-                            # model.file_cdn_cached = True
-                    else:
-                        file_cdn_cache.send(model.model_dump())
-                        log.debug(f"File {model.id} has no hash")
-
-    return models
+    # return models
 
 
-def sync_multi_mods_all_files(modIds: List[int]) -> List[Union[File, Mod]]:
-    models = []
+def sync_multi_mods_all_files(modIds: List[int]):
     # 去重
     modIds = list(set(modIds))
     for modId in modIds:
-        models.extend(sync_mod_all_files(modId))
-    return models
+        sync_mod_all_files(modId)
 
 
 @actor(
@@ -166,12 +177,10 @@ def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
     res = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()["data"]
     models.append(Mod(found=True, **res))
-    models.extend(
-        sync_mod_all_files(
-            modId,
-            latestFiles=res["latestFiles"],
-            need_to_cache=True if res["classId"] == 6 else False,
-        )
+    sync_mod_all_files(
+        modId,
+        latestFiles=res["latestFiles"],
+        need_to_cache=True if res["classId"] == 6 else False,
     )
     submit_models(models)
 
@@ -193,7 +202,7 @@ def sync_mutil_mods(modIds: List[int]):
     models: List[Union[File, Mod]] = []
     for mod in res:
         models.append(Mod(found=True, **mod))
-    models.extend(sync_multi_mods_all_files([model.id for model in models]))
+    sync_multi_mods_all_files([model.id for model in models])
     submit_models(models)
 
 
@@ -219,12 +228,12 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     #     ),
     # ]
     # 下面会拉取所有文件，不重复添加
-    models = []
+    # models = []
     # if not expire:
     # models.extend(sync_mod_all_files(modId, latestFiles=latestFiles))
-    models.extend(sync_mod_all_files(modId))
-    submit_models(models)
-
+    # models.extend()
+    # submit_models(models)
+    sync_mod_all_files(modId)
 
 @actor(
     max_retries=3,
@@ -235,7 +244,7 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
 )
 @limit
 def sync_mutil_files(fileIds: List[int]):
-    models: List[Union[File, Mod]] = []
+    # models: List[Union[File, Mod]] = []
     res = request_sync(
         method="POST",
         url=f"{API}/v1/mods/files",
@@ -243,9 +252,10 @@ def sync_mutil_files(fileIds: List[int]):
         json={"fileIds": fileIds},
     ).json()["data"]
     for file in res:
-        models.append(File(found=True, **file))
-    models = sync_multi_mods_all_files([model.modId for model in models])
-    submit_models(models)
+        # models.append(File(found=True, **file))
+        modids = [mod["modId"] for mod in file]
+    sync_multi_mods_all_files(modids)
+    # submit_models(models)
 
 
 @actor(
@@ -263,18 +273,19 @@ def sync_fingerprints(fingerprints: List[int]):
         headers=HEADERS,
         json={"fingerprints": fingerprints},
     ).json()
-    models: List[Fingerprint] = []
-    for file in res["data"]["exactMatches"]:
-        models.append(
-            Fingerprint(
-                id=file["file"]["fileFingerprint"],
-                file=file["file"],
-                latestFiles=file["latestFiles"],
-                found=True,
-            )
-        )
-    models = sync_multi_mods_all_files([model.file.modId for model in models])
-    submit_models(models)
+    # models: List[Fingerprint] = []
+    # for file in res["data"]["exactMatches"]:
+        # models.append(
+        #     Fingerprint(
+        #         id=file["file"]["fileFingerprint"],
+        #         file=file["file"],
+        #         latestFiles=file["latestFiles"],
+        #         found=True,
+        #     )
+        # )
+    modids = [file["file"]["modId"] for file in res["data"]["exactMatches"]]
+    sync_multi_mods_all_files(modids)
+    # submit_models(models)
 
 
 @actor(
@@ -331,6 +342,7 @@ def file_cdn_cache_add_task(file: dict):
             break
         elif download.has_failed:
             return download.error_message
+
 
 @actor(
     max_retries=3,

@@ -25,15 +25,17 @@ import httpx
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import MODRINTH_LIMITER, MODRINTH_FILE_CDN_LIMITER, file_cdn_redis_broker  # file_cdn_redis_sync_engine,
-from app.sync import SYNC_MODE
+from app.sync import (
+    MODRINTH_LIMITER,
+    MODRINTH_FILE_CDN_LIMITER,
+    file_cdn_redis_broker,
+)  # file_cdn_redis_sync_engine,
 from app.models.database.modrinth import Project, File, Version
 from app.utils.network import request_sync, download_file_sync
 from app.exceptions import ResponseCodeException
 from app.config import MCIMConfig, Aria2Config
 from app.utils.aria2 import add_http_task, ARIA2_API
 from app.utils.loger import log
-from app.utils.webdav import fs
 
 mcim_config = MCIMConfig.load()
 aria2_config = Aria2Config.load()
@@ -57,10 +59,10 @@ def submit_models(models: List[Union[Project, File, Version]]):
                     if mcim_config.aria2:
                         file_cdn_cache_add_task.send(model.model_dump())
                     else:
-                        file_cdn_cache.send_with_options(kwargs={"file": model.model_dump(), "checked": False}, queue_name="file_cdn_cache")
-                    # else:
-                    model.file_cdn_cached = True
-                    # mongodb_engine.save(model)
+                        file_cdn_cache.send_with_options(
+                            kwargs={"file": model.model_dump(), "checked": False},
+                            queue_name="file_cdn_cache",
+                        )
     log.debug(f"Submit models: {len(models)}")
     mongodb_engine.save_all(models)
 
@@ -82,7 +84,9 @@ def limit(func):
         else:
             with MODRINTH_LIMITER.acquire():
                 return func(*args, **kwargs)
+
     return wrapper
+
 
 @actor(
     max_retries=3,
@@ -134,21 +138,16 @@ def sync_project_all_version(
             file["project_id"] = version["project_id"]
             models.append(File(found=True, slug=slug, **file))
         models.append(Version(found=True, slug=slug, **version))
-    return models
+    submit_models(models)
 
 
 def sync_multi_projects_all_version(
     project_ids: List[str],
     slugs: Optional[dict] = None,
-) -> List[Union[Project, File, Version]]:
-    models = []
+    # ) -> List[Union[Project, File, Version]]:
+) -> None:
     for project_id in project_ids:
-        models.extend(
-            sync_project_all_version(
-                project_id, slug=slugs[project_id] if slugs else None
-            )
-        )
-    return models
+        sync_project_all_version(project_id, slug=slugs[project_id] if slugs else None)
 
 
 @actor(
@@ -164,13 +163,11 @@ def sync_project(project_id: str):
     try:
         res = request_sync(f"{API}/project/{project_id}").json()
         models.append(Project(found=True, **res))
-        models.extend(sync_project_all_version(project_id, slug=res["slug"]))
-        submit_models(models)
+        sync_project_all_version(project_id, slug=res["slug"])
     except ResponseCodeException as e:
         if e.status_code == 404:
             models = [Project(found=False, id=project_id, slug=project_id)]
-            submit_models(models)
-            return
+    submit_models(models)
 
 
 @actor(
@@ -198,7 +195,7 @@ def sync_multi_projects(project_ids: List[str]):
     for project in res:
         slugs[project["id"]] = project["slug"]
         models.append(Project(found=True, **project))
-    models.extend(sync_multi_projects_all_version(project_ids, slugs=slugs))
+    sync_multi_projects_all_version(project_ids, slugs=slugs)
     submit_models(models)
 
 
@@ -228,11 +225,7 @@ def sync_version(version_id: str):
             models = [Version(found=False, id=version_id)]
             # submit_models(models)
             return
-
-    models = []
-    # models.extend(process_version_resp(res)) # will sync all versions
-    models.extend(sync_project_all_version(res["project_id"]))
-    submit_models(models)
+    sync_project_all_version(res["project_id"])
 
 
 def process_multi_versions(res: List[dict]):
@@ -266,11 +259,8 @@ def sync_multi_versions(version_ids: List[str]):
                 models.append(Version(found=False, id=version_id))
             submit_models(models)
             return
-    models = []
-    # models.extend(process_multi_versions(res)) # 后面会拉取
     project_ids = list(set([version["project_id"] for version in res]))  # 去重
-    models.extend(sync_multi_projects_all_version(project_ids))
-    submit_models(models)
+    sync_multi_projects_all_version(project_ids)
 
 
 @actor(
@@ -292,10 +282,7 @@ def sync_hash(hash: str, algorithm: str):
         #     submit_models(models)
         #     return
         return
-    models = []
-    # models.extend(process_version_resp(res)) # will sync all versions
-    models.extend(sync_project_all_version(res["project_id"]))
-    submit_models(models)
+    sync_project_all_version(res["project_id"])
 
 
 def process_multi_hashes(res: dict):
@@ -331,14 +318,10 @@ def sync_multi_hashes(hashes: List[str], algorithm: str):
         #         models.append(File(found=False, hash=hash))
         #     submit_models(models)
         return
-    models = []
-    models.extend(process_multi_hashes(res))
-    models.extend(
-        sync_multi_projects_all_version(
-            [version["project_id"] for version in res.values()]
-        )
-    )
-    submit_models(models)
+    # models = []
+    # models.extend(process_multi_hashes(res))
+    sync_multi_projects_all_version([version["project_id"] for version in res.values()])
+    # submit_models(models)
 
 
 @actor(
@@ -403,6 +386,7 @@ def file_cdn_cache_add_task(file: dict):
         elif download.has_failed:
             return download.error_message
 
+
 # 默认 modrinth 提供 hashes 我累了
 @actor(
     max_retries=3,
@@ -411,7 +395,7 @@ def file_cdn_cache_add_task(file: dict):
     min_backoff=1000 * 60,
     actor_name="mr_file_cdn_cache",
     queue_name="file_cdn_cache",
-    broker=file_cdn_redis_broker
+    broker=file_cdn_redis_broker,
 )
 @limit
 def file_cdn_cache(file: dict, checked: bool = False):
