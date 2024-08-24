@@ -31,10 +31,10 @@ CDN_MAX_AGE = int(60 * 60 * 2.8)
 MAX_LENGTH = mcim_config.max_file_size
 
 
-def get_http_date():
+def get_http_date(delay: int = CDN_MAX_AGE):
     # Get the current timestamp
     timestamp = time.time()
-    timestamp += CDN_MAX_AGE
+    timestamp += delay
 
     # Convert the timestamp to an HTTP date
     http_date = formatdate(timestamp, usegmt=True)
@@ -75,6 +75,7 @@ if mcim_config.file_cdn:
                         if raw_url:
                             if 400 > alist_res.status_code > 200:
                                 expires_date = get_http_date()
+                                log.info(f"Redirect to {url}")
                                 return RedirectResponse(
                                     url=raw_url,
                                     headers={
@@ -102,7 +103,7 @@ if mcim_config.file_cdn:
             log.debug(f"sync project {project_id} task send.")
 
         url = f"https://cdn.modrinth.com/data/{project_id}/versions/{version_id}/{file_name}"
-        log.debug(f"Redirect to {url}")
+        log.info(f"Redirect to {url}")
         return RedirectResponse(url=url, headers={"Cache-Control": "public, no-cache"})
 
     # curseforge | example: https://edge.forgecdn.net/files/3040/523/jei_1.12.2-4.16.1.301.jar
@@ -136,6 +137,7 @@ if mcim_config.file_cdn:
                         if raw_url:
                             if 400 > alist_res.status_code > 200:
                                 expires_date = get_http_date()
+                                log.info(f"Redirect to {url}")
                                 return RedirectResponse(
                                     url=raw_url,
                                     headers={

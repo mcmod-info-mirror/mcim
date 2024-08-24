@@ -82,7 +82,7 @@ class Logger:
                 # rotation="5kb",  # 切割，设置文件大小，rotation="12:00"，rotation="1 week"
                 # filter="my_module"  # 过滤模块
                 # compression="zip"   # 文件压缩
-                level="ERROR" if not mcim_config.debug else "DEBUG",
+                level="INFO" if not mcim_config.debug else "DEBUG",
                 filter=filter,
             )
 
