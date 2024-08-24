@@ -75,7 +75,7 @@ if mcim_config.file_cdn:
                         if raw_url:
                             if 400 > alist_res.status_code > 200:
                                 expires_date = get_http_date()
-                                log.info(f"Redirect to {url}")
+                                log.info(f"Redirect to {raw_url}")
                                 return RedirectResponse(
                                     url=raw_url,
                                     headers={
@@ -137,7 +137,7 @@ if mcim_config.file_cdn:
                         if raw_url:
                             if 400 > alist_res.status_code > 200:
                                 expires_date = get_http_date()
-                                log.info(f"Redirect to {url}")
+                                log.info(f"Redirect to {raw_url}")
                                 return RedirectResponse(
                                     url=raw_url,
                                     headers={

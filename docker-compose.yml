@@ -41,7 +41,7 @@ services:
     restart: always
     logging: *default-logging
     volumes:
-      -/opt/mcim/config/redis.conf:/etc/redis/redis.config
+      -/opt/mcim/config/redis.conf:/etc/redis/redis.conf
     command: redis-server /etc/redis/redis.conf
     deploy:
       resources:
