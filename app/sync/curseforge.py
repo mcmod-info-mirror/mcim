@@ -71,6 +71,7 @@ def check_alive():
 
 
 def add_file_cdn_tasks(models: List[Union[File, Mod, Fingerprint]]):
+    added_count = 0
     if mcim_config.file_cdn:
         for model in models:
             if isinstance(model, File):
@@ -88,13 +89,12 @@ def add_file_cdn_tasks(models: List[Union[File, Mod, Fingerprint]]):
                                 kwargs={"file": model.model_dump(), "checked": False},
                                 queue_name="file_cdn_cache",
                             )
-
-                            log.debug(f"File {model.id} cache task added")
-                            # else:
-                            # model.file_cdn_cached = True
+                        added_count += 1
+                        # log.debug(f"File {model.id} cache task added")
                     else:
                         file_cdn_cache.send(model.model_dump())
                         log.debug(f"File {model.id} has no hash")
+    log.debug(f"Added {added_count} file cache tasks") if added_count != 0 else None
 
 
 def append_model_from_files_res(
