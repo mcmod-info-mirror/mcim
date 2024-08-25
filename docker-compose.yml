@@ -22,9 +22,8 @@ services:
     # 宿主机硬盘目录映射容器内的存放数据的目录
     volumes:
       - /data/db:/data/db
-    # 增加启动参数，--auth，表示连接 mongodb 需要用户名和密码
-    # command:
-    #   - "--auth"
+    command:
+      - "--bind_ip_all"
     logging: *default-logging
     deploy:
       resources:
