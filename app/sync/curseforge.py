@@ -251,9 +251,9 @@ def sync_mutil_files(fileIds: List[int]):
         headers=HEADERS,
         json={"fileIds": fileIds},
     ).json()["data"]
-    for file in res:
+    # for file in res:
         # models.append(File(found=True, **file))
-        modids = [mod["modId"] for mod in file]
+    modids = [file["modId"] for file in res]
     sync_multi_mods_all_files(modids)
     # submit_models(models)
 
