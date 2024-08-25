@@ -137,6 +137,9 @@ def sync_project_all_version(
             file["version_id"] = version["id"]
             file["project_id"] = version["project_id"]
             models.append(File(found=True, slug=slug, **file))
+            if len(models) >= 100:
+                submit_models(models)
+                models = []
         models.append(Version(found=True, slug=slug, **version))
     submit_models(models)
 
