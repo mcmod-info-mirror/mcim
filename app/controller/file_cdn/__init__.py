@@ -84,7 +84,7 @@ if mcim_config.file_cdn:
                                         "Expires": expires_date,
                                     },
                                 )
-                    except (httpx.ConnectError, httpx.ReadTimeout, ResponseCodeException) as e:
+                    except (httpx.ConnectError, httpx.TimeoutException, ResponseCodeException) as e:
                         log.error(f"Failed: {alist_url} {e}")
                 else:
                     # 文件不存在
@@ -148,7 +148,7 @@ if mcim_config.file_cdn:
                                 )
                             else:
                                 log.debug(f"Failed: alist_res: {alist_res.__dict__}")
-                    except (httpx.ConnectError, httpx.ReadTimeout, ResponseCodeException) as e:
+                    except (httpx.ConnectError, httpx.TimeoutException, ResponseCodeException) as e:
                         log.error(f"Failed: {alist_url} {e}")
                 else:
                     # if not file.need_to_cache:
