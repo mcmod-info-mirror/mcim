@@ -17,5 +17,8 @@ class TimingMiddleware(BaseHTTPMiddleware):
         route = request.scope.get("route")
         if route:
             route_name = route.name
-            log.debug(f"{route_name} - {request.method} {request.url} {process_time:.2f}ms")
+            if process_time >= 10:
+                log.warn(f"{route_name} - {request.method} {request.url} {process_time:.2f}ms")
+            else:
+                log.debug(f"{route_name} - {request.method} {request.url} {process_time:.2f}ms")
         return response
