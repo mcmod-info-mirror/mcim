@@ -18,7 +18,7 @@ class TimingMiddleware(BaseHTTPMiddleware):
         if route:
             route_name = route.name
             if process_time >= 10:
-                log.warning(f"{route_name} - {request.method} {request.url} {process_time:.2f}ms")
+                log.warning(f"{route_name} - {request.method} {request.url} {process_time:.2f}s")
             else:
-                log.debug(f"{route_name} - {request.method} {request.url} {process_time:.2f}ms")
+                log.debug(f"{route_name} - {request.method} {request.url} {process_time:.2f}s")
         return response
