@@ -169,7 +169,7 @@ async def modrinth_project_versions(idslug: str, request: Request):
         return ForceSyncResponse()
     trustable = True
     project_model: Optional[Project] = await request.app.state.aio_mongo_engine.find(
-        Project, query.or_(Version.project_id == idslug, Version.slug == idslug)
+        Project, query.or_(Project.id == idslug, Project.slug == idslug)
     )
     if not project_model:
         sync_project.send(idslug)
