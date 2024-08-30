@@ -160,30 +160,48 @@ async def modrinth_projects(ids: str, request: Request):
 )
 @cache(expire=mcim_config.expire_second.modrinth.version)
 async def modrinth_project_versions(idslug: str, request: Request):
+    """
+    先查 Project 的 Version 列表再拉取...避免遍历整个 Version 表
+    """
     if request.state.force_sync:
         sync_project.send(idslug)
         log.debug(f"Project {idslug} force sync.")
         return ForceSyncResponse()
     trustable = True
-    model = await request.app.state.aio_mongo_engine.find(
-        Version, query.or_(Version.project_id == idslug, Version.slug == idslug)
+    project_model: Optional[Project] = await request.app.state.aio_mongo_engine.find(
+        Project, query.or_(Version.project_id == idslug, Version.slug == idslug)
     )
-    if not model:
+    if not project_model:
         sync_project.send(idslug)
         log.debug(f"Project {idslug} not found, send sync task.")
         return UncachedResponse()
-    for version in model:
+    else:
         if (
-            version.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
+            project_model.sync_at.timestamp() + mcim_config.expire_second.modrinth.project
             < time.time()
         ):
             sync_project.send(idslug)
             log.debug(f"Project {idslug} expire, send sync task.")
             trustable = False
-            break
-    return TrustableResponse(
-        content=[version.model_dump() for version in model], trustable=trustable
-    )
+
+        version_list = project_model.versions
+        version_model_list: Optional[List[Version]] = await request.app.state.aio_mongo_engine.find(
+            Version, query.in_(Version.id, version_list)
+        )
+
+        # for version in version_model_list:
+        #     if (
+        #         version.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
+        #         < time.time()
+        #     ):
+        #         sync_project.send(idslug)
+        #         log.debug(f"Project {idslug} expire, send sync task.")
+        #         trustable = False
+        #         break
+
+        return TrustableResponse(
+            content=[version.model_dump() for version in version_model_list], trustable=trustable
+        )
 
 
 class SearchIndex(str, Enum):
