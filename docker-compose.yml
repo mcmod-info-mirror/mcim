@@ -22,6 +22,8 @@ services:
     # 宿主机硬盘目录映射容器内的存放数据的目录
     volumes:
       - /data/db:/data/db
+      - /opt/mcim/config/mongod.conf:/etc/mongod.conf
+
     command:
       - "--bind_ip_all"
     logging: *default-logging
