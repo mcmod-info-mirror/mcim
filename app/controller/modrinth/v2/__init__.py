@@ -168,8 +168,10 @@ async def modrinth_project_versions(idslug: str, request: Request):
         log.debug(f"Project {idslug} force sync.")
         return ForceSyncResponse()
     trustable = True
-    project_model: Optional[Project] = await request.app.state.aio_mongo_engine.find_one(
-        Project, query.or_(Project.id == idslug, Project.slug == idslug)
+    project_model: Optional[Project] = (
+        await request.app.state.aio_mongo_engine.find_one(
+            Project, query.or_(Project.id == idslug, Project.slug == idslug)
+        )
     )
     if not project_model:
         sync_project.send(idslug)
@@ -177,7 +179,8 @@ async def modrinth_project_versions(idslug: str, request: Request):
         return UncachedResponse()
     else:
         if (
-            project_model.sync_at.timestamp() + mcim_config.expire_second.modrinth.project
+            project_model.sync_at.timestamp()
+            + mcim_config.expire_second.modrinth.project
             < time.time()
         ):
             sync_project.send(idslug)
@@ -185,8 +188,10 @@ async def modrinth_project_versions(idslug: str, request: Request):
             trustable = False
 
         version_list = project_model.versions
-        version_model_list: Optional[List[Version]] = await request.app.state.aio_mongo_engine.find(
-            Version, query.in_(Version.id, version_list)
+        version_model_list: Optional[List[Version]] = (
+            await request.app.state.aio_mongo_engine.find(
+                Version, query.in_(Version.id, version_list)
+            )
         )
 
         # for version in version_model_list:
@@ -200,7 +205,8 @@ async def modrinth_project_versions(idslug: str, request: Request):
         #         break
 
         return TrustableResponse(
-            content=[version.model_dump() for version in version_model_list], trustable=trustable
+            content=[version.model_dump() for version in version_model_list],
+            trustable=trustable,
         )
 
 
@@ -344,7 +350,12 @@ async def modrinth_file(
     trustable = True
     # ignore algo
     file: Optional[File] = await request.app.state.aio_mongo_engine.find_one(
-        File, query.or_(File.hashes.sha512 == hash_, File.hashes.sha1 == hash_)
+        File,
+        (
+            File.hashes.sha512 == hash_
+            if algorithm == Algorithm.sha512
+            else File.hashes.sha1 == hash_
+        ),
     )
     if file is None:
         sync_hash.send(hash=hash_, algorithm=algorithm)
@@ -399,9 +410,10 @@ async def modrinth_files(items: HashesQuery, request: Request):
     files_models: List[File] = await request.app.state.aio_mongo_engine.find(
         File,
         query.and_(
-            query.or_(
-                query.in_(File.hashes.sha1, items.hashes),
-                query.in_(File.hashes.sha512, items.hashes),
+            (
+                query.in_(File.hashes.sha1, items.hashes)
+                if items.algorithm == Algorithm.sha1
+                else query.in_(File.hashes.sha512, items.hashes)
             ),
             File.found == True,
         ),

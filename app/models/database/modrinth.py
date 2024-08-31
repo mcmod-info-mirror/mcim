@@ -80,13 +80,13 @@ class Dependencies(BaseModel):
 
 
 class Hashes(EmbeddedModel):
-    sha512: str
-    sha1: str
+    sha512: str = Field(index=True)
+    sha1: str = Field(index=True)
 
 
 # TODO: Add Version reference directly but not query File again
 class File(Model):
-    hashes: Hashes = Field(primary_field=True, index=True)
+    hashes: Hashes = Field(primary_field=True)
     url: Optional[str] = None
     filename: Optional[str] = None
     primary: Optional[bool] = None
@@ -129,7 +129,7 @@ class Version(Model):
     status: Optional[str] = None
     requested_status: Optional[str] = None
     author_id: Optional[str] = None
-    date_published: Optional[datetime] = None
+    date_published: Optional[datetime] = Field(index=True)
     downloads: Optional[int] = None
     changelog_url: Optional[str] = None  # Deprecated
     files: Optional[List[FileInfo]] = None
