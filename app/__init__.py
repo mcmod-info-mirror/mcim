@@ -5,7 +5,6 @@ from fastapi.responses import RedirectResponse, ORJSONResponse, Response
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
-from prometheus_fastapi_instrumentator import Instrumentator, metrics
 
 from app.controller import controller_router
 from app.utils.loger import log
@@ -19,9 +18,9 @@ from app.database._redis import (
 from app.utils.webdav import init_webdav
 from app.utils.response_cache import Cache
 from app.utils.response_cache import cache
-from app.utils.response_cache.key_builder import xxhash_key_builder
 from app.utils.response import BaseResponse
 from app.utils.middleware import ForceSyncMiddleware, TimingMiddleware
+from app.utils.metric import init_prometheus_metrics
 
 mcim_config = MCIMConfig.load()
 
@@ -82,23 +81,7 @@ APP = FastAPI(
     lifespan=lifespan,
 )
 
-if mcim_config.prometheus:
-    instrumentator: Instrumentator = Instrumentator(
-        should_round_latency_decimals=True,
-        excluded_handlers=[
-            "/metrics",
-            "/docs",
-            "/redoc",
-            "/favicon.ico",
-            "/openapi.json",
-        ],
-        inprogress_name="inprogress",
-        inprogress_labels=True,
-    )
-    instrumentator.add(metrics.default())
-    instrumentator.instrument(APP).expose(
-        APP, include_in_schema=False, should_gzip=True
-    )
+init_prometheus_metrics(APP)
 
 
 APP.include_router(controller_router)

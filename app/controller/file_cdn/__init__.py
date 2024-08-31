@@ -19,6 +19,7 @@ from app.sync.curseforge import file_cdn_cache as cf_file_cdn_cache
 from app.sync.modrinth import file_cdn_cache as mr_file_cdn_cache
 from app.sync.modrinth import sync_project
 from app.sync.curseforge import sync_mutil_files
+from app.utils.metric import FILE_CDN_FORWARD_TO_ALIST_COUNT, FILE_CDN_FORWARD_TO_ORIGIN_COUNT
 
 
 mcim_config = MCIMConfig.load()
@@ -77,6 +78,7 @@ if mcim_config.file_cdn:
                             if 400 > alist_res.status_code > 200:
                                 expires_date = get_http_date()
                                 log.info(f"Redirect to {raw_url}")
+                                FILE_CDN_FORWARD_TO_ALIST_COUNT.labels("modrinth").inc()
                                 return RedirectResponse(
                                     url=raw_url,
                                     headers={
@@ -105,6 +107,7 @@ if mcim_config.file_cdn:
 
         url = f"https://cdn.modrinth.com/data/{project_id}/versions/{version_id}/{file_name}"
         log.info(f"Redirect to {url}")
+        FILE_CDN_FORWARD_TO_ORIGIN_COUNT.labels("modrinth").inc()
         return RedirectResponse(url=url, headers={"Cache-Control": "public, no-cache"})
 
     # curseforge | example: https://edge.forgecdn.net/files/3040/523/jei_1.12.2-4.16.1.301.jar
@@ -139,6 +142,7 @@ if mcim_config.file_cdn:
                             if 400 > alist_res.status_code > 200:
                                 expires_date = get_http_date()
                                 log.info(f"Redirect to {raw_url}")
+                                FILE_CDN_FORWARD_TO_ALIST_COUNT.labels("curseforge").inc()
                                 return RedirectResponse(
                                     url=raw_url,
                                     headers={
@@ -176,4 +180,5 @@ if mcim_config.file_cdn:
 
         url = f"https:///media.forgecdn.net/files/{fileid1}/{fileid2}/{file_name}"
         log.debug(f"Redirect to {url}")
+        FILE_CDN_FORWARD_TO_ORIGIN_COUNT.labels("curseforge").inc()
         return RedirectResponse(url=url, headers={"Cache-Control": "public, no-cache"})
