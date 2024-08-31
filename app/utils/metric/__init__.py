@@ -1,17 +1,17 @@
 from prometheus_fastapi_instrumentator import Instrumentator, metrics
-from prometheus_client import Gauge, CollectorRegistry
+from prometheus_client import Gauge, CollectorRegistry, Counter
 from fastapi import FastAPI
 
 APP_REGISTRY = CollectorRegistry()
 
-FILE_CDN_FORWARD_TO_ALIST_COUNT = Gauge(
+FILE_CDN_FORWARD_TO_ALIST_COUNT = Counter(
     "alist_forwarded_total",
     "Number of times has been forwarded to alist.",
     labelnames=("platform",),
     registry=APP_REGISTRY,
 )
 
-FILE_CDN_FORWARD_TO_ORIGIN_COUNT = Gauge(
+FILE_CDN_FORWARD_TO_ORIGIN_COUNT = Counter(
     "origin_forwarded_total",
     "Number of times has been forwarded to origin.",
     labelnames=("platform",),
