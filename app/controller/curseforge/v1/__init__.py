@@ -204,7 +204,7 @@ class modIds_item(BaseModel):
     description="Curseforge Mods 信息",
     response_model=List[Mod],
 )
-@cache(expire=mcim_config.expire_second.curseforge.mod)
+# @cache(expire=mcim_config.expire_second.curseforge.mod)
 async def curseforge_mods(item: modIds_item, request: Request):
     if request.state.force_sync:
         sync_mutil_mods.send(modIds=item.modIds)
@@ -286,7 +286,7 @@ class fileIds_item(BaseModel):
     description="Curseforge Mod 文件信息",
     response_model=CurseforgeBaseResponse,
 )
-@cache(expire=mcim_config.expire_second.curseforge.file)
+# @cache(expire=mcim_config.expire_second.curseforge.file)
 async def curseforge_files(item: fileIds_item, request: Request):
     if request.state.force_sync:
         sync_mutil_files.send(fileIds=item.fileIds)
@@ -359,7 +359,7 @@ class fingerprints_item(BaseModel):
     description="Curseforge Fingerprint 文件信息",
     response_model=FingerprintResponse,
 )
-@cache(expire=mcim_config.expire_second.curseforge.fingerprint)
+# @cache(expire=mcim_config.expire_second.curseforge.fingerprint)
 async def curseforge_fingerprints(item: fingerprints_item, request: Request):
     """
     未找到所有 fingerprint 会视为不可信，因为不存在的 fingerprint 会被记录
@@ -418,7 +418,7 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
     description="Curseforge Fingerprint 文件信息",
     response_model=FingerprintResponse,
 )
-@cache(expire=mcim_config.expire_second.curseforge.fingerprint)
+# @cache(expire=mcim_config.expire_second.curseforge.fingerprint)
 async def curseforge_fingerprints_432(item: fingerprints_item, request: Request):
     """
     未找到所有 fingerprint 会视为不可信，因为不存在的 fingerprint 会被记录

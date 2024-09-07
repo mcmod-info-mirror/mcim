@@ -399,7 +399,7 @@ class HashesQuery(BaseModel):
     description="Modrinth Files 信息",
     response_model=Dict[str, Version],
 )
-@cache(expire=mcim_config.expire_second.modrinth.file)
+# @cache(expire=mcim_config.expire_second.modrinth.file)
 async def modrinth_files(items: HashesQuery, request: Request):
     if request.state.force_sync:
         sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm)
@@ -535,7 +535,7 @@ class MultiUpdateItems(BaseModel):
 
 
 @v2_router.post("/version_files/update")
-@cache(expire=mcim_config.expire_second.modrinth.file)
+# @cache(expire=mcim_config.expire_second.modrinth.file)
 async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
     if request.state.force_sync:
         sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm)
