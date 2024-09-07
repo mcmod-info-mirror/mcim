@@ -184,12 +184,12 @@ if mcim_config.file_cdn:
         FILE_CDN_FORWARD_TO_ORIGIN_COUNT.labels("curseforge").inc()
         return RedirectResponse(url=url, headers={"Cache-Control": "public, no-cache"})
 
-@file_cdn_router.get("/file_cdn/list", exclude_from_schema=True)
-async def list_file_cdn(request: Request, last_id: int, page_size: int = 1000):
+@file_cdn_router.get("/file_cdn/list", include_in_schema=False)
+async def list_file_cdn(request: Request, last_id: Optional[str] = None, page_size: int = 1000):
     files_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
     # 执行查询
     pipeline = [
-        {'$match': {'_id': {'$gt': last_id}}},
+        {'$match': {'_id': {'$gt': last_id}} if last_id else {}},
         {'$sort': {'_id': 1}},
         {'$limit': page_size}
     ]
