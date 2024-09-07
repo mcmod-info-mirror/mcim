@@ -190,9 +190,11 @@ class File(Model):
     earlyAccessEndDate: Optional[datetime] = None
     fileFingerprint: Optional[int] = None
     modules: Optional[List[Module]] = None
-
+    
     need_to_cache: bool = True  # 不缓存 Mod 以外的东西，在获得 mod 类型的时候设置
     file_cdn_cached: bool = False
+    sha1: Optional[str] = None
+    md5: Optional[str] = None
     found: bool = True
     sync_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -234,6 +236,8 @@ class FileInfo(BaseModel):
     earlyAccessEndDate: Optional[datetime] = None
     fileFingerprint: Optional[int] = None
     modules: Optional[List[Module]] = None
+    sha1: Optional[str] = None
+    md5: Optional[str] = None
 
 
 {

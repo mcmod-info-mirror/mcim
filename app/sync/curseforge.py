@@ -102,6 +102,11 @@ def append_model_from_files_res(
 ) -> List[Union[File, Fingerprint]]:
     models = []
     for file in res["data"]:
+        for _hash in file["hashes"]:
+            if _hash["algo"] == 1:
+                file["sha1"] = _hash["value"]
+            elif _hash["algo"] == 2:
+                file["md5"] = _hash["value"]
         models.append(File(found=True, need_to_cache=need_to_cache, **file))
         models.append(
             Fingerprint(
@@ -320,12 +325,12 @@ def sync_categories():
 )
 @limit
 def file_cdn_cache_add_task(file: dict):
-    file = File(**file)
-    for hash_info in file.hashes:
+    file_model = File(**file)
+    for hash_info in file_model.hashes:
         if hash_info.algo == 1:
             hash = hash_info.value
             break
-    url = file.downloadUrl.replace("edge", "mediafilez")
+    url = file_model.downloadUrl.replace("edge", "mediafilez")
     download = add_http_task(
         url=url,
         name=hash,
@@ -337,8 +342,8 @@ def file_cdn_cache_add_task(file: dict):
         if download.is_waiting or download.is_active:
             time.sleep(0.5)
         elif download.is_complete:
-            file.file_cdn_cached = True
-            mongodb_engine.save(file)
+            file_model.file_cdn_cached = True
+            mongodb_engine.save(file_model)
             break
         elif download.has_failed:
             return download.error_message
