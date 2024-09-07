@@ -62,7 +62,7 @@ def submit_models(models: List[Union[Project, File, Version]]):
                             sha1=model.hashes.sha1,
                             size=model.size,
                             mtime=datetime.utcnow(),
-                            path=os.path.join("/mcim", model.hashes.sha1),
+                            path=model.hashes.sha1,
                         )
                     )
                 if not model.file_cdn_cached and model.size <= MAX_LENGTH:

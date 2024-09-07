@@ -132,7 +132,7 @@ def append_model_from_files_res(
                     FileCDN(
                         sha1=file_model.sha1,
                         url=file_model.downloadUrl,
-                        path=os.path.join("/mcim", file_model.sha1),
+                        path=file_model.sha1,
                         size=file_model.fileLength,
                         mtime=(
                             file_model.fileDate

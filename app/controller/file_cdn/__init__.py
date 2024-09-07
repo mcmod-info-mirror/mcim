@@ -193,5 +193,5 @@ async def list_file_cdn(request: Request, last_id: Optional[str] = None, page_si
         {'$sort': {'_id': 1}},
         {'$limit': page_size}
     ]
-    results = await files_collection.aggregate(pipeline).to_list()
+    results = await files_collection.aggregate(pipeline).to_list(length=None)
     return results
