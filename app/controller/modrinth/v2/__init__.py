@@ -488,6 +488,13 @@ async def modrinth_file_update(
             else {"$match": {"_id.sha512": hash_}}
         ),
         {
+            "$project": (
+                {"_id.sha1": 1, "project_id": 1}
+                if algorithm is Algorithm.sha1
+                else {"_id.sha512": 1, "project_id": 1}
+            )
+        },
+        {
             "$lookup": {
                 "from": "modrinth_versions",
                 "localField": "project_id",
@@ -549,6 +556,13 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
             if items.algorithm is Algorithm.sha1
             else {"$match": {"_id.sha512": {"$in": items.hashes}}}
         ),
+        {
+            "$project": (
+                {"_id.sha1": 1, "project_id": 1}
+                if items.algorithm is Algorithm.sha1
+                else {"_id.sha512": 1, "project_id": 1}
+            )
+        },
         {
             "$lookup": {
                 "from": "modrinth_versions",

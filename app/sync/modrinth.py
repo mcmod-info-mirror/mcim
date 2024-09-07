@@ -22,6 +22,7 @@ import json
 import os
 import time
 import httpx
+from datetime import datetime
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
@@ -31,6 +32,7 @@ from app.sync import (
     file_cdn_redis_broker,
 )  # file_cdn_redis_sync_engine,
 from app.models.database.modrinth import Project, File, Version
+from app.models.database.file_cdn import File as FileCDN
 from app.utils.network import request_sync, download_file_sync
 from app.exceptions import ResponseCodeException
 from app.config import MCIMConfig, Aria2Config
@@ -48,6 +50,21 @@ def submit_models(models: List[Union[Project, File, Version]]):
     if mcim_config.file_cdn:
         for model in models:
             if isinstance(model, File):
+                if (
+                    model.size <= MAX_LENGTH
+                    and model.filename
+                    and model.url
+                    and model.hashes.sha1
+                ):
+                    models.append(
+                        FileCDN(
+                            url=model.url,
+                            sha1=model.hashes.sha1,
+                            size=model.size,
+                            mtime=datetime.utcnow(),
+                            path=os.path.join("/mcim", model.hashes.sha1),
+                        )
+                    )
                 if not model.file_cdn_cached and model.size <= MAX_LENGTH:
                     # if not fs.exists(
                     #     os.path.join(

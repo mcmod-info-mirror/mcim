@@ -5,6 +5,7 @@ from pymongo import MongoClient
 from app.config import MongodbConfig
 from app.models.database.curseforge import Mod, File, Fingerprint  # , ModFilesSyncInfo
 from app.models.database.modrinth import Project, Version, File as ModrinthFile
+from app.models.database.file_cdn import File as CDNFile
 from app.utils.loger import log
 
 _mongodb_config = MongodbConfig.load()
@@ -61,6 +62,8 @@ async def setup_async_mongodb(engine: AIOEngine) -> None:
             Project,
             Version,
             ModrinthFile,
+            # File CDN
+            CDNFile,
         ]
     )
 

@@ -5,6 +5,7 @@ import httpx
 import json
 import os
 import time
+from datetime import datetime
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
@@ -15,6 +16,7 @@ from app.sync import (
 )  # file_cdn_redis_sync_engine,
 from app.sync import SYNC_MODE
 from app.models.database.curseforge import File, Mod, Pagination, Fingerprint
+from app.models.database.file_cdn import File as FileCDN
 from app.utils.network import request_sync, download_file_sync
 from app.config import MCIMConfig, Aria2Config
 from app.utils.aria2 import add_http_task, ARIA2_API
@@ -107,7 +109,8 @@ def append_model_from_files_res(
                 file["sha1"] = _hash["value"]
             elif _hash["algo"] == 2:
                 file["md5"] = _hash["value"]
-        models.append(File(found=True, need_to_cache=need_to_cache, **file))
+        file_model = File(found=True, need_to_cache=need_to_cache, **file)
+        models.append(file_model)
         models.append(
             Fingerprint(
                 id=file["fileFingerprint"],
@@ -116,6 +119,28 @@ def append_model_from_files_res(
                 found=True,
             )
         )
+        # for file_cdn
+        if mcim_config.file_cdn:
+            if (
+                file_model.sha1 is not None
+                and file_model.gameId == 432
+                and file_model.fileLength <= MAX_LENGTH
+                and file_model.downloadCount >= MIN_DOWNLOAD_COUNT
+                and file_model.downloadUrl is not None
+            ):
+                models.append(
+                    FileCDN(
+                        sha1=file_model.sha1,
+                        url=file_model.downloadUrl,
+                        path=os.path.join("/mcim", file_model.sha1),
+                        size=file_model.fileLength,
+                        mtime=(
+                            file_model.fileDate
+                            if file_model.fileDate
+                            else datetime.now()
+                        ),
+                    )
+                )
     return models
 
 
@@ -137,9 +162,7 @@ def sync_mod_all_files(
     # models.extend(
     #     append_model_from_files_res(res, latestFiles, need_to_cache=need_to_cache)
     # )
-    models = append_model_from_files_res(
-        res, latestFiles, need_to_cache=need_to_cache
-    )
+    models = append_model_from_files_res(res, latestFiles, need_to_cache=need_to_cache)
     submit_models(models=models)
     add_file_cdn_tasks(models=models)
 
@@ -240,6 +263,7 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     # submit_models(models)
     sync_mod_all_files(modId)
 
+
 @actor(
     max_retries=3,
     retry_when=should_retry,
@@ -257,7 +281,7 @@ def sync_mutil_files(fileIds: List[int]):
         json={"fileIds": fileIds},
     ).json()["data"]
     # for file in res:
-        # models.append(File(found=True, **file))
+    # models.append(File(found=True, **file))
     modids = [file["modId"] for file in res]
     sync_multi_mods_all_files(modids)
     # submit_models(models)
@@ -280,14 +304,14 @@ def sync_fingerprints(fingerprints: List[int]):
     ).json()
     # models: List[Fingerprint] = []
     # for file in res["data"]["exactMatches"]:
-        # models.append(
-        #     Fingerprint(
-        #         id=file["file"]["fileFingerprint"],
-        #         file=file["file"],
-        #         latestFiles=file["latestFiles"],
-        #         found=True,
-        #     )
-        # )
+    # models.append(
+    #     Fingerprint(
+    #         id=file["file"]["fileFingerprint"],
+    #         file=file["file"],
+    #         latestFiles=file["latestFiles"],
+    #         found=True,
+    #     )
+    # )
     modids = [file["file"]["modId"] for file in res["data"]["exactMatches"]]
     sync_multi_mods_all_files(modids)
     # submit_models(models)

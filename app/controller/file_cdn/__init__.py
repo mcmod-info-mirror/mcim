@@ -8,6 +8,7 @@ from email.utils import formatdate
 
 from app.models.database.curseforge import File as cfFile
 from app.models.database.modrinth import File as mrFile
+from app.models.database.file_cdn import File as cdnFile
 from app.config import MCIMConfig
 from app.utils.loger import log
 from app.utils.response_cache import cache
@@ -182,3 +183,15 @@ if mcim_config.file_cdn:
         log.debug(f"Redirect to {url}")
         FILE_CDN_FORWARD_TO_ORIGIN_COUNT.labels("curseforge").inc()
         return RedirectResponse(url=url, headers={"Cache-Control": "public, no-cache"})
+
+@file_cdn_router.get("/file_cdn/list", exclude_from_schema=True)
+async def list_file_cdn(request: Request, last_id: int, page_size: int = 1000):
+    files_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
+    # 执行查询
+    pipeline = [
+        {'$match': {'_id': {'$gt': last_id}}},
+        {'$sort': {'_id': 1}},
+        {'$limit': page_size}
+    ]
+    results = await files_collection.aggregate(pipeline).to_list()
+    return results

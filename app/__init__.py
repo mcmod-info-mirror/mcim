@@ -39,17 +39,6 @@ def init_file_cdn():
             fs.makedirs(
                 os.path.join(mcim_config.curseforge_download_path, format(i, "02x")),
             )
-    # fs.makedirs(mcim_config.modrinth_download_path, exist_ok=True)
-    # fs.makedirs(mcim_config.curseforge_download_path, exist_ok=True)
-    # for i in range(256):
-    #     fs.makedirs(
-    #         os.path.join(mcim_config.modrinth_download_path, format(i, "02x")),
-    #         exist_ok=True,
-    #     )
-    #     fs.makedirs(
-    #         os.path.join(mcim_config.curseforge_download_path, format(i, "02x")),
-    #         exist_ok=True,
-    #     )
     log.success("File CDN enabled, cache folder ready.")
     return client, fs
 
