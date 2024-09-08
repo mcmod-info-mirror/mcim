@@ -61,7 +61,7 @@ def submit_models(models: List[Union[Project, File, Version]]):
                             url=model.url,
                             sha1=model.hashes.sha1,
                             size=model.size,
-                            mtime=datetime.utcnow(),
+                            mtime=int(time.time()),
                             path=model.hashes.sha1,
                         )
                     )

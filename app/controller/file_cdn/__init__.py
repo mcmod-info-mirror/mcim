@@ -282,14 +282,30 @@ if mcim_config.file_cdn:
 
 @file_cdn_router.get("/file_cdn/list", include_in_schema=False)
 async def list_file_cdn(
-    request: Request, last_id: Optional[str] = None, page_size: int = 1000
+    request: Request,
+    last_id: Optional[str] = None,
+    last_modified: Optional[int] = None,
+    page_size: int = 1000,
 ):
     files_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
-    # 执行查询
+    # 动态构建 $match 阶段
+    match_stage = {}
+    if last_modified:
+        match_stage['mtime'] = {'$gt': last_modified}
+    if last_id:
+        match_stage['_id'] = {'$gt': last_id}
+    
+    # 聚合管道
     pipeline = [
-        {"$match": {"_id": {"$gt": last_id}} if last_id else {}},
-        {"$sort": {"_id": 1}},
-        {"$limit": page_size},
+        {'$match': match_stage},
+        {'$sort': {'mtime': 1, '_id': 1}},
+        {'$limit': page_size}
     ]
+
+    # pipeline = [
+    #     {"$match": {"_id": {"$gt": last_id}} if last_id else {}},
+    #     {"$sort": {"_id": 1}},
+    #     {"$limit": page_size},
+    # ]
     results = await files_collection.aggregate(pipeline).to_list(length=None)
     return results

@@ -40,6 +40,7 @@ def init_file_cdn():
                 os.path.join(mcim_config.curseforge_download_path, format(i, "02x")),
             )
     log.success("File CDN enabled, cache folder ready.")
+    log.info(f"File CDN redirect mode: {mcim_config.file_cdn_redirect_mode}")
     return client, fs
 
 

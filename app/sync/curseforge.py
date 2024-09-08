@@ -134,11 +134,12 @@ def append_model_from_files_res(
                         url=file_model.downloadUrl,
                         path=file_model.sha1,
                         size=file_model.fileLength,
-                        mtime=(
-                            file_model.fileDate
-                            if file_model.fileDate
-                            else datetime.now()
-                        ),
+                        # mtime=(
+                        #     file_model.fileDate
+                        #     if file_model.fileDate
+                        #     else datetime.now()
+                        # ),
+                        mtime=int(time.time()),
                     )
                 )
     return models
