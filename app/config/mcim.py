@@ -2,6 +2,7 @@ import json
 import os
 from typing import Optional
 from pydantic import BaseModel, ValidationError, validator
+from enum import Enum
 
 from .constants import CONFIG_PATH
 
@@ -29,6 +30,14 @@ class ExpireSecond(BaseModel):
     curseforge: Curseforge = Curseforge()
     modrinth: Modrinth = Modrinth()
 
+class FileCDNRedirectMode(str, Enum):
+    # 重定向到alist
+    ALIST = "alist"
+    # 重定向到原始链接
+    ORIGIN = "origin"
+    # 重定向到 open93home
+    OPEN93HOME = "open93home"
+
 
 class MCIMConfigModel(BaseModel):
     host: str = "127.0.0.1"
@@ -41,6 +50,7 @@ class MCIMConfigModel(BaseModel):
     proxies: Optional[str] = None
 
     file_cdn: bool = False
+    file_cdn_redirect_mode: FileCDNRedirectMode = FileCDNRedirectMode.ALIST
     max_file_size: int = 1024 * 10024 * 20
     aria2: bool = False
     modrinth_download_path: str = "/modrinth"
@@ -50,6 +60,7 @@ class MCIMConfigModel(BaseModel):
 
     redis_cache: bool = True
     alist_endpoint: str = "http://127.0.0.1:5244"
+    open93home_endpoint: str = "http://open93home"
 
     expire_second: ExpireSecond = ExpireSecond()
     expire_status_code: int = 404
