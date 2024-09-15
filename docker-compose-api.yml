@@ -1,0 +1,102 @@
+x-logging:
+  &default-logging
+  driver: "local"
+  options:
+    max-size: "20m"
+    max-file: "3"
+
+services:
+  mongodb:
+    # 容器的名称为 mongo
+    container_name: mongo
+    # 使用的镜像名称
+    image: mongo:latest
+    # 当 docker 服务启动后，自动启动 mongodb 容器
+    restart: always
+    # 对外映射的端口
+    ports:
+      - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    # 宿主机硬盘目录映射容器内的存放数据的目录
+    volumes:
+      - /data/db:/data/db
+      - /opt/mcim/config/mongod.conf:/etc/mongod.conf
+
+    command:
+      - "--bind_ip_all"
+    logging: *default-logging
+    deploy:
+      resources:
+         limits:
+            memory: 400M
+         reservations:
+            memory: 200M
+
+  redis:
+    container_name: redis
+    image: redis:alpine
+    ports:
+      - 6379:6379
+    restart: always
+    logging: *default-logging
+    volumes:
+      -/opt/mcim/config/redis.conf:/etc/redis/redis.conf
+    command: redis-server /etc/redis/redis.conf
+    deploy:
+      resources:
+         limits:
+            memory: 300M
+         reservations:
+            memory: 200M
+
+  # mcim_api:
+  #   container_name: mcim_api
+  #   image: mcim_api
+  #   build:
+  #     context: .
+  #     dockerfile: ./docker/fastapi
+
+  #   ports:
+  #     - 8000:8000
+  #   restart: always
+  #   depends_on:
+  #     - mongodb
+  #     - redis
+  #   volumes:
+  #     - /opt/mcim/config:/config
+  #     - /opt/mcim/logs:/logs
+
+  mcim_api_gunicorn:
+    container_name: mcim_api_gunicorn
+    image: mcim_api_gunicorn
+    build:
+      context: .
+      dockerfile: ./docker/fastapi_gunicorn
+    environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
+      TZ: Asia/Shanghai
+    ports:
+      - 8000:8000
+    restart: always
+    depends_on:
+      - mongodb
+      - redis
+    volumes:
+      - /opt/mcim/config:/config
+      - /opt/mcim/logs:/logs
+    command: >
+      sh -c "rm -rf /tmp/prometheus &&
+            mkdir -p /tmp/prometheus &&
+            gunicorn -k uvicorn.workers.UvicornWorker -c gunicorn_config.py app:APP"
+    logging: &loki-logging
+      driver: loki
+      options:
+        loki-url: "http://loki:3100/api/prom/push"
+    deploy:
+      resources:
+         limits:
+            memory: 800M
+         reservations:
+            memory: 200M

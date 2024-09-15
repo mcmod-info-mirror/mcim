@@ -1,0 +1,44 @@
+x-logging:
+  &default-logging
+  driver: "local"
+  options:
+    max-size: "20m"
+    max-file: "3"
+
+services:
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    ports:
+      - 3000:3000
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    env_file:
+      - ./grafana/config.monitoring
+    logging: *default-logging
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    container_name: prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  node_exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    container_name: node_exporter
+    ports:
+      - 9100:9100
+    command:
+      - '--path.rootfs=/host'
+    restart: unless-stopped
+    volumes:
+      - /:/host:ro,rslave
+      - /proc:/host/proc:ro"
+      - /sys:/host/sys:ro"
+    logging: *default-logging

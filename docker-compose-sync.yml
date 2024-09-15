@@ -1,0 +1,117 @@
+x-logging:
+  &default-logging
+  driver: "local"
+  options:
+    max-size: "20m"
+    max-file: "3"
+
+services:
+  sync_redis:
+    container_name: sync_redis
+    image: redis:alpine
+    restart: always
+    logging: *default-logging
+
+  # SYNC_MODE: SYNC_FILE_CDN / SYNC_INFO / SYNC_ALL
+  mcim_sync:
+    container_name: mcim_sync
+    image: mcim_sync
+    build:
+      context: .
+      dockerfile: ./docker/dramatiq
+    environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/dramatiq-prometheus
+      dramatiq_prom_db: /tmp/dramatiq-prometheus
+      TZ: Asia/Shanghai
+      SYNC_MODE: SYNC_INFO
+    ports:
+      - 9191:9191
+    restart: always
+    depends_on:
+      - mongodb
+      - redis
+      - sync_redis
+      - alist
+    volumes:
+      - /opt/mcim/config:/config
+      - /opt/mcim/logs:/logs
+      - /data/alist:/data # rclone 挂载位置
+    command: >
+      sh -c "rm -rf /tmp/dramatiq-prometheus/ &&
+            mkdir -p /tmp/dramatiq-prometheus &&
+            dramatiq app.sync"
+    logging: *loki-logging
+    deploy:
+      resources:
+         limits:
+            memory: 1024M
+         reservations:
+            memory: 200M
+
+  mcim_file_sync:
+    container_name: mcim_file_sync
+    image: mcim_sync
+    build:
+      context: .
+      dockerfile: ./docker/dramatiq
+    environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/dramatiq-prometheus
+      dramatiq_prom_db: /tmp/dramatiq-prometheus
+      TZ: Asia/Shanghai
+      SYNC_MODE: SYNC_FILE_CDN
+    ports:
+      - 9191:9191
+    restart: always
+    depends_on:
+      - mongodb
+      - redis
+      - sync_redis
+      - alist
+    volumes:
+      - /opt/mcim/config:/config
+      - /opt/mcim/logs:/logs
+      - /data/alist:/data # rclone 挂载位置
+    command: >
+      sh -c "rm -rf /tmp/dramatiq-prometheus/ &&
+            mkdir -p /tmp/dramatiq-prometheus &&
+            dramatiq app.sync"
+    logging: *loki-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 200M
+    labels:
+      com.docker-tc.enabled: 1
+      com.docker-tc.limit: 25mbps
+
+  alist:
+    image: xhofe/alist:latest
+    container_name: alist
+    environment:
+      - PUID=0 # Find your own user PUID and group PGID. https://docs.linuxserver.io/general/understanding-puid-and-pgid
+      - PGID=0 # When using volumes (-v flags) permissions issues can arise between the host OS and the container, we avoid this issue by allowing you to specify the user PUID and group PGID.
+      - TZ=Asia/Shanghai
+    volumes:
+      - /opt/alist/data:/opt/alist/data
+    ports:
+      - 5244:5244
+    restart: always
+
+  tc:
+    image: "${DOCKER_IMAGE_TERMINAL:-lukaszlach/docker-tc}"
+    container_name: docker-tc
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/docker-tc:/var/docker-tc
+    deploy:
+      mode: global
+      restart_policy:
+        condition: any
+    environment:
+      HTTP_BIND: "${HTTP_BIND:-127.0.0.1}"
+      HTTP_PORT: "${HTTP_PORT:-4080}"
+    network_mode: host
