@@ -67,7 +67,7 @@ if mcim_config.file_cdn:
             log.info(f"Redirect to {url}")
             FILE_CDN_FORWARD_TO_ORIGIN_COUNT.labels("modrinth").inc()
             return RedirectResponse(
-                url=url, headers={"Cache-Control": "public, no-cache"}
+                url=url, headers={"Cache-Control": f"public, age={3600*24*1}"}
             )
 
         async def return_open93home_response(sha1: str, request: Request):
@@ -171,7 +171,7 @@ if mcim_config.file_cdn:
             log.info(f"Redirect to {url}")
             FILE_CDN_FORWARD_TO_ORIGIN_COUNT.labels("curseforge").inc()
             return RedirectResponse(
-                url=url, headers={"Cache-Control": "public, no-cache"}
+                url=url, headers={"Cache-Control": f"public, age={3600*24*7}"}
             )
 
         async def return_open93home_response(sha1: str, request: Request):
