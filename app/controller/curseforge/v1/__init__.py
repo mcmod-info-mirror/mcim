@@ -187,7 +187,7 @@ async def curseforge_mod(modId: int, request: Request):
         < time.time()
     ):
         sync_mod.send(modId=modId)
-        log.debug(f"modId: {modId} expired, send sync task, sync_at {mod_model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.")
+        log.debug(f'modId: {modId} expired, send sync task, sync_at {mod_model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.')
         trustable = False
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=mod_model).model_dump(), trustable=trustable
@@ -242,7 +242,7 @@ async def curseforge_mods(item: modIds_item, request: Request):
             < time.time()
         ):
             expire_modid.append(model.id)
-            log.debug(f"modId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.")
+            log.debug(f'modId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.')
         content.append(model.model_dump())
     if expire_modid:
         trustable = False
@@ -313,7 +313,7 @@ async def curseforge_files(item: fileIds_item, request: Request):
             < time.time()
         ):
             expire_fileid.append(model.id)
-            log.debug(f"fileId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.")
+            log.debug(f'fileId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.')
         content.append(model.model_dump())
     if expire_fileid:
         sync_mutil_files.send(fileIds=expire_fileid)
@@ -347,7 +347,7 @@ async def curseforge_mod_file(modId: int, fileId: int, request: Request):
         < time.time()
     ):
         sync_file.send(modId=modId, fileId=fileId)
-        log.debug(f"modId: {modId} fileId: {fileId} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.")
+        log.debug(f'modId: {modId} fileId: {fileId} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.')
         trustable = False
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=model).model_dump(), trustable=trustable
