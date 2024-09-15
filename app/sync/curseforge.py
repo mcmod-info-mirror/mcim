@@ -154,10 +154,11 @@ def sync_mod_all_files(
         latestFiles = data["latestFiles"]
         need_to_cache = True if data["classId"] == 6 else False
 
+    params = {"index": 0, "pageSize": 50}
     res = request_sync(
         f"{API}/v1/mods/{modId}/files",
         headers=HEADERS,
-        params={"index": 0, "pageSize": 50},
+        params=params,
     ).json()
 
     # models.extend(
@@ -165,6 +166,7 @@ def sync_mod_all_files(
     # )
     models = append_model_from_files_res(res, latestFiles, need_to_cache=need_to_cache)
     submit_models(models=models)
+    log.info(f'Finished modid:{modId} {params["index"]}:{params["pageSize"]}')
     add_file_cdn_tasks(models=models)
 
     page = Pagination(**res["pagination"])
@@ -174,17 +176,13 @@ def sync_mod_all_files(
         res = request_sync(
             f"{API}/v1/mods/{modId}/files", headers=HEADERS, params=params
         ).json()
-        # models.extend(
-        #     append_model_from_files_res(res, latestFiles, need_to_cache=need_to_cache)
-        # )
         page = Pagination(**res["pagination"])
         models = append_model_from_files_res(
             res, latestFiles, need_to_cache=need_to_cache
         )
         submit_models(models=models)
+        log.info(f'Finished modid:{modId} i:ps:t {params["index"]}:{params["pageSize"]}:{page.totalCount}')
         add_file_cdn_tasks(models=models)
-
-    # return models
 
 
 def sync_multi_mods_all_files(modIds: List[int]):

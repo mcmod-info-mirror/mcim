@@ -177,7 +177,7 @@ async def curseforge_mod(modId: int, request: Request):
         log.debug(f"modId: {modId} force sync.")
         return UncachedResponse()
     trustable: bool = True
-    mod_model = await request.app.state.aio_mongo_engine.find_one(Mod, Mod.id == modId)
+    mod_model: Optional[Mod] = await request.app.state.aio_mongo_engine.find_one(Mod, Mod.id == modId)
     if mod_model is None:
         sync_mod.send(modId=modId)
         log.debug(f"modId: {modId} not found, send sync task.")
@@ -187,7 +187,7 @@ async def curseforge_mod(modId: int, request: Request):
         < time.time()
     ):
         sync_mod.send(modId=modId)
-        log.debug(f"modId: {modId} expired, send sync task.")
+        log.debug(f"modId: {modId} expired, send sync task, sync_at {mod_model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.")
         trustable = False
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=mod_model).model_dump(), trustable=trustable
@@ -215,7 +215,7 @@ async def curseforge_mods(item: modIds_item, request: Request):
             content=CurseforgeBaseResponse(data=[]).model_dump(), trustable=False
         )
     trustable: bool = True
-    mod_models = await request.app.state.aio_mongo_engine.find(
+    mod_models: Optional[List[Mod]] = await request.app.state.aio_mongo_engine.find(
         Mod, query.in_(Mod.id, item.modIds)
     )
     mod_model_count = len(mod_models)
@@ -242,6 +242,7 @@ async def curseforge_mods(item: modIds_item, request: Request):
             < time.time()
         ):
             expire_modid.append(model.id)
+            log.debug(f"modId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.")
         content.append(model.model_dump())
     if expire_modid:
         trustable = False
@@ -294,7 +295,7 @@ async def curseforge_files(item: fileIds_item, request: Request):
         log.debug(f"fileIds: {item.fileIds} force sync.")
         return UncachedResponse()
     trustable = True
-    file_models = await request.app.state.aio_mongo_engine.find(
+    file_models: Optional[List[File]] = await request.app.state.aio_mongo_engine.find(
         File, query.in_(File.id, item.fileIds)
     )
     if not file_models:
@@ -312,6 +313,7 @@ async def curseforge_files(item: fileIds_item, request: Request):
             < time.time()
         ):
             expire_fileid.append(model.id)
+            log.debug(f"fileId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.")
         content.append(model.model_dump())
     if expire_fileid:
         sync_mutil_files.send(fileIds=expire_fileid)
@@ -334,7 +336,7 @@ async def curseforge_mod_file(modId: int, fileId: int, request: Request):
         log.debug(f"modId: {modId} fileId: {fileId} force sync.")
         return UncachedResponse()
     trustable = True
-    model = await request.app.state.aio_mongo_engine.find_one(
+    model: Optional[File] = await request.app.state.aio_mongo_engine.find_one(
         File, File.modId == modId, File.id == fileId
     )
     if model is None:
@@ -345,6 +347,7 @@ async def curseforge_mod_file(modId: int, fileId: int, request: Request):
         < time.time()
     ):
         sync_file.send(modId=modId, fileId=fileId)
+        log.debug(f"modId: {modId} fileId: {fileId} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.")
         trustable = False
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=model).model_dump(), trustable=trustable
