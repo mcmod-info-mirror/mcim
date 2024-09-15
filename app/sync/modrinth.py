@@ -132,7 +132,7 @@ def sync_project_all_version(
 ) -> List[Union[Project, File, Version]]:
     models = []
     if not slug:
-        project = mongodb_engine.find_one(Project, {"id": project_id})
+        project = mongodb_engine.find_one(Project, {"_id": project_id})
         if project:
             slug = project.slug
         else:
