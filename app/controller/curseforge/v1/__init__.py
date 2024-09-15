@@ -103,6 +103,7 @@ class CurseforgeStatistics(BaseModel):
     "/statistics",
     description="Curseforge 缓存统计信息",
     response_model=CurseforgeStatistics,
+    include_in_schema=False
 )
 @cache(expire=3600)
 async def curseforge_statistics(request: Request):

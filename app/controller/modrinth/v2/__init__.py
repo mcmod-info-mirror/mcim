@@ -52,6 +52,7 @@ class ModrinthStatistics(BaseModel):
     "/statistics",
     description="Modrinth 缓存统计信息",
     response_model=ModrinthStatistics,
+    include_in_schema=False
 )
 @cache(expire=3600)
 async def modrinth_statistics(request: Request):
