@@ -166,7 +166,7 @@ def sync_mod_all_files(
     # )
     models = append_model_from_files_res(res, latestFiles, need_to_cache=need_to_cache)
     submit_models(models=models)
-    log.info(f'Finished modid:{modId} {params["index"]}:{params["pageSize"]}')
+    log.info(f'Finished modid:{modId} i:ps:t {params["index"]}:{params["pageSize"]}:{res["pagination"]["totalCount"]}')
     add_file_cdn_tasks(models=models)
 
     page = Pagination(**res["pagination"])
