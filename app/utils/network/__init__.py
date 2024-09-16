@@ -5,11 +5,13 @@
 import os
 import hashlib
 import httpx
+
 # import tempfile
 import uuid
+
 # import shutil
 
-from tenacity import retry, stop_after_attempt
+from tenacity import retry, stop_after_attempt, retry_if_not_exception_type
 from typing import Optional, Union
 from app.exceptions import ApiException, ResponseCodeException
 from app.config.mcim import MCIMConfig
@@ -70,7 +72,11 @@ def verify_hash(path: str, hash_: str, algo: str) -> bool:
     return hash_ == hash_tool.hexdigest()
 
 
-@retry(stop=stop_after_attempt(RETRY_TIMES), reraise=True)
+@retry(
+    stop=stop_after_attempt(RETRY_TIMES),
+    retry=(retry_if_not_exception_type(ResponseCodeException)),
+    reraise=True,
+)
 def request_sync(
     url: str,
     method: str = "GET",
@@ -121,7 +127,11 @@ def request_sync(
     return res
 
 
-@retry(stop=stop_after_attempt(RETRY_TIMES), reraise=True)
+@retry(
+    stop=stop_after_attempt(RETRY_TIMES),
+    retry=(retry_if_not_exception_type(ResponseCodeException)),
+    reraise=True,
+)
 async def request(
     url: str,
     method: str = "GET",
@@ -172,7 +182,10 @@ async def request(
     return res
 
 
-@retry(stop=stop_after_attempt(RETRY_TIMES), reraise=True)
+@retry(
+    stop=stop_after_attempt(RETRY_TIMES),
+    reraise=True,
+)
 def download_file_sync(
     url: str,
     path: Optional[str] = None,
@@ -218,7 +231,9 @@ def download_file_sync(
     log.trace(f"Temporary file {tmp_file_name} created")
     try:
         with open(tmp_file_name, "wb") as f:
-            with client.stream("GET", url, timeout=30, follow_redirects=True) as response:
+            with client.stream(
+                "GET", url, timeout=30, follow_redirects=True
+            ) as response:
                 for chunk in response.iter_bytes(1024):
                     f.write(chunk)
                     sha1.update(chunk)
@@ -234,14 +249,14 @@ def download_file_sync(
         if not hash_:
             hash_["md5"] = md5.hexdigest()
             hash_["sha512"] = sha512.hexdigest()
-            
+
         raw_path = os.path.join(path, hash_["sha1"][:2], hash_["sha1"])
-            # shutil.move(tmp_file_path, raw_path)
-            # # verify hash
-            # if not verify_hash(f.name, hash_["sha1"], "sha1"):
-            #     raise Exception("Hash verification failed")
-            # else:
-            #     log.debug(f"Hash verification passed, file {f.name} -> {hash_['sha1']}")
+        # shutil.move(tmp_file_path, raw_path)
+        # # verify hash
+        # if not verify_hash(f.name, hash_["sha1"], "sha1"):
+        #     raise Exception("Hash verification failed")
+        # else:
+        #     log.debug(f"Hash verification passed, file {f.name} -> {hash_['sha1']}")
         log.debug(f"Uploading file {url} to {raw_path}")
         # fs.upload_fileobj(f, raw_path, overwrite=True, size=size)
         webdav_client.upload_file(tmp_file_name, raw_path, overwrite=True)
