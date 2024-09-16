@@ -10,7 +10,7 @@ class File(Model):
     url: str
     path: str
     size: int
-    mtime: int = Field(default_factory=lambda: int(time.time()), index=True) # 不可能有修改，直接强制 1725767710
+    mtime: int = Field(default_factory=lambda: int(time.time()))# , index=True) # 不可能有修改，直接强制 1725767710
     # 需要修改的时候手动改成 now
 
     model_config = {

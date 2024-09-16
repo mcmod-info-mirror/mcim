@@ -80,7 +80,7 @@ class Dependencies(BaseModel):
 
 
 class Hashes(EmbeddedModel):
-    sha512: str = Field(index=True)
+    sha512: str
     sha1: str = Field(index=True)
 
 
@@ -93,8 +93,8 @@ class File(Model):
     size: Optional[int] = None
     file_type: Optional[str] = None
 
-    version_id: Optional[str] = Field(index=True)  # 有可能没有该 file...
-    project_id: Optional[str] = Field(index=True)
+    version_id: Optional[str] #  = Field(index=True)  # 有可能没有该 file...
+    project_id: Optional[str] #  = Field(index=True)
 
     file_cdn_cached: Optional[bool] = False
     found: Optional[bool] = True
@@ -129,7 +129,7 @@ class Version(Model):
     status: Optional[str] = None
     requested_status: Optional[str] = None
     author_id: Optional[str] = None
-    date_published: Optional[datetime] = Field(index=True)
+    date_published: Optional[datetime] = None #  = Field(index=True)
     downloads: Optional[int] = None
     changelog_url: Optional[str] = None  # Deprecated
     files: Optional[List[FileInfo]] = None

@@ -263,7 +263,7 @@ class Mod(Model):
     id: int = Field(primary_field=True, index=True)
     gameId: Optional[int] = None
     name: Optional[str] = None
-    slug: str = Field(index=True)
+    slug: str
     links: Optional[Links] = None
     summary: Optional[str] = None
     status: Optional[int] = None

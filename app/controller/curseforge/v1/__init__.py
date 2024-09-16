@@ -264,7 +264,7 @@ async def curseforge_mod_files(modId: int, request: Request):
         sync_mod.send(modId=modId)
         log.debug(f"modId: {modId} force sync.")
         return UncachedResponse()
-    mod_models = await request.app.state.aio_mongo_engine.find(
+    mod_models: Optional[List[File]] = await request.app.state.aio_mongo_engine.find(
         File, File.modId == modId
     )
     if not mod_models:
