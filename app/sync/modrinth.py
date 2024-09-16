@@ -23,6 +23,7 @@ import os
 import time
 import httpx
 from datetime import datetime
+from odmantic import query
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
@@ -47,40 +48,41 @@ MAX_LENGTH = mcim_config.max_file_size
 
 
 def submit_models(models: List[Union[Project, File, Version]]):
-    if mcim_config.file_cdn:
-        for model in models:
-            if isinstance(model, File):
-                if (
-                    model.size <= MAX_LENGTH
-                    and model.filename
-                    and model.url
-                    and model.hashes.sha1
-                ):
-                    models.append(
-                        FileCDN(
-                            url=model.url,
-                            sha1=model.hashes.sha1,
-                            size=model.size,
-                            mtime=int(time.time()),
-                            path=model.hashes.sha1,
-                        )
-                    )
-                if not model.file_cdn_cached and model.size <= MAX_LENGTH:
-                    # if not fs.exists(
-                    #     os.path.join(
-                    #         mcim_config.modrinth_download_path,
-                    #         model.hashes.sha1[:2],
-                    #         model.hashes.sha1,
-                    #     )
-                    # ):
-                    if mcim_config.aria2:
-                        file_cdn_cache_add_task.send(model.model_dump())
-                    else:
-                        file_cdn_cache.send_with_options(
-                            kwargs={"file": model.model_dump(), "checked": False},
-                            queue_name="file_cdn_cache",
-                        )
-    log.debug(f"Submit models: {len(models)}")
+    # 弃用 alist 同步任务
+    # if mcim_config.file_cdn:
+    #     for model in models:
+    #         if isinstance(model, File):
+    #             if (
+    #                 model.size <= MAX_LENGTH
+    #                 and model.filename
+    #                 and model.url
+    #                 and model.hashes.sha1
+    #             ):
+    #                 models.append(
+    #                     FileCDN(
+    #                         url=model.url,
+    #                         sha1=model.hashes.sha1,
+    #                         size=model.size,
+    #                         mtime=int(time.time()),
+    #                         path=model.hashes.sha1,
+    #                     )
+    #                 )
+    #             if not model.file_cdn_cached and model.size <= MAX_LENGTH:
+    #                 # if not fs.exists(
+    #                 #     os.path.join(
+    #                 #         mcim_config.modrinth_download_path,
+    #                 #         model.hashes.sha1[:2],
+    #                 #         model.hashes.sha1,
+    #                 #     )
+    #                 # ):
+    #                 if mcim_config.aria2:
+    #                     file_cdn_cache_add_task.send(model.model_dump())
+    #                 else:
+    #                     file_cdn_cache.send_with_options(
+    #                         kwargs={"file": model.model_dump(), "checked": False},
+    #                         queue_name="file_cdn_cache",
+    #                     )
+    log.debug(f"Submited: {len(models)}")
     mongodb_engine.save_all(models)
 
 
@@ -129,10 +131,26 @@ def check_alive():
 def sync_project_all_version(
     project_id: str,
     slug: Optional[str] = None,
+    verify_expire: bool = False,
 ) -> List[Union[Project, File, Version]]:
+    if not verify_expire:
+        project: Optional[Project] = mongodb_engine.find_one(
+            Project, Project.id == project_id
+        )
+        if project:
+            if (
+                time.time()
+                <= project.sync_at.timestamp()
+                + mcim_config.expire_second.modrinth.project
+            ):
+                log.info(f"Project {project_id} is not expired, pass!")
+                return
+            elif not slug:
+                slug = project.slug
+
     models = []
     if not slug:
-        project = mongodb_engine.find_one(Project, {"_id": project_id})
+        project = mongodb_engine.find_one(Project, Project.id == project_id)
         if project:
             slug = project.slug
         else:
@@ -153,7 +171,23 @@ def sync_project_all_version(
         for file in version["files"]:
             file["version_id"] = version["id"]
             file["project_id"] = version["project_id"]
-            models.append(File(found=True, slug=slug, **file))
+            file_model = File(found=True, slug=slug, **file)
+            if (
+                file_model.size <= MAX_LENGTH
+                and file_model.filename
+                and file_model.url
+                and file_model.hashes.sha1
+            ):
+                models.append(
+                    FileCDN(
+                        url=file_model.url,
+                        sha1=file_model.hashes.sha1,
+                        size=file_model.size,
+                        mtime=int(time.time()),
+                        path=file_model.hashes.sha1,
+                    )
+                )
+            models.append(file_model)
             if len(models) >= 100:
                 submit_models(models)
                 models = []
@@ -166,8 +200,23 @@ def sync_multi_projects_all_version(
     slugs: Optional[dict] = None,
     # ) -> List[Union[Project, File, Version]]:
 ) -> None:
+    mod_models: Optional[List[Project]] = mongodb_engine.find(
+        Project, query.in_(Project.id, project_ids)
+    )
+    if mod_models:
+        for model in mod_models:
+            if (
+                time.time()
+                <= model.sync_at.timestamp()
+                + mcim_config.expire_second.modrinth.project
+            ):
+                project_ids.remove(model.id)
+                log.info(f"Project {model.id} is not expired, pass!")
+
     for project_id in project_ids:
-        sync_project_all_version(project_id, slug=slugs[project_id] if slugs else None)
+        sync_project_all_version(
+            project_id, slug=slugs[project_id] if slugs else None, verify_expire=True
+        )
 
 
 @actor(

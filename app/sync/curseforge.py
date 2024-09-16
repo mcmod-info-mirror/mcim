@@ -6,6 +6,7 @@ import json
 import os
 import time
 from datetime import datetime
+from odmantic import query
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
@@ -36,7 +37,7 @@ HEADERS = {"x-api-key": mcim_config.curseforge_api_key}
 
 def submit_models(models: List[Union[File, Mod, Fingerprint]]):
     mongodb_engine.save_all(models)
-    log.debug(f"Submited {len(models)}")
+    log.debug(f"Submited: {len(models)}")
 
 
 def should_retry(retries_so_far, exception):
@@ -145,9 +146,24 @@ def append_model_from_files_res(
     return models
 
 
+# verify_expire: False 为待验证，True 为已验证过期
 def sync_mod_all_files(
-    modId: int, latestFiles: List[dict] = None, need_to_cache: bool = True
+    modId: int,
+    latestFiles: List[dict] = None,
+    need_to_cache: bool = True,
+    verify_expire: Optional[bool] = False,
 ) -> List[Union[File, Mod]]:
+    if not verify_expire:  # 未确认
+        # 再次检查是否已经过期，以免反复 update
+        mod_model: Optional[Mod] = mongodb_engine.find_one(Mod, Mod.id == modId)
+        if mod_model is not None:
+            if (
+                time.time()
+                <= mod_model.sync_at.timestamp()
+                + mcim_config.expire_second.curseforge.mod
+            ):
+                log.info(f"Mod {modId} is not expired, pass!")
+                return None
     models = []
     if not latestFiles:
         data = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()["data"]
@@ -166,7 +182,9 @@ def sync_mod_all_files(
     # )
     models = append_model_from_files_res(res, latestFiles, need_to_cache=need_to_cache)
     submit_models(models=models)
-    log.info(f'Finished modid:{modId} i:ps:t {params["index"]}:{params["pageSize"]}:{res["pagination"]["totalCount"]}')
+    log.info(
+        f'Finished modid:{modId} i:ps:t {params["index"]}:{params["pageSize"]}:{res["pagination"]["totalCount"]}'
+    )
     add_file_cdn_tasks(models=models)
 
     page = Pagination(**res["pagination"])
@@ -181,15 +199,27 @@ def sync_mod_all_files(
             res, latestFiles, need_to_cache=need_to_cache
         )
         submit_models(models=models)
-        log.info(f'Finished modid:{modId} i:ps:t {params["index"]}:{params["pageSize"]}:{page.totalCount}')
+        log.info(
+            f'Finished modid:{modId} i:ps:t {params["index"]}:{params["pageSize"]}:{page.totalCount}'
+        )
         add_file_cdn_tasks(models=models)
 
 
 def sync_multi_mods_all_files(modIds: List[int]):
     # 去重
     modIds = list(set(modIds))
+    mod_models: Optional[List[Mod]] = mongodb_engine.find(
+        Mod, query.in_(Mod.id, modIds)
+    )
+    for mod_model in mod_models:
+        if (
+            time.time()
+            <= mod_model.sync_at.timestamp() + mcim_config.expire_second.curseforge.mod
+        ):
+            log.info(f"Mod {mod_model.id} is not expired, pass!")
+            modIds.remove(mod_model.id)
     for modId in modIds:
-        sync_mod_all_files(modId)
+        sync_mod_all_files(modId, verify_expire=True)
 
 
 @actor(
