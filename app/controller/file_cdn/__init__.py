@@ -284,7 +284,7 @@ async def list_file_cdn(
     request: Request,
     last_id: Optional[str] = None,
     last_modified: Optional[int] = None,
-    page_size: int = Query(default=1000, gt=10000),
+    page_size: int = Query(default=1000, lt=10000),
 ):
     files_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
     # 动态构建 $match 阶段
