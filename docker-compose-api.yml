@@ -90,10 +90,7 @@ services:
       sh -c "rm -rf /tmp/prometheus &&
             mkdir -p /tmp/prometheus &&
             gunicorn -k uvicorn.workers.UvicornWorker -c gunicorn_config.py app:APP"
-    logging: &loki-logging
-      driver: loki
-      options:
-        loki-url: "http://loki:3100/api/prom/push"
+    logging: *default-logging
     deploy:
       resources:
          limits:

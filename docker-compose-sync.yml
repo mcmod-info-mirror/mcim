@@ -40,7 +40,7 @@ services:
       sh -c "rm -rf /tmp/dramatiq-prometheus/ &&
             mkdir -p /tmp/dramatiq-prometheus &&
             dramatiq app.sync"
-    logging: *loki-logging
+    logging: *default-logging
     deploy:
       resources:
          limits:
@@ -75,7 +75,7 @@ services:
       sh -c "rm -rf /tmp/dramatiq-prometheus/ &&
             mkdir -p /tmp/dramatiq-prometheus &&
             dramatiq app.sync"
-    logging: *loki-logging
+    logging: *default-logging
     deploy:
       resources:
         limits:
