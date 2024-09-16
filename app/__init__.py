@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI):
     if mcim_config.redis_cache:
         app.state.fastapi_cache = Cache.init(enabled=True)
 
-    if mcim_config.file_cdn:
+    if mcim_config.file_cdn and mcim_config.file_cdn_redirect_mode.value == "alist":
         client, fs = init_file_cdn()
         app.state.webdav_client = client
         app.state.webdav_fs = fs
