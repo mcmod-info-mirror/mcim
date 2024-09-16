@@ -51,7 +51,7 @@ class MCIMConfigModel(BaseModel):
 
     file_cdn: bool = False
     file_cdn_redirect_mode: FileCDNRedirectMode = FileCDNRedirectMode.ALIST
-    max_file_size: int = 1024 * 10024 * 20
+    max_file_size: int = 1024 * 1024 * 20
     aria2: bool = False
     modrinth_download_path: str = "/modrinth"
     curseforge_download_path: str = "/curseforge"
