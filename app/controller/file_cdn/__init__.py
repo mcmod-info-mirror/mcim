@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Query
 from fastapi.responses import RedirectResponse
 from odmantic import query
 from typing import Optional
@@ -279,13 +279,12 @@ if mcim_config.file_cdn:
 
         return return_origin_response()
 
-
 @file_cdn_router.get("/file_cdn/list", include_in_schema=False)
 async def list_file_cdn(
     request: Request,
     last_id: Optional[str] = None,
     last_modified: Optional[int] = None,
-    page_size: int = 1000,
+    page_size: int = Query(default=1000, gt=10000),
 ):
     files_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
     # 动态构建 $match 阶段
