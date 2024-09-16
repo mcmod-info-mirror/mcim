@@ -2,9 +2,9 @@
 
 ![mcim](https://socialify.git.ci/mcmod-info-mirror/mcim/image?description=1&font=Inter&issues=1&language=1&name=1&owner=1&pattern=Overlapping%20Hexagons&pulls=1&stargazers=1&theme=Auto)
 
-为各平台的 Mod 的缓存加速，由 [MCLF-CN #3](https://github.com/MCLF-CN/docs/issues/3) 提议，由 [Pysio](https://github.com/pysio2007) 提供 CDN 支持
+为各平台的 Mod 的缓存加速，由 [MCLF-CN #3](https://github.com/MCLF-CN/docs/issues/3) 提议，由[鸣谢列表](#鸣谢)内的各位提供支持
 
-基于 [BMCLAPI](https://bmclapidoc.bangbang93.com) 使用网盘缓存的先例，当前文件缓存在 [Mr.yang](https://github.com/YangHaoNing-CN) 和 [八蓝米](https://alist.8mi.tech) 支持下试运行！
+基于 [BMCLAPI](https://bmclapidoc.bangbang93.com) 使用网盘缓存的先例，当前文件缓存在试运行...
 
 以 [Curseforge](https://curseforge.com/) 和 [Modrinth](https://modrinth.com/) 为镜像源
 
@@ -14,7 +14,7 @@
 
 ## 接入
 
-本镜像有 UA 白名单，请在使用前提交启动器的 UA [启动器信息](https://github.com/mcmod-info-mirror/mcim/issues/4)
+本镜像可能会添加 UA 白名单，请在使用前提交启动器的 UA [启动器信息](https://github.com/mcmod-info-mirror/mcim/issues/4)
 
 ## 使用
 
@@ -83,13 +83,29 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
 
 已缓存符合条件的所有 Modrinth 上的 Mod，Curseforge 技术受限正在缓慢添加。
 
+### 当前过期策略
+
+```json
+{
+    "expire_second": {
+        "curseforge": {
+            "mod": 259200,
+            "search": 7200,
+        },
+        "modrinth": {
+            "project": 259200,
+            "search": 7200,
+        }
+    }
+}
+```
 ## 注意事项
 
 **文件**下载可能存在一定的不稳定性，当前缺少多节点网盘的分流，建议启动器在未能成功下载的情况下才尝试使用镜像源。
 
 未缓存部分接口，如果有 API 需要更新或新增请联系。
 
-关于 Mod 开发者收益问题，由于 CDN 下载量并不计入 curseforge 收益，因此无论从启动器官方源下载还是镜像源下载都是无法为 Mod 开发者提供收益的，不接受影响 Mod 开发者收益的指责。详情见 [MCLF-CN #3](https://github.com/MCLF-CN/docs/issues/3) 的讨论。
+关于 Mod 开发者收益问题，由于 API 下载量并不计入收益，因此无论从启动器官方源下载还是镜像源下载都是无法为 Mod 开发者提供收益的，不接受影响 Mod 开发者收益的指责。详情见 [MCLF-CN #3](https://github.com/MCLF-CN/docs/issues/3) 的讨论。
 
 本镜像可能会在滥用的情况下切换到 Cloudflare CDN 或开启 URL 鉴权，或者暂时关闭。
 
@@ -99,18 +115,29 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
 
 ## 鸣谢
 
-- [Mr.yang](https://github.com/YangHaoNing-CN)
-- [八蓝米](https://github.com/8Mi-Tech)
-- [Pysio](https://github.com/pysio2007)
+- [Mr.yang](https://github.com/YangHaoNing-CN) 提供网盘等
+- [八蓝米](https://github.com/8Mi-Tech) 提供网盘等
+- [Pysio](https://github.com/pysio2007) 提供 CDN 和域名
+- [BangBang93](https://blog.bangbang93.com/) 提供服务器
+- [SaltWood_233](https://github.com/SALTWOOD) 提供文件分发主控技术支持
 
 ## 联系
 
 - Eamil: z0z0r4@outlook.com
 - QQ: 3531890582
 
-## 协议
+### 声明
 
-1. MCIM 下的所有文件，除 MCIM 本身的源码之外，归源站点所有
-2. MCIM 会尽量保证文件的完整性、有效性和实时性，对于使用 MCIM 带来的一切纠纷，与 MCIM 无关。
-3. 所有使用 MCIM 的程序必需在下载界面或其他可视部分标明来源
-4. 禁止在 MCIM 上二次封装其他协议
+MCIM 是一个镜像服务平台，旨在为中国大陆用户提供稳定的 Mod 信息镜像服务。为维护 Mod 创作者及源站平台的合法权益，MCIM 制定以下协议及处理方式：
+
+1. **文件归属**  
+   MCIM 平台镜像的所有文件，除 MCIM 本身的相关配置外，其所有权依据源站平台的协议进行归属。未经原始版权所有者授权，严禁通过 MCIM 进行任何形式的转发或二次发布。
+
+2. **责任免责**  
+   MCIM 将尽力确保所镜像信息的完整性、有效性和实时性。然而，对于通过 MCIM 使用的引发的任何纠纷或责任，MCIM 不承担任何法律责任，所有风险由用户自行承担。
+
+4. **禁止二次封装协议**  
+   禁止在 MCIM 上对接口进行二次封装。
+
+如有违反上述协议，MCIM 保留采取必要措施或终止服务的权利。
+
