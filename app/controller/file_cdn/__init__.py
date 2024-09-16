@@ -303,7 +303,7 @@ async def list_file_cdn(
     # 聚合管道
     pipeline = [
         {'$match': match_stage},
-        {'$sort': {'mtime': 1, '_id': 1}},
+        {'$sort': {'_id': 1}},
         {'$limit': page_size}
     ]
 
