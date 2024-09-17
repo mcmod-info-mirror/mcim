@@ -6,6 +6,8 @@
 
 基于 [BMCLAPI](https://bmclapidoc.bangbang93.com) 使用网盘缓存的先例，当前文件缓存在试运行...
 
+**急需节点加入 orz ！详情见 [OpenMCIM 文件分发相关 #91](https://github.com/mcmod-info-mirror/mcim/issues/91)**
+
 以 [Curseforge](https://curseforge.com/) 和 [Modrinth](https://modrinth.com/) 为镜像源
 
 - [API](https://mod.mcimirror.top)
@@ -112,6 +114,10 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
 ## 部署
 
 先安装 docker，clone 到本地后直接 `docker-compose up -d` 即可，记得修改 `docker-compose.yml` 里面的 `config` 挂载目录，以及 `config` 内容。
+
+## OpenMCIM
+
+和 [OpenBMCLAPI](https://github.com/bangbang93/openbmclapi) 需要节点分发文件，欢迎~~急需~~节点加入，见 [OpenMCIM 文件分发相关 #91](https://github.com/mcmod-info-mirror/mcim/issues/91)
 
 ## 鸣谢
 
