@@ -72,7 +72,7 @@ if mcim_config.file_cdn:
 
         async def return_open93home_response(sha1: str, request: Request):
             file_cdn_model: Optional[cdnFile] = (
-                request.app.state.aio_mongo_engine.find_one(
+                await request.app.state.aio_mongo_engine.find_one(
                     cdnFile, cdnFile.sha1 == sha1
                 )
             )
