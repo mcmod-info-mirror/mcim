@@ -179,7 +179,7 @@ if mcim_config.file_cdn:
 
         async def return_open93home_response(sha1: str, request: Request):
             file_cdn_model: Optional[cdnFile] = (
-                request.app.state.aio_mongo_engine.find_one(
+                await request.app.state.aio_mongo_engine.find_one(
                     cdnFile, cdnFile.sha1 == sha1
                 )
             )
@@ -189,9 +189,6 @@ if mcim_config.file_cdn:
                     headers={"Cache-Control": f"public, age={3600*24*7}"},
                     status_code=301,
                 )
-            else:
-                sync_mutil_files.send([fileid])
-                log.debug(f"sync fileId {fileid} task send.")
 
         fileid = int(f"{fileid1}{fileid2}")
         file: Optional[cfFile] = await request.app.state.aio_mongo_engine.find_one(
