@@ -82,9 +82,6 @@ if mcim_config.file_cdn:
                     headers={"Cache-Control": f"public, age={3600*24*7}"},
                     status_code=301,
                 )
-            else:
-                sync_project.send(project_id)
-                log.debug(f"sync project {project_id} task send.")
 
         file: Optional[mrFile] = await request.app.state.aio_mongo_engine.find_one(
             mrFile,
