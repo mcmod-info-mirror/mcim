@@ -293,6 +293,7 @@ async def list_file_cdn(
         match_stage['mtime'] = {'$gt': last_modified}
     if last_id:
         match_stage['_id'] = {'$gt': last_id}
+    match_stage["disable"] = {"$ne": True}
     
     # 聚合管道
     pipeline = [
