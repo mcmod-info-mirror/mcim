@@ -12,7 +12,6 @@ class File(Model):
     size: int
     mtime: int = Field(default_factory=lambda: int(time.time()))# , index=True) # 不可能有修改，直接强制 1725767710
     # 需要修改的时候手动改成 now
-    enable: Optional[bool] = True
 
     model_config = {
         "collection": "file_cdn_files",
