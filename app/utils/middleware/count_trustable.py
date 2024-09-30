@@ -15,8 +15,9 @@ class CountTrustableMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
+        route = request.scope.get("route")
         if response.headers.get("Trustable") == "True":
-            TRUSTABLE_RESPONSE_GAUGE.labels(route=request.url.path).inc()
+            TRUSTABLE_RESPONSE_GAUGE.labels(route=route.name).inc()
         else:
-            TRUSTABLE_RESPONSE_GAUGE.labels(route=request.url.path).dec()
+            TRUSTABLE_RESPONSE_GAUGE.labels(route=route.name).dec()
         return response
