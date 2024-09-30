@@ -30,6 +30,7 @@ TRUSTABLE_RESPONSE_GAUGE = Gauge(
     "Trustable response",
     labelnames=("route",),
     registry=APP_REGISTRY,
+    multiprocess_mode="livesum",
 )
 
 REDIS_CACHE_HIT_GAUGE = Gauge(
@@ -37,6 +38,7 @@ REDIS_CACHE_HIT_GAUGE = Gauge(
     "Redis cache hit",
     labelnames=("func",),
     registry=APP_REGISTRY,
+    multiprocess_mode="livesum",
 )
 
 

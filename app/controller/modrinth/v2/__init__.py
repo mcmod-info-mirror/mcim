@@ -295,7 +295,7 @@ async def modrinth_versions(ids: str, request: Request):
     trustable = True
     ids_list = json.loads(ids)
     if request.state.force_sync:
-        sync_multi_versions.send(ids_list=ids_list)
+        sync_multi_versions.send(version_ids=ids_list)
         log.debug(f"Versions {ids} force sync.")
         return ForceSyncResponse()
     models: List[Version] = await request.app.state.aio_mongo_engine.find(
@@ -304,11 +304,11 @@ async def modrinth_versions(ids: str, request: Request):
     models_count = len(models)
     ids_count = len(ids_list)
     if not models:
-        sync_multi_versions.send(ids_list=ids_list)
+        sync_multi_versions.send(version_ids=ids_list)
         log.debug(f"Versions {ids_list} not found, send sync task.")
         return UncachedResponse()
     elif models_count != ids_count:
-        sync_multi_versions.send(ids_list=ids_list)
+        sync_multi_versions.send(version_ids=ids_list)
         log.debug(
             f"Versions {ids_list} {models_count}/{ids_count} not completely found, send sync task."
         )
@@ -322,7 +322,7 @@ async def modrinth_versions(ids: str, request: Request):
             expire_version_ids.append(model.id)
             log.debug(f"Version {model.id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}")
     if expire_version_ids:
-        sync_multi_versions.send(ids_list=expire_version_ids)
+        sync_multi_versions.send(version_ids=expire_version_ids)
         log.debug(f"Versions {expire_version_ids} expire, send sync task.")
         trustable = False
     return TrustableResponse(
