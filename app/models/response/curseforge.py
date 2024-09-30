@@ -108,7 +108,7 @@ class Category(BaseModel):
 
 
 class CurseforgeBaseResponse(BaseModel):
-    data: Union[Mod, File, dict, List]
+    data: Union[Mod, File, dict, List, str]
 
 
 class CurseforgePageBaseResponse(BaseModel):

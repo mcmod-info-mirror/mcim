@@ -224,7 +224,6 @@ async def curseforge_mods(item: modIds_item, request: Request):
         return TrustableResponse(
             content=CurseforgeBaseResponse(data=[]).model_dump(),
             trustable=False,
-
         )
     trustable: bool = True
     mod_models: Optional[List[Mod]] = await request.app.state.aio_mongo_engine.find(
@@ -239,7 +238,6 @@ async def curseforge_mods(item: modIds_item, request: Request):
         return TrustableResponse(
             content=CurseforgeBaseResponse(data=[]).model_dump(),
             trustable=False,
-
         )
     elif mod_model_count != item_count:
         sync_mutil_mods.send(modIds=item.modIds)
@@ -267,7 +265,6 @@ async def curseforge_mods(item: modIds_item, request: Request):
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=content).model_dump(),
         trustable=trustable,
-
     )
 
 
@@ -342,7 +339,6 @@ async def curseforge_files(item: fileIds_item, request: Request):
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=content).model_dump(),
         trustable=trustable,
-
     )
 
 
@@ -376,7 +372,6 @@ async def curseforge_mod_file(modId: int, fileId: int, request: Request):
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=model).model_dump(),
         trustable=trustable,
-
     )
 
 
@@ -392,8 +387,8 @@ async def curseforge_mod_file_download_url(modId: int, fileId: int, request: Req
     if model is None:
         sync_file.send(modId=modId, fileId=fileId)
         return UncachedResponse()
-    return RedirectResponse(
-        url=model.downloadUrl, headers={"Cache-Control": f"public, age={3600*24*7}"}
+    return TrustableResponse(
+        CurseforgeBaseResponse(data=model.downloadUrl).model_dump(), trustable=True
     )
 
 
@@ -430,7 +425,6 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
                 data=FingerprintResponse(unmatchedFingerprints=item.fingerprints)
             ).model_dump(),
             trustable=trustable,
-
         )
     elif len(fingerprints_models) != len(item.fingerprints):
         sync_fingerprints.send(fingerprints=item.fingerprints)
@@ -461,7 +455,6 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
             ).model_dump()
         ),
         trustable=trustable,
-
     )
 
 
@@ -493,7 +486,6 @@ async def curseforge_fingerprints_432(item: fingerprints_item, request: Request)
                 data=FingerprintResponse(unmatchedFingerprints=item.fingerprints)
             ).model_dump(),
             trustable=trustable,
-
         )
     elif len(fingerprints_models) != len(item.fingerprints):
         sync_fingerprints.send(fingerprints=item.fingerprints)
@@ -523,7 +515,6 @@ async def curseforge_fingerprints_432(item: fingerprints_item, request: Request)
             ).model_dump()
         ),
         trustable=trustable,
-
     )
 
 
