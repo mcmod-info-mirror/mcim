@@ -5,11 +5,7 @@
 import os
 import hashlib
 import httpx
-
-# import tempfile
 import uuid
-
-# import shutil
 
 from tenacity import retry, stop_after_attempt, retry_if_not_exception_type
 from typing import Optional, Union
@@ -83,7 +79,7 @@ def request_sync(
     data: Optional[dict] = None,
     params: Optional[dict] = None,
     json: Optional[dict] = None,
-    timeout: Optional[Union[int, float]] = None,
+    timeout: Optional[Union[int, float]] = TIMEOUT,
     ignore_status_code: bool = False,
     **kwargs,
 ) -> httpx.Response:
@@ -94,6 +90,8 @@ def request_sync(
         url (str): 请求 URL
 
         method (str, optional): 请求方法 默认 GET
+
+        timeout (Optional[Union[int, float]], optional): 超时时间，默认为 5 秒
 
         **kwargs: 其他参数
 
@@ -138,7 +136,7 @@ async def request(
     data: Optional[dict] = None,
     params: Optional[dict] = None,
     json: Optional[dict] = None,
-    timeout: Optional[Union[int, float]] = None,
+    timeout: Optional[Union[int, float]] = TIMEOUT,
     ignore_status_code: bool = False,
     **kwargs,
 ) -> httpx.Response:
@@ -149,6 +147,8 @@ async def request(
         url (str): 请求 URL
 
         method (str, optional): 请求方法 默认 GET
+
+        timeout (Optional[Union[int, float]], optional): 超时时间，默认为 5 秒
 
         **kwargs: 其他参数
 
