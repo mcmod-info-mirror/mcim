@@ -4,7 +4,6 @@ odmantic==1.0.2
 fastapi[all]==0.111.1
 httpx==0.26.0
 loguru==0.7.2
-motor==3.3.2
 pydantic==2.6.0
 pydantic_core==2.16.1
 python-multipart==0.0.7
