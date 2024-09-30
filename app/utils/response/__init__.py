@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 __ALL__ = ["BaseResponse", "TrustableResponse", "UncachedResponse", "ForceSyncResponse"]
 
+
 class BaseResponse(ORJSONResponse):
     """
     BaseResponse 类
@@ -18,6 +19,7 @@ class BaseResponse(ORJSONResponse):
         status_code: int = 200,
         content: Optional[Union[dict, BaseModel, list]] = None,
         headers: dict = {},
+        cacheable: bool = True,
     ):
         if content is None:
             raw_content = None
@@ -33,7 +35,9 @@ class BaseResponse(ORJSONResponse):
                     item = item.model_dump()
                 raw_content.append(item)
         # 默认 Cache-Control: public, max-age=86400
-        if status_code == 200 and "Cache-Control" not in headers:
+        if not cacheable:
+            headers["Cache-Control"] = "public, no-cache"
+        elif status_code == 200 and "Cache-Control" not in headers:
             headers["Cache-Control"] = "public, max-age=86400"
         super().__init__(status_code=status_code, content=raw_content, headers=headers)
 
@@ -49,10 +53,16 @@ class TrustableResponse(BaseResponse):
         content: Union[dict, BaseModel, list] = None,
         headers: dict = {},
         trustable: bool = True,
+        cacheable: bool = True,
     ):
         headers["Trustable"] = "True" if trustable else "False"
 
-        super().__init__(status_code=status_code, content=content, headers=headers)
+        super().__init__(
+            status_code=status_code,
+            content=content,
+            headers=headers,
+            cacheable=cacheable,
+        )
 
 
 class UncachedResponse(BaseResponse):
@@ -61,10 +71,10 @@ class UncachedResponse(BaseResponse):
     """
 
     def __init__(self, status_code: int = 404, headers: dict = {}):
-        headers = {}
-        headers["Trustable"] = "False"
-        headers["Cache-Control"] = "public, no-cache"
-        super().__init__(status_code=status_code, headers=headers)
+        headers = {"Trustable": "False"}
+
+        super().__init__(status_code=status_code, headers=headers, cacheable=False)
+
 
 class ForceSyncResponse(BaseResponse):
     """
@@ -72,7 +82,6 @@ class ForceSyncResponse(BaseResponse):
     """
 
     def __init__(self, status_code: int = 202):
-        headers = {}
-        headers["Trustable"] = "False"
-        headers["Cache-Control"] = "public, no-cache"
-        super().__init__(status_code=status_code, headers=headers)
+        headers = {"Trustable": "False"}
+
+        super().__init__(status_code=status_code, headers=headers, cacheable=False)

@@ -103,7 +103,7 @@ class CurseforgeStatistics(BaseModel):
     "/statistics",
     description="Curseforge 缓存统计信息",
     response_model=CurseforgeStatistics,
-    include_in_schema=False
+    include_in_schema=False,
 )
 @cache(expire=3600)
 async def curseforge_statistics(request: Request):
@@ -159,9 +159,14 @@ async def curseforge_search(
         "index": index,
         "pageSize": pageSize,
     }
-    res = (await request(
-        f"{API}/v1/mods/search", params=params, headers={"x-api-key": x_api_key}, timeout=SEARCH_TIMEOUT
-    )).json()
+    res = (
+        await request(
+            f"{API}/v1/mods/search",
+            params=params,
+            headers={"x-api-key": x_api_key},
+            timeout=SEARCH_TIMEOUT,
+        )
+    ).json()
     return TrustableResponse(content=res)
 
 
@@ -177,7 +182,9 @@ async def curseforge_mod(modId: int, request: Request):
         log.debug(f"modId: {modId} force sync.")
         return UncachedResponse()
     trustable: bool = True
-    mod_model: Optional[Mod] = await request.app.state.aio_mongo_engine.find_one(Mod, Mod.id == modId)
+    mod_model: Optional[Mod] = await request.app.state.aio_mongo_engine.find_one(
+        Mod, Mod.id == modId
+    )
     if mod_model is None:
         sync_mod.send(modId=modId)
         log.debug(f"modId: {modId} not found, send sync task.")
@@ -187,7 +194,9 @@ async def curseforge_mod(modId: int, request: Request):
         < time.time()
     ):
         sync_mod.send(modId=modId)
-        log.debug(f'modId: {modId} expired, send sync task, sync_at {mod_model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.')
+        log.debug(
+            f'modId: {modId} expired, send sync task, sync_at {mod_model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
+        )
         trustable = False
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=mod_model).model_dump(), trustable=trustable
@@ -212,7 +221,9 @@ async def curseforge_mods(item: modIds_item, request: Request):
         log.debug(f"modIds: {item.modIds} force sync.")
         # return UncachedResponse()
         return TrustableResponse(
-            content=CurseforgeBaseResponse(data=[]).model_dump(), trustable=False
+            content=CurseforgeBaseResponse(data=[]).model_dump(),
+            trustable=False,
+            cacheable=False,
         )
     trustable: bool = True
     mod_models: Optional[List[Mod]] = await request.app.state.aio_mongo_engine.find(
@@ -225,7 +236,9 @@ async def curseforge_mods(item: modIds_item, request: Request):
         log.debug(f"modIds: {item.modIds} not found, send sync task.")
         # return UncachedResponse()
         return TrustableResponse(
-            content=CurseforgeBaseResponse(data=[]).model_dump(), trustable=False
+            content=CurseforgeBaseResponse(data=[]).model_dump(),
+            trustable=False,
+            cacheable=False,
         )
     elif mod_model_count != item_count:
         sync_mutil_mods.send(modIds=item.modIds)
@@ -242,14 +255,18 @@ async def curseforge_mods(item: modIds_item, request: Request):
             < time.time()
         ):
             expire_modid.append(model.id)
-            log.debug(f'modId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.')
+            log.debug(
+                f'modId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
+            )
         content.append(model.model_dump())
     if expire_modid:
         trustable = False
         sync_mutil_mods.send(modIds=expire_modid)
         log.debug(f"modIds: {expire_modid} expired, send sync task.")
     return TrustableResponse(
-        content=CurseforgeBaseResponse(data=content).model_dump(), trustable=trustable
+        content=CurseforgeBaseResponse(data=content).model_dump(),
+        trustable=trustable,
+        cacheable=False,
     )
 
 
@@ -313,14 +330,18 @@ async def curseforge_files(item: fileIds_item, request: Request):
             < time.time()
         ):
             expire_fileid.append(model.id)
-            log.debug(f'fileId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.')
+            log.debug(
+                f'fileId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
+            )
         content.append(model.model_dump())
     if expire_fileid:
         sync_mutil_files.send(fileIds=expire_fileid)
 
         trustable = False
     return TrustableResponse(
-        content=CurseforgeBaseResponse(data=content).model_dump(), trustable=trustable
+        content=CurseforgeBaseResponse(data=content).model_dump(),
+        trustable=trustable,
+        cacheable=False,
     )
 
 
@@ -347,10 +368,14 @@ async def curseforge_mod_file(modId: int, fileId: int, request: Request):
         < time.time()
     ):
         sync_file.send(modId=modId, fileId=fileId)
-        log.debug(f'modId: {modId} fileId: {fileId} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.')
+        log.debug(
+            f'modId: {modId} fileId: {fileId} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
+        )
         trustable = False
     return TrustableResponse(
-        content=CurseforgeBaseResponse(data=model).model_dump(), trustable=trustable
+        content=CurseforgeBaseResponse(data=model).model_dump(),
+        trustable=trustable,
+        cacheable=False,
     )
 
 
@@ -373,10 +398,12 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
         log.debug(f"fingerprints: {item.fingerprints} force sync.")
         return UncachedResponse()
     trustable = True
-    fingerprints_models: List[Fingerprint] = await request.app.state.aio_mongo_engine.find(
-        Fingerprint, query.in_(Fingerprint.id, item.fingerprints)
+    fingerprints_models: List[Fingerprint] = (
+        await request.app.state.aio_mongo_engine.find(
+            Fingerprint, query.in_(Fingerprint.id, item.fingerprints)
+        )
     )
-    
+
     if not fingerprints_models:
         sync_fingerprints.send(fingerprints=item.fingerprints)
         trustable = False
@@ -385,6 +412,7 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
                 data=FingerprintResponse(unmatchedFingerprints=item.fingerprints)
             ).model_dump(),
             trustable=trustable,
+            cacheable=False,
         )
     elif len(fingerprints_models) != len(item.fingerprints):
         sync_fingerprints.send(fingerprints=item.fingerprints)
@@ -415,7 +443,9 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
             ).model_dump()
         ),
         trustable=trustable,
+        cacheable=False,
     )
+
 
 @v1_router.post(
     "/fingerprints/432",
@@ -432,8 +462,10 @@ async def curseforge_fingerprints_432(item: fingerprints_item, request: Request)
         log.debug(f"fingerprints: {item.fingerprints} force sync.")
         return UncachedResponse()
     trustable = True
-    fingerprints_models: List[Fingerprint] = await request.app.state.aio_mongo_engine.find(
-        Fingerprint, query.in_(Fingerprint.id, item.fingerprints)
+    fingerprints_models: List[Fingerprint] = (
+        await request.app.state.aio_mongo_engine.find(
+            Fingerprint, query.in_(Fingerprint.id, item.fingerprints)
+        )
     )
     if not fingerprints_models:
         sync_fingerprints.send(fingerprints=item.fingerprints)
@@ -443,6 +475,7 @@ async def curseforge_fingerprints_432(item: fingerprints_item, request: Request)
                 data=FingerprintResponse(unmatchedFingerprints=item.fingerprints)
             ).model_dump(),
             trustable=trustable,
+            cacheable=False,
         )
     elif len(fingerprints_models) != len(item.fingerprints):
         sync_fingerprints.send(fingerprints=item.fingerprints)
@@ -472,7 +505,9 @@ async def curseforge_fingerprints_432(item: fingerprints_item, request: Request)
             ).model_dump()
         ),
         trustable=trustable,
+        cacheable=False,
     )
+
 
 @v1_router.get(
     "/categories",
