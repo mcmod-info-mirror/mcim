@@ -28,14 +28,14 @@ FILE_CDN_FORWARD_TO_OPEN93HOME_COUNT = Counter(
 TRUSTABLE_RESPONSE_GAUGE = Gauge(
     "trustable_response",
     "Trustable response",
-    labelnames=("route"),
+    labelnames=("route",),
     registry=APP_REGISTRY,
 )
 
 REDIS_CACHE_HIT_GAUGE = Gauge(
     "redis_cache_hit",
     "Redis cache hit",
-    labelnames=("func"),
+    labelnames=("func",),
     registry=APP_REGISTRY,
 )
 
