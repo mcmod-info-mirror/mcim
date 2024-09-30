@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request
+from fastapi.responses import RedirectResponse
 from typing import List, Optional, Union
 from pydantic import BaseModel
 from odmantic import query
@@ -376,6 +377,23 @@ async def curseforge_mod_file(modId: int, fileId: int, request: Request):
         content=CurseforgeBaseResponse(data=model).model_dump(),
         trustable=trustable,
         cacheable=False,
+    )
+
+
+@v1_router.get(
+    "/mods/{modId}/files/{fileId}/download-url",
+    description="Curseforge Mod 文件下载地址",
+)
+# @cache(expire=mcim_config.expire_second.curseforge.file)
+async def curseforge_mod_file_download_url(modId: int, fileId: int, request: Request):
+    model: Optional[File] = await request.app.state.aio_mongo_engine.find_one(
+        File, File.modId == modId, File.id == fileId
+    )
+    if model is None:
+        sync_file.send(modId=modId, fileId=fileId)
+        return UncachedResponse()
+    return RedirectResponse(
+        url=model.downloadUrl, headers={"Cache-Control": f"public, age={3600*24*7}"}
     )
 
 
