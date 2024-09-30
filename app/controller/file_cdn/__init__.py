@@ -23,6 +23,7 @@ from app.sync.curseforge import sync_mutil_files
 from app.utils.metric import (
     FILE_CDN_FORWARD_TO_ALIST_COUNT,
     FILE_CDN_FORWARD_TO_ORIGIN_COUNT,
+    FILE_CDN_FORWARD_TO_OPEN93HOME_COUNT,
 )
 from app.config.mcim import FileCDNRedirectMode
 
@@ -103,6 +104,7 @@ if mcim_config.file_cdn:
                     )
                     if open93home_response:
                         log.info(f"Redirect to open93home {sha1}")
+                        FILE_CDN_FORWARD_TO_OPEN93HOME_COUNT.labels("modrinth").inc()
                         return open93home_response
                     else:
                         log.warning(f"Open93Home not found {sha1}")
@@ -209,6 +211,7 @@ if mcim_config.file_cdn:
                     )
                     if open93home_response:
                         log.info(f"Redirect to open93home {sha1}")
+                        FILE_CDN_FORWARD_TO_OPEN93HOME_COUNT.labels("curseforge").inc()
                         return open93home_response
                     else:
                         log.warning(f"Open93Home not found {sha1}")

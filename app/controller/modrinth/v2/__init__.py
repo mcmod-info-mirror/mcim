@@ -462,7 +462,7 @@ async def modrinth_files(items: HashesQuery, request: Request):
             )
         ] = version.model_dump()
 
-    return TrustableResponse(content=result, trustable=trustable, cacheable=False)
+    return TrustableResponse(content=result, trustable=trustable)
 
 
 class UpdateItems(BaseModel):
@@ -534,7 +534,7 @@ async def modrinth_file_update(
         sync_hash.send(hash=hash_, algorithm=algorithm.value)
         log.debug(f"Hash {hash_} not found, send sync task")
         return UncachedResponse()
-    return TrustableResponse(content=version_result, trustable=trustable, cacheable=False)
+    return TrustableResponse(content=version_result, trustable=trustable)
 
 
 class MultiUpdateItems(BaseModel):
@@ -618,7 +618,7 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
         if len(project_ids_to_sync) != 0:
             sync_multi_projects.send(project_ids=list(project_ids_to_sync))
             log.debug(f"Project {project_ids_to_sync} expired, send sync task.")
-        return TrustableResponse(content=resp, trustable=trustable, cacheable=False)
+        return TrustableResponse(content=resp, trustable=trustable)
 
 
 @v2_router.get(

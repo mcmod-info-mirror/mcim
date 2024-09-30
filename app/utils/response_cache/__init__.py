@@ -7,7 +7,7 @@ from app.utils.response_cache.key_builder import default_key_builder, KeyBuilder
 from app.utils.response_cache.resp_builder import ResponseBuilder
 from app.utils.loger import log
 from app.config.redis import RedisdbConfig
-
+from app.utils.metric import REDIS_CACHE_HIT_FAUGE
 
 redis_config = RedisdbConfig.load()
 
@@ -58,10 +58,11 @@ def cache(expire: Optional[int] = 60, never_expire: Optional[bool] = False):
             if value is not None:
                 value = orjson.loads(value)
                 log.debug(f"Cached response: [{key}]")
+                REDIS_CACHE_HIT_FAUGE.labels(f'{func.__module__}:{func.__name__}').inc()
                 return ResponseBuilder.decode(value)
 
             result = await func(*args, **kwargs)
-
+            REDIS_CACHE_HIT_FAUGE.labels(f'{func.__module__}:{func.__name__}').dec()
             if isinstance(result, Response):
                 if result.status_code >= 400:
                     return result
