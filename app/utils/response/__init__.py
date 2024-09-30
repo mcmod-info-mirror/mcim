@@ -1,9 +1,22 @@
 from fastapi.responses import ORJSONResponse, Response
 from typing import Union, Optional
 from pydantic import BaseModel
+import hashlib
+import orjson
 
 __ALL__ = ["BaseResponse", "TrustableResponse", "UncachedResponse", "ForceSyncResponse"]
 
+# Etag
+def generate_etag(content, status_code) -> str:
+    """
+    Get Etag from response
+
+    SHA1 hash of the response content and status code
+    """
+    hash_tool = hashlib.sha1()
+    hash_tool.update(orjson.dumps(content))
+    hash_tool.update(str(status_code).encode())
+    return hash_tool.hexdigest()
 
 class BaseResponse(ORJSONResponse):
     """
@@ -37,10 +50,9 @@ class BaseResponse(ORJSONResponse):
         if status_code == 200 and "Cache-Control" not in headers:
             headers["Cache-Control"] = "public, max-age=86400"
 
-        # EtagMiddleware
-        # # Etag
-        # if raw_content is not None and status_code == 200:
-        #     headers["Etag"] = generate_etag(content=raw_content, status_code=status_code, headers=headers)
+        # Etag
+        if raw_content is not None and status_code == 200:
+            headers["Etag"] = generate_etag(raw_content, status_code=status_code)
 
         super().__init__(status_code=status_code, content=raw_content, headers=headers)
 
