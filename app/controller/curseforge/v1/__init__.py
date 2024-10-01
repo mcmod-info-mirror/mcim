@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request
-from fastapi.responses import RedirectResponse
 from typing import List, Optional, Union
 from pydantic import BaseModel
 from odmantic import query
@@ -91,29 +90,6 @@ class ModLoaderType(int, Enum):
     Fabric = 4
     Quilt = 5
     NeoForge = 6
-
-
-class CurseforgeStatistics(BaseModel):
-    mods: int
-    files: int
-    fingerprints: int
-
-
-# statistics
-@v1_router.get(
-    "/statistics",
-    description="Curseforge 缓存统计信息",
-    response_model=CurseforgeStatistics,
-    include_in_schema=False,
-)
-@cache(expire=3600)
-async def curseforge_statistics(request: Request):
-    mods = await request.app.state.aio_mongo_engine.count(Mod)
-    files = await request.app.state.aio_mongo_engine.count(File)
-    fingerprints = await request.app.state.aio_mongo_engine.count(Fingerprint)
-    return BaseResponse(
-        content=CurseforgeStatistics(mods=mods, files=files, fingerprints=fingerprints)
-    )
 
 
 @v1_router.get(

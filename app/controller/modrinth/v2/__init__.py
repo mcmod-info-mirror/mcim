@@ -52,7 +52,7 @@ class ModrinthStatistics(BaseModel):
     "/statistics",
     description="Modrinth 缓存统计信息",
     response_model=ModrinthStatistics,
-    include_in_schema=False
+    include_in_schema=False,
 )
 @cache(expire=3600)
 async def modrinth_statistics(request: Request):
@@ -96,7 +96,9 @@ async def modrinth_project(idslug: str, request: Request):
         < time.time()
     ):
         sync_project.send(idslug)
-        log.debug(f"Project {idslug} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}")
+        log.debug(
+            f"Project {idslug} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
         trustable = False
     return TrustableResponse(content=model.model_dump(), trustable=trustable)
 
@@ -145,7 +147,9 @@ async def modrinth_projects(ids: str, request: Request):
             < time.time()
         ):
             expire_project_ids.append(model.id)
-            log.debug(f"Project {model.id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            log.debug(
+                f"Project {model.id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+            )
     if expire_project_ids:
         sync_multi_projects.send(project_ids=expire_project_ids)
         log.debug(f"Projects {expire_project_ids} expire, send sync task.")
@@ -186,7 +190,9 @@ async def modrinth_project_versions(idslug: str, request: Request):
             < time.time()
         ):
             sync_project.send(idslug)
-            log.debug(f"Project {idslug} expire, send sync task, sync_at: {project_model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            log.debug(
+                f"Project {idslug} expire, send sync task, sync_at: {project_model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+            )
             trustable = False
 
         version_list = project_model.versions
@@ -279,7 +285,9 @@ async def modrinth_version(
         < time.time()
     ):
         sync_version.send(version_id=version_id)
-        log.debug(f"Version {version_id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}")
+        log.debug(
+            f"Version {version_id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
         # return Response(status_code=EXPIRE_STATUS_CODE)
         trustable = False
     return TrustableResponse(content=model.model_dump(), trustable=trustable)
@@ -320,7 +328,9 @@ async def modrinth_versions(ids: str, request: Request):
             < time.time()
         ):
             expire_version_ids.append(model.id)
-            log.debug(f"Version {model.id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            log.debug(
+                f"Version {model.id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+            )
     if expire_version_ids:
         sync_multi_versions.send(version_ids=expire_version_ids)
         log.debug(f"Versions {expire_version_ids} expire, send sync task.")
@@ -386,7 +396,9 @@ async def modrinth_file(
         < time.time()
     ):
         sync_version.send(version_id=file.version_id)
-        log.debug(f"Version {file.version_id} expire, send sync task, sync_at: {version.sync_at.strftime('%Y-%m-%d %H:%M:%S')}")
+        log.debug(
+            f"Version {file.version_id} expire, send sync task, sync_at: {version.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
         trustable = False
 
     return TrustableResponse(content=version, trustable=trustable)

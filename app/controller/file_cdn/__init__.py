@@ -68,7 +68,9 @@ if mcim_config.file_cdn:
             log.info(f"Redirect to {url}")
             FILE_CDN_FORWARD_TO_ORIGIN_COUNT.labels("modrinth").inc()
             return RedirectResponse(
-                url=url, headers={"Cache-Control": f"public, age={3600*24*1}"}, status_code=302
+                url=url,
+                headers={"Cache-Control": f"public, age={3600*24*1}"},
+                status_code=302,
             )
 
         async def return_open93home_response(sha1: str, request: Request):
@@ -173,7 +175,9 @@ if mcim_config.file_cdn:
             log.info(f"Redirect to {url}")
             FILE_CDN_FORWARD_TO_ORIGIN_COUNT.labels("curseforge").inc()
             return RedirectResponse(
-                url=url, headers={"Cache-Control": f"public, age={3600*24*7}"}, status_code=302
+                url=url,
+                headers={"Cache-Control": f"public, age={3600*24*7}"},
+                status_code=302,
             )
 
         async def return_open93home_response(sha1: str, request: Request):
@@ -282,28 +286,28 @@ if mcim_config.file_cdn:
 
         return return_origin_response()
 
+
 @file_cdn_router.get("/file_cdn/list", include_in_schema=False)
 async def list_file_cdn(
     request: Request,
     last_id: Optional[str] = None,
     last_modified: Optional[int] = None,
-    page_size: int = Query(default=1000, le=10000,)
+    page_size: int = Query(
+        default=1000,
+        le=10000,
+    ),
 ):
     files_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
     # 动态构建 $match 阶段
     match_stage = {}
     if last_modified:
-        match_stage['mtime'] = {'$gt': last_modified}
+        match_stage["mtime"] = {"$gt": last_modified}
     if last_id:
-        match_stage['_id'] = {'$gt': last_id}
+        match_stage["_id"] = {"$gt": last_id}
     match_stage["disable"] = {"$ne": True}
-    
+
     # 聚合管道
-    pipeline = [
-        {'$match': match_stage},
-        {'$sort': {'_id': 1}},
-        {'$limit': page_size}
-    ]
+    pipeline = [{"$match": match_stage}, {"$sort": {"_id": 1}}, {"$limit": page_size}]
 
     # pipeline = [
     #     {"$match": {"_id": {"$gt": last_id}} if last_id else {}},
