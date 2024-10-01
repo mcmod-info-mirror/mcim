@@ -43,5 +43,5 @@ class EtagMiddleware(BaseHTTPMiddleware):
             # else:
             #     response.headers["Etag"] = etag
 
-            response.headers["Etag"] = etag
+            response.headers["Etag"] = f'"{etag}"'
         return response
