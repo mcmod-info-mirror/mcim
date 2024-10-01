@@ -388,7 +388,8 @@ async def curseforge_mod_file_download_url(modId: int, fileId: int, request: Req
         sync_file.send(modId=modId, fileId=fileId)
         return UncachedResponse()
     return TrustableResponse(
-        CurseforgeBaseResponse(data=model.downloadUrl).model_dump(), trustable=True
+        content=CurseforgeBaseResponse(data=model.downloadUrl).model_dump(),
+        trustable=True,
     )
 
 
