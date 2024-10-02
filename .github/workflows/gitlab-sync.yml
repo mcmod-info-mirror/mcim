@@ -1,0 +1,26 @@
+# 通过 Github action， 在仓库的每一次 commit 后自动同步到 Gitee 上
+name: sync2gitlab
+on:
+  push:
+    branches:
+      - main 
+jobs:
+  repo-sync:
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.GITLAB_PRIVATE_KEY }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          
+      - name: Configure Git
+        run: |
+           git config --global --add safe.directory /github/workspace           
+
+      - name: sync github -> gitee
+        uses: wearerequired/git-mirror-action@master
+        if: env.SSH_PRIVATE_KEY
+        with:
+          source-repo: "git@github.com:${{ github.repository }}.git"
+          destination-repo: "git@git.pysio.online:z0z0r4/mcim.git"
