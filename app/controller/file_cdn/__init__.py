@@ -37,8 +37,15 @@ FILE_CDN_REDIRECT_MODE = mcim_config.file_cdn_redirect_mode
 
 ARIA2_ENABLED: bool = mcim_config.aria2
 MAX_AGE = int(60 * 60 * 2.5)
+
 CDN_MAX_AGE = int(60 * 60 * 2.8)
+
+# 这个根本不需要更新，是 sha1 https://files.mcimirror.top/files/mcim/8e7b73b39c0bdae84a4be445027747c9bae935c4
+_93ATHOME_MAX_AGE = int(60 * 60 * 24 * 7)
+
+# 缓存文件大小限制
 MAX_LENGTH = mcim_config.max_file_size
+
 TIMEOUT = 2.5
 
 
@@ -59,7 +66,7 @@ if mcim_config.file_cdn:
     @file_cdn_router.get(
         "/data/{project_id}/versions/{version_id}/{file_name}", tags=["modrinth"]
     )
-    @cache(expire=MAX_AGE)
+    @cache(expire=_93ATHOME_MAX_AGE if FILE_CDN_REDIRECT_MODE == FileCDNRedirectMode.ORIGIN else MAX_AGE)
     async def get_modrinth_file(
         project_id: str, version_id: str, file_name: str, request: Request
     ):
@@ -170,7 +177,7 @@ if mcim_config.file_cdn:
 
     # curseforge | example: https://edge.forgecdn.net/files/3040/523/jei_1.12.2-4.16.1.301.jar
     @file_cdn_router.get("/files/{fileid1}/{fileid2}/{file_name}", tags=["curseforge"])
-    @cache(expire=MAX_AGE)
+    @cache(expire=_93ATHOME_MAX_AGE if FILE_CDN_REDIRECT_MODE == FileCDNRedirectMode.ORIGIN else MAX_AGE)
     async def get_curseforge_file(
         fileid1: int, fileid2: int, file_name: str, request: Request
     ):
