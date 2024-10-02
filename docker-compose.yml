@@ -1,5 +1,4 @@
-x-logging:
-  &default-logging
+x-logging: &default-logging
   driver: "local"
   options:
     max-size: "20m"
@@ -29,10 +28,10 @@ services:
     logging: *default-logging
     deploy:
       resources:
-         limits:
-            memory: 400M
-         reservations:
-            memory: 200M
+        limits:
+          memory: 400M
+        reservations:
+          memory: 200M
 
   redis:
     container_name: redis
@@ -41,15 +40,14 @@ services:
       - 6379:6379
     restart: always
     logging: *default-logging
-    volumes:
-      -/opt/mcim/config/redis.conf:/etc/redis/redis.conf
+    volumes: -/opt/mcim/config/redis.conf:/etc/redis/redis.conf
     command: redis-server /etc/redis/redis.conf
     deploy:
       resources:
-         limits:
-            memory: 300M
-         reservations:
-            memory: 200M
+        limits:
+          memory: 300M
+        reservations:
+          memory: 200M
 
   # mcim_api:
   #   container_name: mcim_api
@@ -93,11 +91,11 @@ services:
     logging: *default-logging
     deploy:
       resources:
-         limits:
-            memory: 800M
-         reservations:
-            memory: 200M
-  
+        limits:
+          memory: 800M
+        reservations:
+          memory: 200M
+
   # SYNC_MODE: SYNC_FILE_CDN / SYNC_INFO / SYNC_ALL
   mcim_sync:
     container_name: mcim_sync
@@ -129,10 +127,10 @@ services:
     logging: *default-logging
     deploy:
       resources:
-         limits:
-            memory: 1024M
-         reservations:
-            memory: 200M
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 200M
 
   mcim_file_sync:
     container_name: mcim_file_sync
@@ -186,14 +184,28 @@ services:
     logging: *default-logging
     deploy:
       resources:
-         limits:
-            memory: 200M
+        limits:
+          memory: 200M
 
-  sync_redis:
-    container_name: sync_redis
-    image: redis:alpine
+  rabbitmq:
+    image: rabbitmq:4.0-management
+    container_name: rabbitmq
     restart: always
+    hostname: rabbitmq
+    ports:
+      - 15672:15672
+    volumes:
+      - ./config/rabbitmq:/etc/rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
     logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 500M
+        reservations:
+          memory: 200M
 
   alist:
     image: xhofe/alist:latest
