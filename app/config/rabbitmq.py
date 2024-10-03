@@ -13,7 +13,7 @@ class RabbitmqConfigModel(BaseModel):
     port: int = 5672
     username: str = "guest"
     password: str = "guest"
-    vhost: str = "/"
+    vhost: str = ""
 
 
 class RabbitmqConfig:

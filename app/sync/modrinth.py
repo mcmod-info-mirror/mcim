@@ -27,6 +27,7 @@ from odmantic import query
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
+from app.sync import rabbitmq_broker
 from app.sync import (
     MODRINTH_LIMITER,
     # MODRINTH_FILE_CDN_LIMITER,
@@ -116,6 +117,7 @@ def limit(func):
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="check_alive",
+    broker=rabbitmq_broker,
 )
 @limit
 def check_alive():
@@ -129,6 +131,7 @@ def check_alive():
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="sync_project_all_version",
+    broker=rabbitmq_broker,
 )
 @limit
 def sync_project_all_version(
@@ -228,6 +231,7 @@ def sync_multi_projects_all_version(
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="sync_project",
+    broker=rabbitmq_broker,
 )
 @limit
 def sync_project(project_id: str):
@@ -248,6 +252,7 @@ def sync_project(project_id: str):
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="sync_multi_projects",
+    broker=rabbitmq_broker,
 )
 @limit
 def sync_multi_projects(project_ids: List[str]):
@@ -287,6 +292,7 @@ def process_version_resp(res: dict) -> List[Union[Project, File, Version]]:
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="sync_version",
+    broker=rabbitmq_broker,
 )
 @limit
 def sync_version(version_id: str):
@@ -317,6 +323,7 @@ def process_multi_versions(res: List[dict]):
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="sync_multi_versions",
+    broker=rabbitmq_broker,
 )
 @limit
 def sync_multi_versions(version_ids: List[str]):
@@ -341,6 +348,7 @@ def sync_multi_versions(version_ids: List[str]):
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="sync_hash",
+    broker=rabbitmq_broker,
 )
 @limit
 def sync_hash(hash: str, algorithm: str):
@@ -374,6 +382,7 @@ def process_multi_hashes(res: dict):
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="sync_multi_hashes",
+    broker=rabbitmq_broker,
 )
 @limit
 def sync_multi_hashes(hashes: List[str], algorithm: str):
@@ -402,6 +411,7 @@ def sync_multi_hashes(hashes: List[str], algorithm: str):
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="sync_tags",
+    broker=rabbitmq_broker,
 )
 @limit
 def sync_tags():
