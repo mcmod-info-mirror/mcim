@@ -73,7 +73,7 @@ def limit(func):
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="cf_check_alive",
-    broker=rabbitmq_broker
+
 )
 @limit
 def check_alive():
@@ -235,7 +235,7 @@ def sync_multi_mods_all_files(modIds: List[int]):
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="sync_mod",
-    broker=rabbitmq_broker
+
 )
 @limit
 def sync_mod(modId: int):
@@ -256,7 +256,7 @@ def sync_mod(modId: int):
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="sync_mutil_mods",
-    broker=rabbitmq_broker
+
 )
 @limit
 def sync_mutil_mods(modIds: List[int]):
@@ -277,7 +277,7 @@ def sync_mutil_mods(modIds: List[int]):
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="sync_file",
-    broker=rabbitmq_broker
+
 )
 @limit
 def sync_file(modId: int, fileId: int, expire: bool = False):
@@ -308,7 +308,7 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="sync_mutil_files",
-    broker=rabbitmq_broker
+
 )
 @limit
 def sync_mutil_files(fileIds: List[int]):
@@ -332,7 +332,7 @@ def sync_mutil_files(fileIds: List[int]):
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="sync_fingerprints",
-    broker=rabbitmq_broker
+
 )
 @limit
 def sync_fingerprints(fingerprints: List[int]):
@@ -363,7 +363,7 @@ def sync_fingerprints(fingerprints: List[int]):
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="sync_categories",
-    broker=rabbitmq_broker
+
 )
 @limit
 def sync_categories():
