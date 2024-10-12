@@ -296,7 +296,7 @@ async def curseforge_mod_files(
     gameVersion: Optional[str] = None,
     modLoaderType: Optional[str] = None,
     gameVersionTypeId: Optional[int] = None,
-    index: Optional[int] = None,
+    index: Optional[int] = 0,
     pageSize: Optional[int] = 50,
 ):
     if request.state.force_sync:
