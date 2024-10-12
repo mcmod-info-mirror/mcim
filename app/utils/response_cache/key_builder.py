@@ -1,5 +1,5 @@
 import hashlib
-import xxhash
+# import xxhash
 from typing import Any, Awaitable, Callable, Dict, Optional, Tuple, Union
 from typing_extensions import Protocol
 
@@ -36,14 +36,14 @@ def default_key_builder(
     return f"{namespace}:{cache_key}"
 
 
-def xxhash_key_builder(
-    func: Callable[..., Any],
-    namespace: str = "",
-    *,
-    args: Tuple[Any, ...],
-    kwargs: Dict[str, Any],
-) -> str:
-    cache_key = xxhash.xxh3_64(  # noqa: S324
-        f"{func.__module__}:{func.__name__}:{args}:{filter_kwargs(kwargs, IGNORE_KWARGS)}".encode()
-    ).hexdigest()
-    return f"{namespace}:{cache_key}"
+# def xxhash_key_builder(
+#     func: Callable[..., Any],
+#     namespace: str = "",
+#     *,
+#     args: Tuple[Any, ...],
+#     kwargs: Dict[str, Any],
+# ) -> str:
+#     cache_key = xxhash.xxh3_64(  # noqa: S324
+#         f"{func.__module__}:{func.__name__}:{args}:{filter_kwargs(kwargs, IGNORE_KWARGS)}".encode()
+#     ).hexdigest()
+#     return f"{namespace}:{cache_key}"
