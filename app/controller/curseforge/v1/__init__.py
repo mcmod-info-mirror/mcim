@@ -257,6 +257,33 @@ index	query	integer(int32)	false	A zero based index of the first item to include
 pageSize	query	integer(int32)	false	The number of items to include in the response, the default/maximum value is 50.
 """
 
+"""
+Possible enum values:
+0=Any
+1=Forge
+2=Cauldron
+3=LiteLoader
+4=Fabric
+5=Quilt
+6=NeoForge
+"""
+def convert_modloadertype(type_id: int) -> Optional[str]:
+    match type_id:
+        case 1:
+            return "Forge"
+        case 2:
+            return "Cauldron"
+        case 3:
+            return "LiteLoader"
+        case 4:
+            return "Fabric"
+        case 5:
+            return "Quilt"
+        case 6:
+            return "NeoForge"
+        case _:
+            return None
+
 
 @v1_router.get(
     "/mods/{modId}/files",
@@ -294,8 +321,8 @@ async def curseforge_mod_files(
     request: Request,
     modId: int,
     gameVersion: Optional[str] = None,
-    modLoaderType: Optional[str] = None,
-    gameVersionTypeId: Optional[int] = None,
+    modLoaderType: Optional[int] = None,
+    # gameVersionTypeId: Optional[int] = None,
     index: Optional[int] = 0,
     pageSize: Optional[int] = 50,
 ):
@@ -306,12 +333,14 @@ async def curseforge_mod_files(
 
     # 定义聚合管道
     match_conditions = {"modId": modId}
+    gameVersionFilter = []
     if gameVersion:
-        match_conditions["gameVersion"] = gameVersion
+        gameVersionFilter.append(gameVersion)
     if modLoaderType:
-        match_conditions["modLoaderType"] = modLoaderType
-    if gameVersionTypeId:
-        match_conditions["gameVersionTypeId"] = gameVersionTypeId
+        modLoaderType = convert_modloadertype(modLoaderType)
+        if modLoaderType:
+            gameVersionFilter.append(modLoaderType)
+    match_conditions["gameVersion"] = {{"$in": [gameVersionFilter]}}
 
     pipeline = [
         {"$match": match_conditions},
