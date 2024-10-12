@@ -359,7 +359,7 @@ async def list_file_cdn(
 async def check_file_hash(url: str, hash: str):
     sha1 = hashlib.sha1()
     try:
-        resp = await request_async("GET", url)
+        resp = await request_async(method="GET", url=url)
         sha1.update(resp.content)
         return sha1.hexdigest() == hash
     except ResponseCodeException as e:
@@ -384,9 +384,8 @@ async def report(
         if check_result:
             return Response(status_code=500, content={"code": 500, "message": "Hash match successfully, file is correct"}, headers={"Cache-Control": "no-cache"})
         else:
-            await request.app.state.aio_mongo_engine.update_one(
-                cdnFile, {"_id": file.id}, {"$set": {"disable": True}}
-            )
+            cdnFile_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
+            await cdnFile_collection.update_one({"_id": file.id}, {"$set": {"disable": True}})
             return Response(status_code=200, content={"code": 200, "message": "Hash not match, file is disabled"}, headers={"Cache-Control": "no-cache"})
     else:
         return Response(status_code=404, content={"code": 404, "message": "File not found"}, headers={"Cache-Control": "no-cache"})

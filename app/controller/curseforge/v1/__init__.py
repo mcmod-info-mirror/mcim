@@ -340,7 +340,8 @@ async def curseforge_mod_files(
         modLoaderType = convert_modloadertype(modLoaderType)
         if modLoaderType:
             gameVersionFilter.append(modLoaderType)
-    match_conditions["gameVersion"] = {{"$in": [gameVersionFilter]}}
+    if len(gameVersionFilter) != 0:
+        match_conditions["gameVersion"] = {"$in": [gameVersionFilter]}
 
     pipeline = [
         {"$match": match_conditions},
