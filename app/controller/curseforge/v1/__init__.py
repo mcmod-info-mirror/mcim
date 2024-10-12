@@ -19,6 +19,8 @@ from app.models.response.curseforge import (
     FingerprintResponse,
     Category,
     CurseforgeBaseResponse,
+    CurseforgePageBaseResponse,
+    Pagination,
 )
 from app.config.mcim import MCIMConfig
 from app.utils.response import TrustableResponse, UncachedResponse, BaseResponse
@@ -244,29 +246,105 @@ async def curseforge_mods(item: modIds_item, request: Request):
     )
 
 
+"""
+Parameters
+Name	In	Type	Required	Description
+modId	path	integer(int32)	true	The mod id the files belong to
+gameVersion	query	string	false	Filter by game version string
+modLoaderType	query	ModLoaderType	false	ModLoaderType enumeration
+gameVersionTypeId	query	integer(int32)	false	Filter only files that are tagged with versions of the given gameVersionTypeId
+index	query	integer(int32)	false	A zero based index of the first item to include in the response, the limit is: (index + pageSize <= 10,000).
+pageSize	query	integer(int32)	false	The number of items to include in the response, the default/maximum value is 50.
+"""
 @v1_router.get(
     "/mods/{modId}/files",
     description="Curseforge Mod 文件信息",
     response_model=List[File],
 )
 @cache(expire=mcim_config.expire_second.curseforge.file)
-async def curseforge_mod_files(modId: int, request: Request):
+# async def curseforge_mod_files(
+#     request: Request,
+#     modId: int,
+#     gameVersion: Optional[str] = None,
+#     modLoaderType: Optional[ModLoaderType] = None,
+#     gameVersionTypeId: Optional[int] = None,
+#     index: Optional[int] = None,
+#     pageSize: Optional[int] = 50,
+# ):
+#     if request.state.force_sync:
+#         sync_mod.send(modId=modId)
+#         log.debug(f"modId: {modId} force sync.")
+#         return UncachedResponse()
+#     mod_models: Optional[List[File]] = await request.app.state.aio_mongo_engine.find(
+#         File, File.modId == modId, limit=pageSize, skip=index
+#     )
+#     if not mod_models:
+#         sync_mod.send(modId=modId)
+#         log.debug(f"modId: {modId} not found, send sync task.")
+#         return UncachedResponse()
+#     return TrustableResponse(
+#         content=CurseforgePageBaseResponse(
+#             data=[model for model in mod_models],
+#             pagination=Pagination(index=index, pageSize=pageSize, resultCount=len(mod_models)),
+#         ).model_dump()
+#     )
+async def curseforge_mod_files(
+    request: Request,
+    modId: int,
+    gameVersion: Optional[str] = None,
+    modLoaderType: Optional[str] = None,
+    gameVersionTypeId: Optional[int] = None,
+    index: Optional[int] = None,
+    pageSize: Optional[int] = 50,
+):
     if request.state.force_sync:
         sync_mod.send(modId=modId)
         log.debug(f"modId: {modId} force sync.")
         return UncachedResponse()
-    mod_models: Optional[List[File]] = await request.app.state.aio_mongo_engine.find(
-        File, File.modId == modId
-    )
-    if not mod_models:
+
+    # 定义聚合管道
+    match_conditions = {"modId": modId}
+    if gameVersion:
+        match_conditions["gameVersion"] = gameVersion
+    if modLoaderType:
+        match_conditions["modLoaderType"] = modLoaderType
+    if gameVersionTypeId:
+        match_conditions["gameVersionTypeId"] = gameVersionTypeId
+
+    pipeline = [
+        {"$match": match_conditions},
+        {
+            "$facet": {
+                "total_count": [{"$count": "count"}],
+                "modid_count": [{"$match": {"modId": modId}}, {"$count": "count"}],
+                "documents": [
+                    {"$skip": index if index else 0},
+                    {"$limit": pageSize},
+                ],
+            }
+        },
+    ]
+
+    # 执行聚合查询
+    files_collection = request.app.state.aio_mongo_engine.get_collection(File)
+    result = await files_collection.aggregate(pipeline).to_list(length=None)
+
+    if not result or not result[0]["documents"]:
         sync_mod.send(modId=modId)
         log.debug(f"modId: {modId} not found, send sync task.")
         return UncachedResponse()
+
+    total_count = result[0]["total_count"][0]["count"] if result[0]["total_count"] else 0
+    modid_count = result[0]["modid_count"][0]["count"] if result[0]["modid_count"] else 0
+    documents = result[0]["documents"]
+
     return TrustableResponse(
-        content=CurseforgeBaseResponse(
-            data=[model for model in mod_models]
-        ).model_dump()
+        content=CurseforgePageBaseResponse(
+            data=[File(**doc) for doc in documents],
+            pagination=Pagination(index=index, pageSize=pageSize, resultCount=modid_count, totalCount=total_count),
+        )
     )
+
 
 
 class fileIds_item(BaseModel):
@@ -310,7 +388,6 @@ async def curseforge_files(item: fileIds_item, request: Request):
         content.append(model.model_dump())
     if expire_fileid:
         sync_mutil_files.send(fileIds=expire_fileid)
-
         trustable = False
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=content).model_dump(),
