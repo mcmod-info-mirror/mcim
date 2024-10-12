@@ -267,6 +267,8 @@ Possible enum values:
 5=Quilt
 6=NeoForge
 """
+
+
 def convert_modloadertype(type_id: int) -> Optional[str]:
     match type_id:
         case 1:
@@ -341,15 +343,18 @@ async def curseforge_mod_files(
         if modLoaderType:
             gameVersionFilter.append(modLoaderType)
     if len(gameVersionFilter) != 0:
-        match_conditions["gameVersion"] = {"$in": [gameVersionFilter]}
+        match_conditions["gameVersions"] = {"$all": gameVersionFilter}
 
     pipeline = [
-        {"$match": match_conditions},
         {
             "$facet": {
-                "total_count": [{"$count": "count"}],
-                "modid_count": [{"$match": {"modId": modId}}, {"$count": "count"}],
+                "resultCount": [
+                    {"$match": match_conditions},
+                    {"$count": "count"},
+                ],
+                "totalCount": [{"$match": {"modId": modId}}, {"$count": "count"}],
                 "documents": [
+                    {"$match": match_conditions},
                     {"$skip": index if index else 0},
                     {"$limit": pageSize},
                 ],
@@ -366,12 +371,8 @@ async def curseforge_mod_files(
         log.debug(f"modId: {modId} not found, send sync task.")
         return UncachedResponse()
 
-    total_count = (
-        result[0]["total_count"][0]["count"] if result[0]["total_count"] else 0
-    )
-    modid_count = (
-        result[0]["modid_count"][0]["count"] if result[0]["modid_count"] else 0
-    )
+    total_count = result[0]["totalCount"][0]["count"]
+    result_count = result[0]["resultCount"][0]["count"]
     documents = result[0]["documents"]
 
     doc_results = []
@@ -386,7 +387,7 @@ async def curseforge_mod_files(
             pagination=Pagination(
                 index=index,
                 pageSize=pageSize,
-                resultCount=modid_count,
+                resultCount=result_count,
                 totalCount=total_count,
             ),
         )
