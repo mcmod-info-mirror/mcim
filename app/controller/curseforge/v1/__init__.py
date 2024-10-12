@@ -256,6 +256,8 @@ gameVersionTypeId	query	integer(int32)	false	Filter only files that are tagged w
 index	query	integer(int32)	false	A zero based index of the first item to include in the response, the limit is: (index + pageSize <= 10,000).
 pageSize	query	integer(int32)	false	The number of items to include in the response, the default/maximum value is 50.
 """
+
+
 @v1_router.get(
     "/mods/{modId}/files",
     description="Curseforge Mod 文件信息",
@@ -334,17 +336,31 @@ async def curseforge_mod_files(
         log.debug(f"modId: {modId} not found, send sync task.")
         return UncachedResponse()
 
-    total_count = result[0]["total_count"][0]["count"] if result[0]["total_count"] else 0
-    modid_count = result[0]["modid_count"][0]["count"] if result[0]["modid_count"] else 0
+    total_count = (
+        result[0]["total_count"][0]["count"] if result[0]["total_count"] else 0
+    )
+    modid_count = (
+        result[0]["modid_count"][0]["count"] if result[0]["modid_count"] else 0
+    )
     documents = result[0]["documents"]
+
+    doc_results = []
+    for doc in documents:
+        _id = doc.pop("_id")
+        doc["id"] = _id
+        doc_results.append(doc)
 
     return TrustableResponse(
         content=CurseforgePageBaseResponse(
-            data=[File(**doc) for doc in documents],
-            pagination=Pagination(index=index, pageSize=pageSize, resultCount=modid_count, totalCount=total_count),
+            data=doc_results,
+            pagination=Pagination(
+                index=index,
+                pageSize=pageSize,
+                resultCount=modid_count,
+                totalCount=total_count,
+            ),
         )
     )
-
 
 
 class fileIds_item(BaseModel):
