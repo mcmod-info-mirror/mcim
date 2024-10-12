@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Query, Response
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from odmantic import query
 from typing import Optional
 import time
@@ -334,7 +334,7 @@ async def list_file_cdn(
     ),
 ):
     if not file_cdn_check_secret(secret):
-        return Response(status_code=403, content="Forbidden", headers={"Cache-Control": "no-cache"})
+        return JSONResponse(status_code=403, content="Forbidden", headers={"Cache-Control": "no-cache"})
     files_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
     # 动态构建 $match 阶段
     match_stage = {}
@@ -361,6 +361,7 @@ async def check_file_hash(url: str, hash: str):
     try:
         resp = await request_async(method="GET", url=url)
         sha1.update(resp.content)
+        log.warning(f'Reported hash: {hash}, calculated hash: {sha1.hexdigest()}')
         return sha1.hexdigest() == hash
     except ResponseCodeException as e:
         return False
@@ -373,7 +374,7 @@ async def report(
     _hash: str = Query(alias="hash"),
 ):
     if not file_cdn_check_secret(secret):
-        return Response(status_code=403, content="Forbidden", headers={"Cache-Control": "no-cache"})
+        return JSONResponse(status_code=403, content="Forbidden", headers={"Cache-Control": "no-cache"})
 
     file: Optional[cdnFile] = await request.app.state.aio_mongo_engine.find_one(
         cdnFile, cdnFile.sha1 == _hash
@@ -382,10 +383,10 @@ async def report(
     if file:
         check_result = await check_file_hash(file.url, _hash)
         if check_result:
-            return Response(status_code=500, content={"code": 500, "message": "Hash match successfully, file is correct"}, headers={"Cache-Control": "no-cache"})
+            return JSONResponse(status_code=500, content={"code": 500, "message": "Hash match successfully, file is correct"}, headers={"Cache-Control": "no-cache"})
         else:
             cdnFile_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
-            await cdnFile_collection.update_one({"_id": file.id}, {"$set": {"disable": True}})
-            return Response(status_code=200, content={"code": 200, "message": "Hash not match, file is disabled"}, headers={"Cache-Control": "no-cache"})
+            await cdnFile_collection.update_one({"_id": file.sha1}, {"$set": {"disable": True}})
+            return JSONResponse(status_code=200, content={"code": 200, "message": "Hash not match, file is disabled"}, headers={"Cache-Control": "no-cache"})
     else:
-        return Response(status_code=404, content={"code": 404, "message": "File not found"}, headers={"Cache-Control": "no-cache"})
+        return JSONResponse(status_code=404, content={"code": 404, "message": "File not found"}, headers={"Cache-Control": "no-cache"})
