@@ -209,8 +209,6 @@ def sync_mod_all_files(
         log.info(
             f'Finished modid:{modId} i:ps:t {params["index"]}:{params["pageSize"]}:{page.totalCount}'
         )
-        # add_file_cdn_tasks(models=models)
-
 
 def sync_multi_mods_all_files(modIds: List[int]):
     # 去重
@@ -242,6 +240,11 @@ def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
     res = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()["data"]
     models.append(Mod(found=True, **res))
+    mod = mongodb_engine.find_one(Mod, Mod.id == modId)
+    if mod is not None:
+        if mod.dateReleased == models[0].dateReleased:
+            log.info(f"Mod {modId} is not updated, pass!")
+            return
     sync_mod_all_files(
         modId,
         latestFiles=res["latestFiles"],
@@ -266,8 +269,15 @@ def sync_mutil_mods(modIds: List[int]):
         method="POST", url=f"{API}/v1/mods", json=data, headers=HEADERS
     ).json()["data"]
     models: List[Union[File, Mod]] = []
+    mods = mongodb_engine.find(Mod, query.in_(Mod.id, modIds))
+    mods_index = {mod.id: mod for mod in mods}
     for mod in res:
         models.append(Mod(found=True, **mod))
+        if mods_index.get(mod["id"]) is not None:
+            if mods_index[mod["id"]].dateReleased == mod["dateReleased"]:
+                log.info(f"Mod {mod['id']} is not updated, pass!")
+                modIds.remove(mod["id"])
+            
     sync_multi_mods_all_files([model.id for model in models])
     submit_models(models)
 
