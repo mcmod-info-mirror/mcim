@@ -359,7 +359,7 @@ async def list_file_cdn(
 async def check_file_hash(url: str, hash: str):
     sha1 = hashlib.sha1()
     try:
-        resp = await request_async(method="GET", url=url)
+        resp = await request_async(method="GET", url=url, follow_redirects=True)
         sha1.update(resp.content)
         log.warning(f'Reported hash: {hash}, calculated hash: {sha1.hexdigest()}')
         return sha1.hexdigest() == hash
@@ -383,6 +383,8 @@ async def report(
     if file:
         check_result = await check_file_hash(file.url, _hash)
         if check_result:
+            cdnFile_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
+            await cdnFile_collection.update_one({"_id": file.sha1}, {"$set": {"disable": False}})
             return JSONResponse(status_code=500, content={"code": 500, "message": "Hash match successfully, file is correct"}, headers={"Cache-Control": "no-cache"})
         else:
             cdnFile_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
