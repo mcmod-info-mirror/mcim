@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Request, Query
+from fastapi import APIRouter, Request, Query, Response
 from fastapi.responses import RedirectResponse
 from odmantic import query
 from typing import Optional
 import time
-import httpx
+import hashlib
 from email.utils import formatdate
 
 from app.models.database.curseforge import File as cfFile
@@ -14,6 +14,7 @@ from app.utils.loger import log
 from app.utils.response_cache import cache
 from app.utils.network import ResponseCodeException
 from app.utils.network import request as request_async
+
 # from app.sync.modrinth import file_cdn_cache_add_task as mr_file_cdn_cache_add_task
 # from app.sync.curseforge import file_cdn_cache_add_task as cf_file_cdn_cache_add_task
 # from app.sync.curseforge import file_cdn_cache as cf_file_cdn_cache
@@ -59,6 +60,12 @@ def get_http_date(delay: int = CDN_MAX_AGE):
     return http_date
 
 
+def file_cdn_check_secret(secret: str):
+    if secret != mcim_config.file_cdn_secret:
+        return False
+    return True
+
+
 if mcim_config.file_cdn:
     # modrinth | example: https://cdn.modrinth.com/data/AANobbMI/versions/IZskON6d/sodium-fabric-0.5.8%2Bmc1.20.6.jar
     # WARNING: 直接查 version_id 忽略 project_id
@@ -66,7 +73,13 @@ if mcim_config.file_cdn:
     @file_cdn_router.get(
         "/data/{project_id}/versions/{version_id}/{file_name}", tags=["modrinth"]
     )
-    @cache(expire=_93ATHOME_MAX_AGE if FILE_CDN_REDIRECT_MODE == FileCDNRedirectMode.ORIGIN else MAX_AGE)
+    @cache(
+        expire=(
+            _93ATHOME_MAX_AGE
+            if FILE_CDN_REDIRECT_MODE == FileCDNRedirectMode.ORIGIN
+            else MAX_AGE
+        )
+    )
     async def get_modrinth_file(
         project_id: str, version_id: str, file_name: str, request: Request
     ):
@@ -177,7 +190,13 @@ if mcim_config.file_cdn:
 
     # curseforge | example: https://edge.forgecdn.net/files/3040/523/jei_1.12.2-4.16.1.301.jar
     @file_cdn_router.get("/files/{fileid1}/{fileid2}/{file_name}", tags=["curseforge"])
-    @cache(expire=_93ATHOME_MAX_AGE if FILE_CDN_REDIRECT_MODE == FileCDNRedirectMode.ORIGIN else MAX_AGE)
+    @cache(
+        expire=(
+            _93ATHOME_MAX_AGE
+            if FILE_CDN_REDIRECT_MODE == FileCDNRedirectMode.ORIGIN
+            else MAX_AGE
+        )
+    )
     async def get_curseforge_file(
         fileid1: int, fileid2: int, file_name: str, request: Request
     ):
@@ -306,6 +325,7 @@ if mcim_config.file_cdn:
 @file_cdn_router.get("/file_cdn/list", include_in_schema=False)
 async def list_file_cdn(
     request: Request,
+    secret: str,
     last_id: Optional[str] = None,
     last_modified: Optional[int] = None,
     page_size: int = Query(
@@ -313,6 +333,8 @@ async def list_file_cdn(
         le=10000,
     ),
 ):
+    if not file_cdn_check_secret(secret):
+        return Response(status_code=403, content="Forbidden", headers={"Cache-Control": "no-cache"})
     files_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
     # 动态构建 $match 阶段
     match_stage = {}
@@ -332,3 +354,39 @@ async def list_file_cdn(
     # ]
     results = await files_collection.aggregate(pipeline).to_list(length=None)
     return results
+
+
+async def check_file_hash(url: str, hash: str):
+    sha1 = hashlib.sha1()
+    try:
+        resp = await request_async("GET", url)
+        sha1.update(resp.content)
+        return sha1.hexdigest() == hash
+    except ResponseCodeException as e:
+        return False
+
+
+@file_cdn_router.get("/file_cdn/report", include_in_schema=False)
+async def report(
+    request: Request,
+    secret: str,
+    _hash: str = Query(alias="hash"),
+):
+    if not file_cdn_check_secret(secret):
+        return Response(status_code=403, content="Forbidden", headers={"Cache-Control": "no-cache"})
+
+    file: Optional[cdnFile] = await request.app.state.aio_mongo_engine.find_one(
+        cdnFile, cdnFile.sha1 == _hash
+    )
+
+    if file:
+        check_result = await check_file_hash(file.url, _hash)
+        if check_result:
+            return Response(status_code=500, content={"code": 500, "message": "Hash match successfully, file is correct"}, headers={"Cache-Control": "no-cache"})
+        else:
+            await request.app.state.aio_mongo_engine.update_one(
+                cdnFile, {"_id": file.id}, {"$set": {"disable": True}}
+            )
+            return Response(status_code=200, content={"code": 200, "message": "Hash not match, file is disabled"}, headers={"Cache-Control": "no-cache"})
+    else:
+        return Response(status_code=404, content={"code": 404, "message": "File not found"}, headers={"Cache-Control": "no-cache"})

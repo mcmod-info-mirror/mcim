@@ -96,5 +96,7 @@ dramatiq.set_broker(
     rabbitmq_broker
 )
 
+log.success("Dramatiq broker set up successfully.")
+
 from app.sync.modrinth import *
 from app.sync.curseforge import *
