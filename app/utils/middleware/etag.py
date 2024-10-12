@@ -34,7 +34,7 @@ class EtagMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
-        if response.status_code == 200:
+        if request.url.path.split("/")[1] in ["modrinth", "curseforge", "file_cdn"] and response.status_code == 200:
             etag = generate_etag(response)
 
             # if_none_match = request.headers.get("If-None-Match")
