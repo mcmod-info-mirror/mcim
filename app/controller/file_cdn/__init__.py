@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Query, Response
+from fastapi import APIRouter, Request, Query
 from fastapi.responses import RedirectResponse, JSONResponse
 from odmantic import query
 from typing import Optional
@@ -12,6 +12,7 @@ from app.models.database.file_cdn import File as cdnFile
 from app.config import MCIMConfig
 from app.utils.loger import log
 from app.utils.response_cache import cache
+from app.utils.response import BaseResponse
 from app.utils.network import ResponseCodeException
 from app.utils.network import request as request_async
 
@@ -65,6 +66,13 @@ def file_cdn_check_secret(secret: str):
         return False
     return True
 
+
+@file_cdn_router.get("/file_cdn/statistics", include_in_schema=False)
+async def file_cdn_statistics(request: Request):
+    cdnFile_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
+    cdnFile_count = await cdnFile_collection.aggregate([{"$collStats": {"count": {}}}])
+    return BaseResponse(content={"file_cdn_files": cdnFile_count["count"]})
+    
 
 if mcim_config.file_cdn:
     # modrinth | example: https://cdn.modrinth.com/data/AANobbMI/versions/IZskON6d/sodium-fabric-0.5.8%2Bmc1.20.6.jar
@@ -353,7 +361,7 @@ async def list_file_cdn(
     #     {"$limit": page_size},
     # ]
     results = await files_collection.aggregate(pipeline).to_list(length=None)
-    return results
+    return BaseResponse(content=results)
 
 
 async def check_file_hash_and_size(url: str, hash: str, size: int):
@@ -361,6 +369,7 @@ async def check_file_hash_and_size(url: str, hash: str, size: int):
     try:
         resp = await request_async(method="GET", url=url, follow_redirects=True)
         if resp.headers["content-length"] != size: # check size | exapmple a5fb8e2a37f1772312e2c75af2866132ebf97e4f
+            log.warning(f'Reported size: {size}, calculated size: {resp.headers["content-length"]}')
             return False
         sha1.update(resp.content)
         log.warning(f'Reported hash: {hash}, calculated hash: {sha1.hexdigest()}')
@@ -387,10 +396,10 @@ async def report(
         if check_result:
             cdnFile_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
             await cdnFile_collection.update_one({"_id": file.sha1}, {"$set": {"disable": False}})
-            return JSONResponse(status_code=500, content={"code": 500, "message": "Hash and size match successfully, file is correct"}, headers={"Cache-Control": "no-cache"})
+            return BaseResponse(status_code=500, content={"code": 500, "message": "Hash and size match successfully, file is correct"}, headers={"Cache-Control": "no-cache"})
         else:
             cdnFile_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
             await cdnFile_collection.update_one({"_id": file.sha1}, {"$set": {"disable": True}})
-            return JSONResponse(status_code=200, content={"code": 200, "message": "Hash or size not match, file is disabled"}, headers={"Cache-Control": "no-cache"})
+            return BaseResponse(status_code=200, content={"code": 200, "message": "Hash or size not match, file is disabled"}, headers={"Cache-Control": "no-cache"})
     else:
-        return JSONResponse(status_code=404, content={"code": 404, "message": "File not found"}, headers={"Cache-Control": "no-cache"})
+        return BaseResponse(status_code=404, content={"code": 404, "message": "File not found"}, headers={"Cache-Control": "no-cache"})

@@ -34,11 +34,18 @@ async def modrinth_statistics(request: Request):
     没有统计 author
     """
     # count
-    project_count = await request.app.state.aio_mongo_engine.count(Project)
-    version_count = await request.app.state.aio_mongo_engine.count(Version)
-    file_count = await request.app.state.aio_mongo_engine.count(File)
+    project_collection = request.app.state.aio_mongo_engine.get_collection(Project)
+    version_collection = request.app.state.aio_mongo_engine.get_collection(Version)
+    file_collection = request.app.state.aio_mongo_engine.get_collection(File)
+
+    project_count = await project_collection.aggregate([{"$collStats": {"count": {}}}])
+    version_count = await version_collection.aggregate([{"$collStats": {"count": {}}}])
+    file_count = await file_collection.aggregate([{"$collStats": {"count": {}}}])
+
     return BaseResponse(
         content=ModrinthStatistics(
-            projects=project_count, versions=version_count, files=file_count
+            projects=project_count["count"],
+            versions=version_count["count"],
+            files=file_count["count"],
         )
     )

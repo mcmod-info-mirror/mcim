@@ -32,9 +32,22 @@ class CurseforgeStatistics(BaseModel):
 )
 # @cache(expire=3600)
 async def curseforge_statistics(request: Request):
-    mods = await request.app.state.aio_mongo_engine.count(Mod)
-    files = await request.app.state.aio_mongo_engine.count(File)
-    fingerprints = await request.app.state.aio_mongo_engine.count(Fingerprint)
+    mod_collection = request.app.state.aio_mongo_engine.get_collection(Mod)
+    file_collection = request.app.state.aio_mongo_engine.get_collection(File)
+    fingerprint_collection = request.app.state.aio_mongo_engine.get_collection(
+        Fingerprint
+    )
+
+    mod_count = await mod_collection.aggregate([{"$collStats": {"count": {}}}])
+    file_count = await file_collection.aggregate([{"$collStats": {"count": {}}}])
+    fingerprint_count = await fingerprint_collection.aggregate(
+        [{"$collStats": {"count": {}}}]
+    )
+
     return BaseResponse(
-        content=CurseforgeStatistics(mods=mods, files=files, fingerprints=fingerprints)
+        content=CurseforgeStatistics(
+            mods=mod_count["count"],
+            files=file_count["count"],
+            fingerprints=fingerprint_count["count"],
+        )
     )
