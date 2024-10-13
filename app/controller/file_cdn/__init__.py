@@ -70,8 +70,8 @@ def file_cdn_check_secret(secret: str):
 @file_cdn_router.get("/file_cdn/statistics", include_in_schema=False)
 async def file_cdn_statistics(request: Request):
     cdnFile_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
-    cdnFile_count = await cdnFile_collection.aggregate([{"$collStats": {"count": {}}}])
-    return BaseResponse(content={"file_cdn_files": cdnFile_count["count"]})
+    cdnFile_count = await cdnFile_collection.aggregate([{"$collStats": {"count": {}}}]).to_list(length=None)
+    return BaseResponse(content={"file_cdn_files": cdnFile_count[0]["count"]})
     
 
 if mcim_config.file_cdn:

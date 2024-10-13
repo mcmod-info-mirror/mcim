@@ -38,16 +38,16 @@ async def curseforge_statistics(request: Request):
         Fingerprint
     )
 
-    mod_count = await mod_collection.aggregate([{"$collStats": {"count": {}}}])
-    file_count = await file_collection.aggregate([{"$collStats": {"count": {}}}])
+    mod_count = await mod_collection.aggregate([{"$collStats": {"count": {}}}]).to_list(length=None)
+    file_count = await file_collection.aggregate([{"$collStats": {"count": {}}}]).to_list(length=None)
     fingerprint_count = await fingerprint_collection.aggregate(
         [{"$collStats": {"count": {}}}]
-    )
+    ).to_list(length=None)
 
     return BaseResponse(
         content=CurseforgeStatistics(
-            mods=mod_count["count"],
-            files=file_count["count"],
-            fingerprints=fingerprint_count["count"],
+            mods=mod_count[0]["count"],
+            files=file_count[0]["count"],
+            fingerprints=fingerprint_count[0]["count"],
         )
     )

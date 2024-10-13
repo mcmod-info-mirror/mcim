@@ -38,14 +38,14 @@ async def modrinth_statistics(request: Request):
     version_collection = request.app.state.aio_mongo_engine.get_collection(Version)
     file_collection = request.app.state.aio_mongo_engine.get_collection(File)
 
-    project_count = await project_collection.aggregate([{"$collStats": {"count": {}}}])
-    version_count = await version_collection.aggregate([{"$collStats": {"count": {}}}])
-    file_count = await file_collection.aggregate([{"$collStats": {"count": {}}}])
+    project_count = await project_collection.aggregate([{"$collStats": {"count": {}}}]).to_list(length=None)
+    version_count = await version_collection.aggregate([{"$collStats": {"count": {}}}]).to_list(length=None)
+    file_count = await file_collection.aggregate([{"$collStats": {"count": {}}}]).to_list(length=None)
 
     return BaseResponse(
         content=ModrinthStatistics(
-            projects=project_count["count"],
-            versions=version_count["count"],
-            files=file_count["count"],
+            projects=project_count[0]["count"],
+            versions=version_count[0]["count"],
+            files=file_count[0]["count"],
         )
     )
