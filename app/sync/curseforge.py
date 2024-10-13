@@ -309,7 +309,7 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     # models.extend(sync_mod_all_files(modId, latestFiles=latestFiles))
     # models.extend()
     # submit_models(models)
-    sync_mod_all_files(modId)
+    sync_mod(modId)
 
 
 @actor(
