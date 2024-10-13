@@ -373,7 +373,7 @@ async def check_file_hash_and_size(url: str, hash: str, size: int):
     try:
         resp = await request_async(method="GET", url=url, follow_redirects=True)
         if (
-            resp.headers["content-length"] != size
+            int(resp.headers["content-length"]) != size
         ):  # check size | exapmple a5fb8e2a37f1772312e2c75af2866132ebf97e4f
             log.warning(
                 f'Reported size: {size}, calculated size: {resp.headers["content-length"]}'

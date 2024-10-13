@@ -33,9 +33,9 @@ controller_router.include_router(file_cdn_router)
 @cache(expire=3600)
 async def mcim_statistics(
     request: Request,
-    modrinth: Optional[bool] = False,
-    curseforge: Optional[bool] = False,
-    file_cdn: Optional[bool] = False,
+    modrinth: Optional[bool] = True,
+    curseforge: Optional[bool] = True,
+    file_cdn: Optional[bool] = True,
 ):
     """
     全部统计信息
@@ -111,7 +111,7 @@ async def mcim_statistics(
         result["file_cdn"] = {
             "file": file_cdn_file_count[0]["count"],
         }
-
+    
     return BaseResponse(
         content=result,
         headers={"Cache-Control": f"max-age=3600"},
