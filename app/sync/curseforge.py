@@ -270,11 +270,11 @@ def sync_mutil_mods(modIds: List[int]):
     ).json()["data"]
     models: List[Union[File, Mod]] = []
     mods = mongodb_engine.find(Mod, query.in_(Mod.id, modIds))
-    mods_index = {mod.id: mod for mod in mods}
+    mods_dateReleased_index = {mod.id: mod.dateReleased for mod in mods}
     for mod in res:
         models.append(Mod(found=True, **mod))
-        if mods_index.get(mod["id"]) is not None:
-            if mods_index[mod["id"]].dateReleased == mod["dateReleased"]:
+        if mods_dateReleased_index.get(mod["id"]) is not None:
+            if mods_dateReleased_index[mod["id"]] == mod["dateReleased"]:
                 log.info(f"Mod {mod['id']} is not updated, pass!")
                 modIds.remove(mod["id"])
             

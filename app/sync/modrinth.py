@@ -236,7 +236,14 @@ def sync_project(project_id: str):
     try:
         res = request_sync(f"{API}/project/{project_id}").json()
         models.append(Project(found=True, **res))
-        sync_project_all_version(project_id, slug=res["slug"])
+        db_project = mongodb_engine.find_one(Project, Project.id == project_id)
+        if db_project is not None:
+            # check updated
+            if db_project.updated != res["updated"]:
+                models.append(Project(found=True, **res))
+                sync_project_all_version(project_id, slug=res["slug"])
+            else:
+                return
     except ResponseCodeException as e:
         if e.status_code == 404:
             models = [Project(found=False, id=project_id, slug=project_id)]
@@ -263,11 +270,21 @@ def sync_multi_projects(project_ids: List[str]):
                 models.append(Project(found=False, id=project_id, slug=project_id))
             submit_models(models)
             return
+    db_projects = mongodb_engine.find(Project, query.in_(Project.id, project_ids))
+    temp_db_projects_updated = {}
+    for db_project in db_projects:
+        temp_db_projects_updated[db_project.id] = db_project.updated
+    for project_res in res:
+        if project_res["id"] in temp_db_projects_updated:
+            if temp_db_projects_updated[project_res["id"]] == project_res["updated"]:
+                project_ids.remove(project_res["id"])
+                log.info(f"Project {project_res['id']} is not out-of-date, pass!")
+
     models = []
     slugs = {}
-    for project in res:
-        slugs[project["id"]] = project["slug"]
-        models.append(Project(found=True, **project))
+    for project_res in res:
+        slugs[project_res["id"]] = project_res["slug"]
+        models.append(Project(found=True, **project_res))
     sync_multi_projects_all_version(project_ids, slugs=slugs)
     submit_models(models)
 
