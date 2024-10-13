@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, BackgroundTasks
 from typing import List, Optional, Union
 from pydantic import BaseModel
 from odmantic import query
@@ -27,6 +27,8 @@ from app.utils.response import TrustableResponse, UncachedResponse, BaseResponse
 from app.utils.network import request_sync, request
 from app.utils.loger import log
 from app.utils.response_cache import cache
+
+from app.database.mongodb import aio_mongo_engine
 
 mcim_config = MCIMConfig.load()
 
@@ -94,6 +96,25 @@ class ModLoaderType(int, Enum):
     NeoForge = 6
 
 
+# background task
+async def check_search_result(res: dict):
+    modids = set()
+    for mod in res["data"]:
+        modids.add(mod["id"])
+
+    # check if modids in db
+    if modids:
+        mod_models: List[Mod] = await aio_mongo_engine.find(
+            Mod, query.in_(Mod.id, list(modids))
+        )
+
+        not_found_modids = modids - set([mod.id for mod in mod_models])
+
+        if not_found_modids:
+            sync_mutil_mods.send(modIds=list(not_found_modids))
+            log.debug(f"modIds: {not_found_modids} not found, send sync task.")
+
+
 @v1_router.get(
     "/mods/search",
     description="Curseforge Category 信息",
@@ -101,6 +122,7 @@ class ModLoaderType(int, Enum):
 )
 @cache(expire=mcim_config.expire_second.curseforge.search)
 async def curseforge_search(
+    background_tasks: BackgroundTasks,
     gameId: int = 432,
     classId: Optional[int] = None,
     categoryId: Optional[int] = None,
@@ -146,6 +168,7 @@ async def curseforge_search(
             timeout=SEARCH_TIMEOUT,
         )
     ).json()
+    background_tasks.add_task(check_search_result, res)
     return TrustableResponse(content=res)
 
 

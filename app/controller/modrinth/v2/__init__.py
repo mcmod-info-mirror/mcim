@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, Path, Request
+from fastapi import APIRouter, Query, Path, Request, BackgroundTasks
 from fastapi.responses import Response
 from typing_extensions import Annotated
 from typing import List, Optional, Union, Dict
@@ -31,6 +31,8 @@ from app.utils.response import (
 from app.utils.network import request_sync, request
 from app.utils.loger import log
 from app.utils.response_cache import cache
+
+from app.database.mongodb import aio_mongo_engine
 
 mcim_config = MCIMConfig.load()
 
@@ -217,6 +219,23 @@ async def modrinth_project_versions(idslug: str, request: Request):
             trustable=trustable,
         )
 
+# background task
+async def check_search_result(search_result: dict):
+    project_ids = list(set([project["project_id"] for project in search_result["hits"]]))
+
+    if project_ids:
+        # check project in db
+        project_models: List[Project] = await aio_mongo_engine.find(
+            Project, query.in_(Project.id, project_ids))
+        
+        not_found_project_ids = project_ids - [project.id for project in project_models]
+
+        if not_found_project_ids:
+            sync_multi_projects.send(project_ids=not_found_project_ids)
+            log.debug(f"Projects {not_found_project_ids} not found, send sync task.")
+
+    
+
 
 class SearchIndex(str, Enum):
     relevance = "relevance"
@@ -233,6 +252,7 @@ class SearchIndex(str, Enum):
 )
 @cache(expire=mcim_config.expire_second.modrinth.search)
 async def modrinth_search_projects(
+    background_tasks: BackgroundTasks,
     query: Optional[str] = None,
     facets: Optional[str] = None,
     offset: Optional[int] = 0,
@@ -252,6 +272,7 @@ async def modrinth_search_projects(
             timeout=SEARCH_TIMEOUT,
         )
     ).json()
+    background_tasks.add_task(check_search_result, res)
     return TrustableResponse(content=res)
 
 
