@@ -346,15 +346,17 @@ async def curseforge_mod_files(
         match_conditions["gameVersions"] = {"$all": gameVersionFilter}
 
     pipeline = [
+        {"$match": match_conditions},
         {
             "$facet": {
                 "resultCount": [
-                    {"$match": match_conditions},
                     {"$count": "count"},
                 ],
-                "totalCount": [{"$match": {"modId": modId}}, {"$count": "count"}],
+                "totalCount": [
+                    {"$match": {"modId": modId}},
+                    {"$count": "count"},
+                ],
                 "documents": [
-                    {"$match": match_conditions},
                     {"$skip": index if index else 0},
                     {"$limit": pageSize},
                 ],
