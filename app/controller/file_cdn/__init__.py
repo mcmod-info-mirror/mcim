@@ -70,9 +70,11 @@ def file_cdn_check_secret(secret: str):
 @file_cdn_router.get("/file_cdn/statistics", include_in_schema=False)
 async def file_cdn_statistics(request: Request):
     cdnFile_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
-    cdnFile_count = await cdnFile_collection.aggregate([{"$collStats": {"count": {}}}]).to_list(length=None)
+    cdnFile_count = await cdnFile_collection.aggregate(
+        [{"$collStats": {"count": {}}}]
+    ).to_list(length=None)
     return BaseResponse(content={"file_cdn_files": cdnFile_count[0]["count"]})
-    
+
 
 if mcim_config.file_cdn:
     # modrinth | example: https://cdn.modrinth.com/data/AANobbMI/versions/IZskON6d/sodium-fabric-0.5.8%2Bmc1.20.6.jar
@@ -342,7 +344,9 @@ async def list_file_cdn(
     ),
 ):
     if not file_cdn_check_secret(secret):
-        return JSONResponse(status_code=403, content="Forbidden", headers={"Cache-Control": "no-cache"})
+        return JSONResponse(
+            status_code=403, content="Forbidden", headers={"Cache-Control": "no-cache"}
+        )
     files_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
     # 动态构建 $match 阶段
     match_stage = {}
@@ -368,11 +372,15 @@ async def check_file_hash_and_size(url: str, hash: str, size: int):
     sha1 = hashlib.sha1()
     try:
         resp = await request_async(method="GET", url=url, follow_redirects=True)
-        if resp.headers["content-length"] != size: # check size | exapmple a5fb8e2a37f1772312e2c75af2866132ebf97e4f
-            log.warning(f'Reported size: {size}, calculated size: {resp.headers["content-length"]}')
+        if (
+            resp.headers["content-length"] != size
+        ):  # check size | exapmple a5fb8e2a37f1772312e2c75af2866132ebf97e4f
+            log.warning(
+                f'Reported size: {size}, calculated size: {resp.headers["content-length"]}'
+            )
             return False
         sha1.update(resp.content)
-        log.warning(f'Reported hash: {hash}, calculated hash: {sha1.hexdigest()}')
+        log.warning(f"Reported hash: {hash}, calculated hash: {sha1.hexdigest()}")
         return sha1.hexdigest() == hash
     except ResponseCodeException as e:
         return False
@@ -385,21 +393,48 @@ async def report(
     _hash: str = Query(alias="hash"),
 ):
     if not file_cdn_check_secret(secret):
-        return JSONResponse(status_code=403, content="Forbidden", headers={"Cache-Control": "no-cache"})
+        return JSONResponse(
+            status_code=403, content="Forbidden", headers={"Cache-Control": "no-cache"}
+        )
 
     file: Optional[cdnFile] = await request.app.state.aio_mongo_engine.find_one(
         cdnFile, cdnFile.sha1 == _hash
     )
 
     if file:
-        check_result = await check_file_hash_and_size(url=file.url, hash=_hash, size=file.size)
+        check_result = await check_file_hash_and_size(
+            url=file.url, hash=_hash, size=file.size
+        )
+        cdnFile_collection = request.app.state.aio_mongo_engine.get_collection(
+            cdnFile
+        )
         if check_result:
-            cdnFile_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
-            await cdnFile_collection.update_one({"_id": file.sha1}, {"$set": {"disable": False}})
-            return BaseResponse(status_code=500, content={"code": 500, "message": "Hash and size match successfully, file is correct"}, headers={"Cache-Control": "no-cache"})
+            await cdnFile_collection.update_one(
+                {"_id": file.sha1}, {"$set": {"disable": False}}
+            )
+            return BaseResponse(
+                status_code=500,
+                content={
+                    "code": 500,
+                    "message": "Hash and size match successfully, file is correct",
+                },
+                headers={"Cache-Control": "no-cache"},
+            )
         else:
-            cdnFile_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
-            await cdnFile_collection.update_one({"_id": file.sha1}, {"$set": {"disable": True}})
-            return BaseResponse(status_code=200, content={"code": 200, "message": "Hash or size not match, file is disabled"}, headers={"Cache-Control": "no-cache"})
+            await cdnFile_collection.update_one(
+                {"_id": file.sha1}, {"$set": {"disable": True}}
+            )
+            return BaseResponse(
+                status_code=200,
+                content={
+                    "code": 200,
+                    "message": "Hash or size not match, file is disabled",
+                },
+                headers={"Cache-Control": "no-cache"},
+            )
     else:
-        return BaseResponse(status_code=404, content={"code": 404, "message": "File not found"}, headers={"Cache-Control": "no-cache"})
+        return BaseResponse(
+            status_code=404,
+            content={"code": 404, "message": "File not found"},
+            headers={"Cache-Control": "no-cache"},
+        )
