@@ -87,6 +87,8 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
 
 ### 当前过期策略
 
+**近期会修改过期策略，或将改为主动定时更新，无视时限**
+
 ```json
 {
     "expire_second": {
@@ -110,6 +112,27 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
 关于 Mod 开发者收益问题，由于 API 下载量并不计入收益，因此无论从启动器官方源下载还是镜像源下载都是无法为 Mod 开发者提供收益的，不接受影响 Mod 开发者收益的指责。详情见 [MCLF-CN #3](https://github.com/MCLF-CN/docs/issues/3) 的讨论。
 
 本镜像可能会在滥用的情况下切换到 Cloudflare CDN 或开启 URL 鉴权，或者暂时关闭。
+
+缓存统计信息见 https://mod.mcimirror.top/statistics
+
+2024/10/13 当前已缓存
+```json
+{
+    "curseforge": {
+        "mod": 19815,
+        "file": 733592,
+        "fingerprint": 732883
+    },
+    "modrinth": {
+        "project": 26976,
+        "version": 320106,
+        "file": 356316
+    },
+    "file_cdn": {
+        "file": 590959
+    }
+}
+```
 
 ## 部署
 
