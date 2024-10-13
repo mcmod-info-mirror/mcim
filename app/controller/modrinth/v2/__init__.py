@@ -233,10 +233,10 @@ async def check_search_result(request: Request, search_result: dict):
             Project, query.in_(Project.id, project_ids)
         )
 
-        not_found_project_ids = project_ids - [project.id for project in project_models]
+        not_found_project_ids = project_ids - set([project.id for project in project_models])
 
         if not_found_project_ids:
-            sync_multi_projects.send(project_ids=not_found_project_ids)
+            sync_multi_projects.send(project_ids=list(not_found_project_ids))
             log.debug(f"Projects {not_found_project_ids} not found, send sync task.")
         else:
             log.debug(f"All Projects {not_found_project_ids} found.")
