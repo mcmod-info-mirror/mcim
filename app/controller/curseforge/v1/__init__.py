@@ -24,7 +24,8 @@ from app.models.response.curseforge import (
 )
 from app.config.mcim import MCIMConfig
 from app.utils.response import TrustableResponse, UncachedResponse, BaseResponse
-from app.utils.network import request_sync, request
+from app.utils.network import request_sync
+from app.utils.network import request as request_async
 from app.utils.loger import log
 from app.utils.response_cache import cache
 
@@ -97,14 +98,14 @@ class ModLoaderType(int, Enum):
 
 
 # background task
-async def check_search_result(res: dict):
+async def check_search_result(request: Request, res: dict):
     modids = set()
     for mod in res["data"]:
         modids.add(mod["id"])
 
     # check if modids in db
     if modids:
-        mod_models: List[Mod] = await aio_mongo_engine.find(
+        mod_models: List[Mod] = await request.app.state.aio_mongo_engine.aio_mongo_engine.find(
             Mod, query.in_(Mod.id, list(modids))
         )
 
@@ -113,6 +114,8 @@ async def check_search_result(res: dict):
         if not_found_modids:
             sync_mutil_mods.send(modIds=list(not_found_modids))
             log.debug(f"modIds: {not_found_modids} not found, send sync task.")
+        else:
+            log.debug(f"All Mod: {not_found_modids} found.")
 
 
 @v1_router.get(
@@ -122,7 +125,8 @@ async def check_search_result(res: dict):
 )
 @cache(expire=mcim_config.expire_second.curseforge.search)
 async def curseforge_search(
-    background_tasks: BackgroundTasks,
+    # background_tasks: BackgroundTasks,
+    request: Request,
     gameId: int = 432,
     classId: Optional[int] = None,
     categoryId: Optional[int] = None,
@@ -161,14 +165,14 @@ async def curseforge_search(
         "pageSize": pageSize,
     }
     res = (
-        await request(
+        await request_async(
             f"{API}/v1/mods/search",
             params=params,
             headers={"x-api-key": x_api_key},
             timeout=SEARCH_TIMEOUT,
         )
     ).json()
-    background_tasks.add_task(check_search_result, res)
+    check_search_result(request=request, res=res)
     return TrustableResponse(content=res)
 
 
