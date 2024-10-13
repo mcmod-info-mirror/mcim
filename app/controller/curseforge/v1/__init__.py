@@ -105,7 +105,7 @@ async def check_search_result(request: Request, res: dict):
 
     # check if modids in db
     if modids:
-        mod_models: List[Mod] = await request.app.state.aio_mongo_engine.aio_mongo_engine.find(
+        mod_models: List[Mod] = await request.app.state.aio_mongo_engine.find(
             Mod, query.in_(Mod.id, list(modids))
         )
 
@@ -116,6 +116,8 @@ async def check_search_result(request: Request, res: dict):
             log.debug(f"modIds: {not_found_modids} not found, send sync task.")
         else:
             log.debug(f"All Mod: {not_found_modids} found.")
+    else:
+        log.debug("Search esult is empty")
 
 
 @v1_router.get(
@@ -172,7 +174,7 @@ async def curseforge_search(
             timeout=SEARCH_TIMEOUT,
         )
     ).json()
-    check_search_result(request=request, res=res)
+    await check_search_result(request=request, res=res)
     return TrustableResponse(content=res)
 
 

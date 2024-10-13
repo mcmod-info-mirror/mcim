@@ -239,7 +239,8 @@ async def check_search_result(request: Request, search_result: dict):
             log.debug(f"Projects {not_found_project_ids} not found, send sync task.")
         else:
             log.debug(f"All Projects {not_found_project_ids} found.")
-
+    else:
+        log.debug("Search esult is empty")
 
 class SearchIndex(str, Enum):
     relevance = "relevance"
