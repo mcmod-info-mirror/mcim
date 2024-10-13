@@ -356,10 +356,12 @@ async def list_file_cdn(
     return results
 
 
-async def check_file_hash(url: str, hash: str):
+async def check_file_hash_and_size(url: str, hash: str, size: int):
     sha1 = hashlib.sha1()
     try:
         resp = await request_async(method="GET", url=url, follow_redirects=True)
+        if resp.headers["content-length"] != size: # check size | exapmple a5fb8e2a37f1772312e2c75af2866132ebf97e4f
+            return False
         sha1.update(resp.content)
         log.warning(f'Reported hash: {hash}, calculated hash: {sha1.hexdigest()}')
         return sha1.hexdigest() == hash
@@ -381,14 +383,14 @@ async def report(
     )
 
     if file:
-        check_result = await check_file_hash(file.url, _hash)
+        check_result = await check_file_hash_and_size(url=file.url, hash=_hash, size=file.size)
         if check_result:
             cdnFile_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
             await cdnFile_collection.update_one({"_id": file.sha1}, {"$set": {"disable": False}})
-            return JSONResponse(status_code=500, content={"code": 500, "message": "Hash match successfully, file is correct"}, headers={"Cache-Control": "no-cache"})
+            return JSONResponse(status_code=500, content={"code": 500, "message": "Hash and size match successfully, file is correct"}, headers={"Cache-Control": "no-cache"})
         else:
             cdnFile_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
             await cdnFile_collection.update_one({"_id": file.sha1}, {"$set": {"disable": True}})
-            return JSONResponse(status_code=200, content={"code": 200, "message": "Hash not match, file is disabled"}, headers={"Cache-Control": "no-cache"})
+            return JSONResponse(status_code=200, content={"code": 200, "message": "Hash or size not match, file is disabled"}, headers={"Cache-Control": "no-cache"})
     else:
         return JSONResponse(status_code=404, content={"code": 404, "message": "File not found"}, headers={"Cache-Control": "no-cache"})

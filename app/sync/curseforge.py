@@ -243,7 +243,7 @@ def sync_mod(modId: int):
     mod = mongodb_engine.find_one(Mod, Mod.id == modId)
     if mod is not None:
         if mod.dateReleased == models[0].dateReleased:
-            log.info(f"Mod {modId} is not updated, pass!")
+            log.info(f"Mod {modId} is not out-of-date, pass!")
             return
     sync_mod_all_files(
         modId,
