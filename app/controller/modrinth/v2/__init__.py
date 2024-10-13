@@ -223,20 +223,19 @@ async def modrinth_project_versions(idslug: str, request: Request):
 
 # background task
 async def check_search_result(request: Request, search_result: dict):
-    project_ids = list(
-        set([project["project_id"] for project in search_result["hits"]])
-    )
+    project_ids = set([project["project_id"] for project in search_result["hits"]])
+    
 
     if project_ids:
         # check project in db
         project_models: List[Project] = await request.app.state.aio_mongo_engine.find(
-            Project, query.in_(Project.id, project_ids)
+            Project, query.in_(Project.id, list(project_ids))
         )
 
-        not_found_project_ids = project_ids - [project.id for project in project_models]
+        not_found_project_ids = project_ids - set([project.id for project in project_models])
 
         if not_found_project_ids:
-            sync_multi_projects.send(project_ids=not_found_project_ids)
+            sync_multi_projects.send(project_ids=list(not_found_project_ids))
             log.debug(f"Projects {not_found_project_ids} not found, send sync task.")
         else:
             log.debug(f"All Projects {not_found_project_ids} found.")
