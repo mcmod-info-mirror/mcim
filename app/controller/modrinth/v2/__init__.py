@@ -224,7 +224,6 @@ async def modrinth_project_versions(idslug: str, request: Request):
 # background task
 async def check_search_result(request: Request, search_result: dict):
     project_ids = set([project["project_id"] for project in search_result["hits"]])
-    
 
     if project_ids:
         # check project in db
@@ -232,7 +231,9 @@ async def check_search_result(request: Request, search_result: dict):
             Project, query.in_(Project.id, list(project_ids))
         )
 
-        not_found_project_ids = project_ids - set([project.id for project in project_models])
+        not_found_project_ids = project_ids - set(
+            [project.id for project in project_models]
+        )
 
         if not_found_project_ids:
             sync_multi_projects.send(project_ids=list(not_found_project_ids))
@@ -241,6 +242,7 @@ async def check_search_result(request: Request, search_result: dict):
             log.debug(f"All Projects {not_found_project_ids} found.")
     else:
         log.debug("Search esult is empty")
+
 
 class SearchIndex(str, Enum):
     relevance = "relevance"
@@ -667,15 +669,11 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_categories(request: Request):
-    if request.state.force_sync:
-        sync_tags.send()
-        log.debug("Category force sync.")
-        return ForceSyncResponse()
     category = await request.app.state.aio_redis_engine.hget("modrinth", "categories")
     if category is None:
-        sync_tags.send()
-        log.debug("Category not found, send sync task.")
-        return UncachedResponse()
+        sync_tags()
+        log.debug("Category not found, sync.")
+        category = await request.app.state.aio_redis_engine.hget("modrinth", "categories")
     return TrustableResponse(content=json.loads(category))
 
 
@@ -686,15 +684,11 @@ async def modrinth_tag_categories(request: Request):
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_loaders(request: Request):
-    if request.state.force_sync:
-        sync_tags.send()
-        log.debug("Loader force sync.")
-        return ForceSyncResponse()
     loader = await request.app.state.aio_redis_engine.hget("modrinth", "loaders")
     if loader is None:
-        sync_tags.send()
-        log.debug("Loader not found, send sync task.")
-        return UncachedResponse()
+        sync_tags()
+        log.debug("Loader not found, sync.")
+        loader = await request.app.state.aio_redis_engine.hget("modrinth", "loaders")
     return TrustableResponse(content=json.loads(loader))
 
 
@@ -705,17 +699,15 @@ async def modrinth_tag_loaders(request: Request):
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_game_versions(request: Request):
-    if request.state.force_sync:
-        sync_tags.send()
-        log.debug("Game Version force sync.")
-        return ForceSyncResponse()
     game_version = await request.app.state.aio_redis_engine.hget(
         "modrinth", "game_versions"
     )
     if game_version is None:
         sync_tags.send()
-        log.debug("Game Version not found, send sync task.")
-        return UncachedResponse()
+        log.debug("Game Version not found, sync.")
+        game_version = await request.app.state.aio_redis_engine.hget(
+            "modrinth", "game_versions"
+        )
     return TrustableResponse(content=json.loads(game_version))
 
 
@@ -726,17 +718,15 @@ async def modrinth_tag_game_versions(request: Request):
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_donation_platforms(request: Request):
-    if request.state.force_sync:
-        sync_tags.send()
-        log.debug("Donation Platform force sync.")
-        return ForceSyncResponse()
     donation_platform = await request.app.state.aio_redis_engine.hget(
         "modrinth", "donation_platform"
     )
     if donation_platform is None:
-        sync_tags.send()
-        log.debug("Donation Platform not found, send sync task.")
-        return UncachedResponse()
+        sync_tags()
+        log.debug("Donation Platform not found, sync.")
+        donation_platform = await request.app.state.aio_redis_engine.hget(
+            "modrinth", "donation_platform"
+        )
     return TrustableResponse(content=json.loads(donation_platform))
 
 
@@ -747,17 +737,15 @@ async def modrinth_tag_donation_platforms(request: Request):
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_project_types(request: Request):
-    if request.state.force_sync:
-        sync_tags.send()
-        log.debug("Project Type force sync.")
-        return ForceSyncResponse()
     project_type = await request.app.state.aio_redis_engine.hget(
         "modrinth", "project_type"
     )
     if project_type is None:
-        sync_tags.send()
-        log.debug("Project Type not found, send sync task.")
-        return UncachedResponse()
+        sync_tags()
+        log.debug("Project Type not found, sync.")
+        project_type = await request.app.state.aio_redis_engine.hget(
+            "modrinth", "project_type"
+        )
     return TrustableResponse(content=json.loads(project_type))
 
 
@@ -768,13 +756,9 @@ async def modrinth_tag_project_types(request: Request):
 )
 @cache(expire=mcim_config.expire_second.modrinth.category)
 async def modrinth_tag_side_types(request: Request):
-    if request.state.force_sync:
-        sync_tags.send()
-        log.debug("Side Type force sync.")
-        return ForceSyncResponse()
     side_type = await request.app.state.aio_redis_engine.hget("modrinth", "side_type")
     if side_type is None:
-        sync_tags.send()
-        log.debug("Side Type not found, send sync task.")
-        return UncachedResponse()
+        sync_tags()
+        log.debug("Side Type not found, sync.")
+        side_type = await request.app.state.aio_redis_engine.hget("modrinth", "side_type")
     return TrustableResponse(content=json.loads(side_type))

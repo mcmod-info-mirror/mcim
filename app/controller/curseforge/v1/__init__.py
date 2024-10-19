@@ -36,6 +36,7 @@ mcim_config = MCIMConfig.load()
 API = mcim_config.curseforge_api
 
 x_api_key = mcim_config.curseforge_api_key
+HEADERS = {"x-api-key": x_api_key}
 
 v1_router = APIRouter(prefix="/v1", tags=["curseforge"])
 
@@ -170,7 +171,7 @@ async def curseforge_search(
         await request_async(
             f"{API}/v1/mods/search",
             params=params,
-            headers={"x-api-key": x_api_key},
+            headers=HEADERS,
             timeout=SEARCH_TIMEOUT,
         )
     ).json()
@@ -657,16 +658,15 @@ async def curseforge_fingerprints_432(item: fingerprints_item, request: Request)
 )
 @cache(expire=mcim_config.expire_second.curseforge.categories)
 async def curseforge_categories(request: Request):
-    if request.state.force_sync:
-        sync_categories.send()
-        log.debug("categories force sync.")
-        return UncachedResponse()
     categories = await request.app.state.aio_redis_engine.hget(
         "curseforge", "categories"
     )
     if categories is None:
-        sync_categories.send()
-        return UncachedResponse()
+        sync_categories()
+        categories = await request.app.state.aio_redis_engine.hget(
+            "curseforge", "categories"
+        )
+    
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=json.loads(categories)).model_dump()
     )
