@@ -84,8 +84,9 @@ def submit_models(models: List[Union[Project, File, Version]]):
     #                         kwargs={"file": model.model_dump(), "checked": False},
     #                         queue_name="file_cdn_cache",
     #                     )
-    log.debug(f"Submited: {len(models)}")
-    mongodb_engine.save_all(models)
+    if len(models) != 0:
+        log.debug(f"Submited: {len(models)}")
+        mongodb_engine.save_all(models)
 
 
 def should_retry(retries_so_far, exception):
