@@ -2,7 +2,7 @@
 
 ![mcim](https://socialify.git.ci/mcmod-info-mirror/mcim/image?description=1&font=Inter&issues=1&language=1&name=1&owner=1&pattern=Overlapping%20Hexagons&pulls=1&stargazers=1&theme=Auto)
 
-为各平台的 Mod 的缓存加速，由 [MCLF-CN #3](https://github.com/MCLF-CN/docs/issues/3) 提议，由[鸣谢列表](#鸣谢)内的各位提供支持
+为各平台的 Mod 的缓存加速，由 [MCLF-CN #3](https://github.com/MCLF-CN/docs/issues/3) 提议，由[鸣谢列表](#鸣谢)内的各位提供支持~
 
 基于 [BMCLAPI](https://bmclapidoc.bangbang93.com) 使用网盘缓存的先例，当前文件缓存在试运行...
 
@@ -12,7 +12,6 @@
 
 - [API](https://mod.mcimirror.top)
 - [Docs](https://mod.mcimirror.top/docs)
-- [Status](https://status.mcimirror.top)
 
 ## 接入
 
@@ -20,9 +19,9 @@
 
 ## 使用
 
-以下所有内容均建立在已经能够成功从官方源下载数据的基础上，不了解的话请前往 [CFCore](https://docs.curseforge.com) 和 [Modrinth Docs](https://docs.modrinth.com) 参考。
+以下所有内容均建立在熟悉官方 API 的基础上，不了解的话请前往 [CFCore](https://docs.curseforge.com) 和 [Modrinth Docs](https://docs.modrinth.com) 参考。
 
-MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便迁移，可以直接替换，具体可以比对 [Docs](https://mod.mcimirror.top/docs)，你可以直接在里面尝试。
+MCIM 100% 兼容官方的 API 结构，可以直接替换，方便迁移，可以直接替换，具体可以比对 [Docs](https://mod.mcimirror.top/docs)，你可以在里面尝试。
 
 ### Modrinth
 
@@ -87,7 +86,7 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
 
 ### 当前过期策略
 
-**近期会修改过期策略，或将改为主动定时更新，无视时限**
+**当前为定时更新，以下过期策略已经失效，定时更新见 [mcim-sync](https://github.com/mcmod-info-mirror/mcim-sync）**
 
 ```json
 {
@@ -115,21 +114,21 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
 
 缓存统计信息见 https://mod.mcimirror.top/statistics
 
-2024/10/13 当前已缓存
+2024/10/27 当前已缓存
 ```json
 {
     "curseforge": {
-        "mod": 19815,
-        "file": 733592,
-        "fingerprint": 732883
+        "mod": 67870,
+        "file": 1211689,
+        "fingerprint": 1210657
     },
     "modrinth": {
-        "project": 26976,
-        "version": 320106,
-        "file": 356316
+        "project": 42155,
+        "version": 407966,
+        "file": 450655
     },
     "file_cdn": {
-        "file": 590959
+        "file": 891703
     }
 }
 ```
@@ -144,11 +143,10 @@ MCIM 的目标是 100% 兼容官方的 API 结构，可以直接替换，方便�
 
 ## 鸣谢
 
-- [Mr.yang](https://github.com/YangHaoNing-CN) 提供网盘等
-- [八蓝米](https://github.com/8Mi-Tech) 提供网盘等
 - [Pysio](https://github.com/pysio2007) 提供 CDN 和域名
 - [BangBang93](https://blog.bangbang93.com/) 提供服务器
 - [SaltWood_233](https://github.com/SALTWOOD) 提供文件分发主控技术支持
+- [为 OpenMCIM 提供节点支持的各位](https://files.mcimirror.top/dashboard/rank)
 
 ## 联系
 
