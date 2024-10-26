@@ -166,5 +166,6 @@ MCIM 是一个镜像服务平台，旨在为中国大陆用户提供稳定的 Mo
 4. **禁止二次封装协议**  
    禁止在 MCIM 上对接口进行二次封装。
 
-如有违反上述协议，MCIM 保留采取必要措施或终止服务的权利。
+如有违反上述内容，MCIM 保留采取必要措施或终止服务的权利。
 
+NOT AN OFFICIAL MINECRAFT SERVICE. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT. 不是 Minecraft 官方服务。未经 Mojang 或 MICROSOFT 批准或与 MOJANG 或 MICROSOFT 相关。
