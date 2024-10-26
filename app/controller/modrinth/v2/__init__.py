@@ -98,10 +98,10 @@ async def modrinth_project(idslug: str, request: Request):
         model.sync_at.timestamp() + mcim_config.expire_second.modrinth.project
         < time.time()
     ):
-        sync_project.send(idslug)
-        log.debug(
-            f"Project {idslug} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
-        )
+        # sync_project.send(idslug)
+        # log.debug(
+        #     f"Project {idslug} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        # )
         trustable = False
     return TrustableResponse(content=model.model_dump(), trustable=trustable)
 
@@ -149,14 +149,16 @@ async def modrinth_projects(ids: str, request: Request):
             model.sync_at.timestamp() + mcim_config.expire_second.modrinth.project
             < time.time()
         ):
-            expire_project_ids.append(model.id)
-            log.debug(
-                f"Project {model.id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
-            )
-    if expire_project_ids:
-        sync_multi_projects.send(project_ids=expire_project_ids)
-        log.debug(f"Projects {expire_project_ids} expire, send sync task.")
-        trustable = False
+            trustable = False
+            break
+            # expire_project_ids.append(model.id)
+            # log.debug(
+            #     f"Project {model.id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+            # )
+    # if expire_project_ids:
+        # sync_multi_projects.send(project_ids=expire_project_ids)
+        # log.debug(f"Projects {expire_project_ids} expire, send sync task.")
+        # trustable = False
     return TrustableResponse(
         content=[model.model_dump() for model in models], trustable=trustable
     )
@@ -192,10 +194,10 @@ async def modrinth_project_versions(idslug: str, request: Request):
             + mcim_config.expire_second.modrinth.project
             < time.time()
         ):
-            sync_project.send(idslug)
-            log.debug(
-                f"Project {idslug} expire, send sync task, sync_at: {project_model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
-            )
+            # sync_project.send(idslug)
+            # log.debug(
+            #     f"Project {idslug} expire, send sync task, sync_at: {project_model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+            # )
             trustable = False
 
         version_list = project_model.versions
@@ -313,10 +315,10 @@ async def modrinth_version(
         model.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
         < time.time()
     ):
-        sync_version.send(version_id=version_id)
-        log.debug(
-            f"Version {version_id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
-        )
+        # sync_version.send(version_id=version_id)
+        # log.debug(
+        #     f"Version {version_id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        # )
         # return Response(status_code=EXPIRE_STATUS_CODE)
         trustable = False
     return TrustableResponse(content=model.model_dump(), trustable=trustable)
@@ -350,20 +352,22 @@ async def modrinth_versions(ids: str, request: Request):
             f"Versions {ids_list} {models_count}/{ids_count} not completely found, send sync task."
         )
         trustable = False
-    expire_version_ids = []
+    # expire_version_ids = []
     for model in models:
         if (
             model.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
             < time.time()
         ):
-            expire_version_ids.append(model.id)
-            log.debug(
-                f"Version {model.id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
-            )
-    if expire_version_ids:
-        sync_multi_versions.send(version_ids=expire_version_ids)
-        log.debug(f"Versions {expire_version_ids} expire, send sync task.")
-        trustable = False
+            trustable = False
+            break
+            # expire_version_ids.append(model.id)
+            # log.debug(
+            #     f"Version {model.id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+            # )
+    # if expire_version_ids:
+    #     sync_multi_versions.send(version_ids=expire_version_ids)
+    #     log.debug(f"Versions {expire_version_ids} expire, send sync task.")
+    #     trustable = False
     return TrustableResponse(
         content=[model.model_dump() for model in models], trustable=trustable
     )
@@ -424,10 +428,10 @@ async def modrinth_file(
         version.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
         < time.time()
     ):
-        sync_version.send(version_id=file.version_id)
-        log.debug(
-            f"Version {file.version_id} expire, send sync task, sync_at: {version.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
-        )
+        # sync_version.send(version_id=file.version_id)
+        # log.debug(
+        #     f"Version {file.version_id} expire, send sync task, sync_at: {version.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        # )
         trustable = False
 
     return TrustableResponse(content=version, trustable=trustable)
@@ -566,10 +570,10 @@ async def modrinth_file_update(
             + mcim_config.expire_second.modrinth.file
             > time.time()
         ):
-            sync_project.send(project_id=version_result["project_id"])
-            log.debug(
-                f"Project {version_result['project_id']} expired, send sync task."
-            )
+            # sync_project.send(project_id=version_result["project_id"])
+            # log.debug(
+            #     f"Project {version_result['project_id']} expired, send sync task."
+            # )
             trustable = False
     else:
         sync_hash.send(hash=hash_, algorithm=algorithm.value)
@@ -642,7 +646,7 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
     else:
         # check expire
         resp = {}
-        project_ids_to_sync = set()
+        # project_ids_to_sync = set()
         for version_result in versions_result:
             original_hash = version_result["_id"]
             version_detail = version_result["detail"]
@@ -654,11 +658,11 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
                 + mcim_config.expire_second.modrinth.file
                 > time.time()
             ):
-                project_ids_to_sync.add(version_detail["project_id"])
+                # project_ids_to_sync.add(version_detail["project_id"])
                 trustable = False
-        if len(project_ids_to_sync) != 0:
-            sync_multi_projects.send(project_ids=list(project_ids_to_sync))
-            log.debug(f"Project {project_ids_to_sync} expired, send sync task.")
+        # if len(project_ids_to_sync) != 0:
+        #     sync_multi_projects.send(project_ids=list(project_ids_to_sync))
+        #     log.debug(f"Project {project_ids_to_sync} expired, send sync task.")
         return TrustableResponse(content=resp, trustable=trustable)
 
 
