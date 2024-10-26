@@ -202,10 +202,10 @@ async def curseforge_mod(modId: int, request: Request):
         mod_model.sync_at.timestamp() + mcim_config.expire_second.curseforge.mod
         < time.time()
     ):
-        sync_mod.send(modId=modId)
-        log.debug(
-            f'modId: {modId} expired, send sync task, sync_at {mod_model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
-        )
+        # sync_mod.send(modId=modId)
+        # log.debug(
+        #     f'modId: {modId} expired, send sync task, sync_at {mod_model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
+        # )
         trustable = False
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=mod_model).model_dump(), trustable=trustable
@@ -262,14 +262,14 @@ async def curseforge_mods(item: modIds_item, request: Request):
             < time.time()
         ):
             expire_modid.append(model.id)
-            log.debug(
-                f'modId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
-            )
+            # log.debug(
+            #     f'modId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
+            # )
         content.append(model.model_dump())
     if expire_modid:
         trustable = False
-        sync_mutil_mods.send(modIds=expire_modid)
-        log.debug(f"modIds: {expire_modid} expired, send sync task.")
+        # sync_mutil_mods.send(modIds=expire_modid)
+        # log.debug(f"modIds: {expire_modid} expired, send sync task.")
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=content).model_dump(),
         trustable=trustable,
@@ -452,24 +452,26 @@ async def curseforge_files(item: fileIds_item, request: Request):
     elif len(file_models) != len(item.fileIds):
         sync_mutil_files.send(fileIds=item.fileIds)
         trustable = False
-    content = []
-    expire_fileid: List[int] = []
+    # content = []
+    # expire_fileid: List[int] = []
     for model in file_models:
         # expire
         if (
             model.sync_at.timestamp() + mcim_config.expire_second.curseforge.file
             < time.time()
         ):
-            expire_fileid.append(model.id)
-            log.debug(
-                f'fileId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
-            )
-        content.append(model.model_dump())
-    if expire_fileid:
-        sync_mutil_files.send(fileIds=expire_fileid)
-        trustable = False
+            trustable = False
+            
+            # expire_fileid.append(model.id)
+            # log.debug(
+            #     f'fileId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
+            # )
+        # content.append(model.model_dump())
+    # if expire_fileid:
+        # sync_mutil_files.send(fileIds=expire_fileid)
+        # trustable = False
     return TrustableResponse(
-        content=CurseforgeBaseResponse(data=content).model_dump(),
+        content=CurseforgeBaseResponse(data=file_models),
         trustable=trustable,
     )
 
@@ -496,10 +498,10 @@ async def curseforge_mod_file(modId: int, fileId: int, request: Request):
         model.sync_at.timestamp() + mcim_config.expire_second.curseforge.file
         < time.time()
     ):
-        sync_file.send(modId=modId, fileId=fileId)
-        log.debug(
-            f'modId: {modId} fileId: {fileId} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
-        )
+        # sync_file.send(modId=modId, fileId=fileId)
+        # log.debug(
+        #     f'modId: {modId} fileId: {fileId} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
+        # )
         trustable = False
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=model).model_dump(),
