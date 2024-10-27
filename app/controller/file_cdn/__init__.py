@@ -133,7 +133,7 @@ if mcim_config.file_cdn:
                         sha1, request
                     )
                     if open93home_response:
-                        log.info(f"Redirect to open93home {sha1}")
+                        log.debug(f"Redirect to open93home {sha1}")
                         FILE_CDN_FORWARD_TO_OPEN93HOME_COUNT.labels("modrinth").inc()
                         return open93home_response
                     else:
@@ -253,7 +253,7 @@ if mcim_config.file_cdn:
                         sha1, request
                     )
                     if open93home_response:
-                        log.info(f"Redirect to open93home {sha1}")
+                        log.debug(f"Redirect to open93home {sha1}")
                         FILE_CDN_FORWARD_TO_OPEN93HOME_COUNT.labels("curseforge").inc()
                         return open93home_response
                     else:
