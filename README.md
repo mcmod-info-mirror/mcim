@@ -99,7 +99,7 @@ MCIM 100% 兼容官方的 API 结构，可以直接替换，方便迁移，可�
 
 缓存统计信息见 https://mod.mcimirror.top/statistics
 
-2024/10/27 当前已缓存
+2024/11/03 当前已缓存
 ```json
 {
     "curseforge": {
