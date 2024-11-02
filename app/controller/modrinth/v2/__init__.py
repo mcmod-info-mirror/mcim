@@ -94,15 +94,15 @@ async def modrinth_project(idslug: str, request: Request):
         return UncachedResponse()
     elif model.found == False:
         return UncachedResponse()
-    elif (
-        model.sync_at.timestamp() + mcim_config.expire_second.modrinth.project
-        < time.time()
-    ):
+    # elif (
+    #     model.sync_at.timestamp() + mcim_config.expire_second.modrinth.project
+    #     < time.time()
+    # ):
         # sync_project.send(idslug)
         # log.debug(
         #     f"Project {idslug} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
         # )
-        trustable = False
+        # trustable = False
     return TrustableResponse(content=model.model_dump(), trustable=trustable)
 
 
@@ -144,13 +144,13 @@ async def modrinth_projects(ids: str, request: Request):
     # check expire
     # TODO: 直接根据日期查询，不在后端对比
     expire_project_ids = []
-    for model in models:
-        if (
-            model.sync_at.timestamp() + mcim_config.expire_second.modrinth.project
-            < time.time()
-        ):
-            trustable = False
-            break
+    # for model in models:
+    #     if (
+    #         model.sync_at.timestamp() + mcim_config.expire_second.modrinth.project
+    #         < time.time()
+    #     ):
+    #         trustable = False
+    #         break
             # expire_project_ids.append(model.id)
             # log.debug(
             #     f"Project {model.id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
@@ -189,16 +189,16 @@ async def modrinth_project_versions(idslug: str, request: Request):
         log.debug(f"Project {idslug} not found, send sync task.")
         return UncachedResponse()
     else:
-        if (
-            project_model.sync_at.timestamp()
-            + mcim_config.expire_second.modrinth.project
-            < time.time()
-        ):
-            # sync_project.send(idslug)
-            # log.debug(
-            #     f"Project {idslug} expire, send sync task, sync_at: {project_model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
-            # )
-            trustable = False
+        # if (
+        #     project_model.sync_at.timestamp()
+        #     + mcim_config.expire_second.modrinth.project
+        #     < time.time()
+        # ):
+        #     # sync_project.send(idslug)
+        #     # log.debug(
+        #     #     f"Project {idslug} expire, send sync task, sync_at: {project_model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        #     # )
+        #     trustable = False
 
         version_list = project_model.versions
         version_model_list: Optional[List[Version]] = (
@@ -311,16 +311,16 @@ async def modrinth_version(
         return UncachedResponse()
     elif model.found == False:
         return UncachedResponse()
-    elif (
-        model.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
-        < time.time()
-    ):
-        # sync_version.send(version_id=version_id)
-        # log.debug(
-        #     f"Version {version_id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
-        # )
-        # return Response(status_code=EXPIRE_STATUS_CODE)
-        trustable = False
+    # elif (
+    #     model.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
+    #     < time.time()
+    # ):
+    #     # sync_version.send(version_id=version_id)
+    #     # log.debug(
+    #     #     f"Version {version_id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+    #     # )
+    #     # return Response(status_code=EXPIRE_STATUS_CODE)
+    #     trustable = False
     return TrustableResponse(content=model.model_dump(), trustable=trustable)
 
 
@@ -353,13 +353,13 @@ async def modrinth_versions(ids: str, request: Request):
         )
         trustable = False
     # expire_version_ids = []
-    for model in models:
-        if (
-            model.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
-            < time.time()
-        ):
-            trustable = False
-            break
+    # for model in models:
+    #     if (
+    #         model.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
+    #         < time.time()
+    #     ):
+    #         trustable = False
+    #         break
             # expire_version_ids.append(model.id)
             # log.debug(
             #     f"Version {model.id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
@@ -424,15 +424,15 @@ async def modrinth_file(
         sync_version.send(version_id=file.version_id)
         log.debug(f"Version {file.version_id} not found, send sync task.")
         return UncachedResponse()
-    elif (
-        version.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
-        < time.time()
-    ):
-        # sync_version.send(version_id=file.version_id)
-        # log.debug(
-        #     f"Version {file.version_id} expire, send sync task, sync_at: {version.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
-        # )
-        trustable = False
+    # elif (
+    #     version.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
+    #     < time.time()
+    # ):
+    #     # sync_version.send(version_id=file.version_id)
+    #     # log.debug(
+    #     #     f"Version {file.version_id} expire, send sync task, sync_at: {version.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+    #     # )
+    #     trustable = False
 
     return TrustableResponse(content=version, trustable=trustable)
 
