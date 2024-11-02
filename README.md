@@ -86,7 +86,9 @@ MCIM 100% 兼容官方的 API 结构，可以直接替换，方便迁移，可�
 
 ### 当前过期策略
 
-**当前为定时更新，以下过期策略已经失效，定时更新见 [mcim-sync](https://github.com/mcmod-info-mirror/mcim-sync）**
+**当前为定时更新，以下过期策略已经失效，定时更新见 [mcim-sync](https://github.com/mcmod-info-mirror/mcim-sync)**
+
+同步日志见 Telegram 频道：https://t.me/mcim_sync
 
 ```json
 {
