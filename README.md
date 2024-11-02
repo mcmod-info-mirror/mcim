@@ -12,6 +12,7 @@
 
 - [API](https://mod.mcimirror.top)
 - [Docs](https://mod.mcimirror.top/docs)
+- 同步日志见 Telegram 频道：https://t.me/mcim_sync
 
 ## 接入
 
@@ -74,36 +75,18 @@ MCIM 100% 兼容官方的 API 结构，可以直接替换，方便迁移，可�
 
 ## 缓存思路
 
-由于除了搜索接口是反代，其他都是通过数据库缓存，无法保证一定已缓存，也可能过期。
+定时更新已缓存 Mod 信息，详见 [mcim-sync](https://github.com/mcmod-info-mirror/mcim-sync)**
 
-基本思路为 **忽视数据是否过期**，以及 **忽略数据是否不全**，无条件返回已有数据，在过期、未找到等情况下先返回数据，然后后台拉取源站。
+已缓存 **绝大多数** 符合条件的 Modrinth 和 Curseforge 上的 Mod。
+
+由于除了搜索接口是反代，其他都是通过数据库缓存，无法保证一定所需数据已缓存，也可能过期。
+
+基本思路为 **忽视数据是否过期**，以及 **忽略数据是否不全**，无条件返回已有数据，在部分 Mod 未找到等情况下先返回数据，然后后台拉取源站。
 
 不可信的响应将在 `headers` 内提供 `Trustable` 参数，提供 `sync_at` 缓存时间
 
-关于文件缓存，不会缓存**除 Mod 外**的整合包、资源包、材质包、地图等，以及文件大小大于 **20M** 的文件，curseforge 的类型限制为 `classId=6`，该限制会被可能更改。
+关于文件缓存，不会缓存**除 Mod 外**的整合包、资源包、材质包、地图等，以及文件大小大于 **20M** 的文件，Curseforge 的类型限制为 `classId=6`，该限制会被可能根据需求更改。
 
-已缓存符合条件的所有 Modrinth 上的 Mod，Curseforge 技术受限正在缓慢添加。
-
-### 当前过期策略
-
-**当前为定时更新，以下过期策略已经失效，定时更新见 [mcim-sync](https://github.com/mcmod-info-mirror/mcim-sync)**
-
-同步日志见 Telegram 频道：https://t.me/mcim_sync
-
-```json
-{
-    "expire_second": {
-        "curseforge": {
-            "mod": 259200,
-            "search": 7200,
-        },
-        "modrinth": {
-            "project": 259200,
-            "search": 7200,
-        }
-    }
-}
-```
 ## 注意事项
 
 **文件**下载可能存在一定的不稳定性，当前缺少多节点网盘的分流，建议启动器在未能成功下载的情况下才尝试使用镜像源。
@@ -120,17 +103,17 @@ MCIM 100% 兼容官方的 API 结构，可以直接替换，方便迁移，可�
 ```json
 {
     "curseforge": {
-        "mod": 67870,
-        "file": 1211689,
-        "fingerprint": 1210657
+        "mod": 75608,
+        "file": 1265295,
+        "fingerprint": 1264242
     },
     "modrinth": {
-        "project": 42155,
-        "version": 407966,
-        "file": 450655
+        "project": 42832,
+        "version": 415463,
+        "file": 458875
     },
     "file_cdn": {
-        "file": 891703
+        "file": 924555
     }
 }
 ```
