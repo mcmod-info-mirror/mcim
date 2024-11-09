@@ -16,14 +16,9 @@ from app.utils.response import BaseResponse
 from app.utils.network import ResponseCodeException
 from app.utils.network import request as request_async
 
-# from app.sync.modrinth import file_cdn_cache_add_task as mr_file_cdn_cache_add_task
-# from app.sync.curseforge import file_cdn_cache_add_task as cf_file_cdn_cache_add_task
-# from app.sync.curseforge import file_cdn_cache as cf_file_cdn_cache
-# from app.sync.modrinth import file_cdn_cache as mr_file_cdn_cache
 from app.sync.modrinth import sync_project
 from app.sync.curseforge import sync_mutil_files
 from app.utils.metric import (
-    # FILE_CDN_FORWARD_TO_ALIST_COUNT,
     FILE_CDN_FORWARD_TO_ORIGIN_COUNT,
     FILE_CDN_FORWARD_TO_OPEN93HOME_COUNT,
 )
@@ -37,7 +32,6 @@ file_cdn_router = APIRouter()
 
 FILE_CDN_REDIRECT_MODE = mcim_config.file_cdn_redirect_mode
 
-ARIA2_ENABLED: bool = mcim_config.aria2
 MAX_AGE = int(60 * 60 * 2.5)
 
 CDN_MAX_AGE = int(60 * 60 * 2.8)
@@ -139,56 +133,6 @@ if mcim_config.file_cdn:
                     else:
                         log.warning(f"Open93Home not found {sha1}")
                         return return_origin_response()
-                elif FILE_CDN_REDIRECT_MODE == FileCDNRedirectMode.ALIST:
-                    log.error(
-                        f"FILE_CDN_REDIRECT_MODE: {FILE_CDN_REDIRECT_MODE} has been deprecated, use ORIGIN MODE instead."
-                    )
-                    return return_origin_response()
-                    # alist_url = (
-                    #     f"{mcim_config.alist_endpoint}/modrinth/{sha1[:2]}/{sha1}"
-                    # )
-                    # if file.file_cdn_cached:
-                    #     # 存在于网盘中
-                    #     try:
-                    #         alist_res = await request_async(
-                    #             method="HEAD",
-                    #             url=alist_url,
-                    #             ignore_status_code=True,
-                    #             timeout=TIMEOUT,
-                    #         )
-                    #         raw_url = alist_res.headers.get("Location")
-                    #         if raw_url:
-                    #             if 400 > alist_res.status_code > 200:
-                    #                 expires_date = get_http_date()
-                    #                 log.info(f"Redirect to {raw_url}")
-                    #                 FILE_CDN_FORWARD_TO_ALIST_COUNT.labels(
-                    #                     "modrinth"
-                    #                 ).inc()
-                    #                 return RedirectResponse(
-                    #                     url=raw_url,
-                    #                     headers={
-                    #                         "Cache-Control": "public",
-                    #                         "Expires": expires_date,
-                    #                     },
-                    #                 )
-                    #     except (
-                    #         httpx.ConnectError,
-                    #         httpx.TimeoutException,
-                    #         ResponseCodeException,
-                    #     ) as e:
-                    #         log.error(f"Failed: {alist_url} {e}")
-                    # else:
-                    #     # 文件不存在
-                    #     if ARIA2_ENABLED:
-                    #         mr_file_cdn_cache_add_task.send(file.model_dump())
-                    #         log.debug(
-                    #             f"file cache not found, {alist_url} send with aria2 mode."
-                    #         )
-                    #     else:
-                    #         mr_file_cdn_cache.send(file.model_dump())
-                    #         log.debug(
-                    #             f"file cache not found, {alist_url} send with normal mode."
-                    #         )
                 else:  # FILE_CDN_REDIRECT_MODE == FileCDNRedirectMode.ORIGIN: # default
                     return return_origin_response()
         else:
@@ -259,66 +203,6 @@ if mcim_config.file_cdn:
                     else:
                         log.warning(f"Open93Home not found {sha1}")
                         return return_origin_response()
-                elif FILE_CDN_REDIRECT_MODE == FileCDNRedirectMode.ALIST:
-                    log.error(
-                        f"FILE_CDN_REDIRECT_MODE: {FILE_CDN_REDIRECT_MODE} has been deprecated, use ORIGIN MODE instead."
-                    )
-                    return return_origin_response()
-                    # alist_url = (
-                    #     f"{mcim_config.alist_endpoint}/curseforge/{sha1[:2]}/{sha1}"
-                    # )
-                    # if file.file_cdn_cached:
-                    #     # 存在于网盘中
-                    #     try:
-                    #         alist_res = await request_async(
-                    #             method="HEAD",
-                    #             url=alist_url,
-                    #             ignore_status_code=True,
-                    #             timeout=TIMEOUT,
-                    #         )
-                    #         raw_url = alist_res.headers.get("Location")
-                    #         if raw_url:
-                    #             if 400 > alist_res.status_code > 200:
-                    #                 expires_date = get_http_date()
-                    #                 log.info(f"Redirect to {raw_url}")
-                    #                 FILE_CDN_FORWARD_TO_ALIST_COUNT.labels(
-                    #                     "curseforge"
-                    #                 ).inc()
-                    #                 return RedirectResponse(
-                    #                     url=raw_url,
-                    #                     headers={
-                    #                         "Cache-Control": "public",
-                    #                         "Expires": expires_date,
-                    #                     },
-                    #                 )
-                    #             else:
-                    #                 log.debug(
-                    #                     f"Failed: alist_res: {alist_res.__dict__}"
-                    #                 )
-                    #     except (
-                    #         httpx.ConnectError,
-                    #         httpx.TimeoutException,
-                    #         ResponseCodeException,
-                    #     ) as e:
-                    #         log.error(f"Failed: {alist_url} {e}")
-                    # else:
-                    #     # if not file.need_to_cache:
-                    #     #     return RedirectResponse(
-                    #     #         url=file.downloadUrl,
-                    #     #         headers={
-                    #     #             "Cache-Control": "public, max-age=31536000"
-                    #     #         },  # 我就没打算存你
-                    #     #     )
-                    #     if ARIA2_ENABLED:
-                    #         cf_file_cdn_cache_add_task.send(file.model_dump())
-                    #         log.debug(
-                    #             f"file cache not found, {alist_url} send with aria2 mode."
-                    #         )
-                    #     else:
-                    #         cf_file_cdn_cache.send(file.model_dump())
-                    #         log.debug(
-                    #             f"file cache not found, {alist_url} send with normal mode."
-                    #         )
                 else:  # FILE_CDN_REDIRECT_MODE == FileCDNRedirectMode.ORIGIN:
                     return return_origin_response()
             else:

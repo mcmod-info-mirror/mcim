@@ -13,9 +13,7 @@ from app.database.mongodb import setup_async_mongodb, init_mongodb_aioengine
 from app.database._redis import (
     init_redis_aioengine,
     close_aio_redis_engine,
-    # init_file_cdn_redis_async_engine,
 )
-from app.utils.webdav import init_webdav
 from app.utils.response_cache import Cache
 from app.utils.response_cache import cache
 from app.utils.response import BaseResponse
@@ -23,25 +21,6 @@ from app.utils.middleware import ForceSyncMiddleware, TimingMiddleware, EtagMidd
 from app.utils.metric import init_prometheus_metrics
 
 mcim_config = MCIMConfig.load()
-
-
-def init_file_cdn():
-    client, fs = init_webdav()
-    if not fs.exists(mcim_config.modrinth_download_path):
-        fs.makedirs(mcim_config.modrinth_download_path)
-        for i in range(256):
-            fs.makedirs(
-                os.path.join(mcim_config.modrinth_download_path, format(i, "02x")),
-            )
-    if not fs.exists(mcim_config.curseforge_download_path):
-        fs.makedirs(mcim_config.curseforge_download_path)
-        for i in range(256):
-            fs.makedirs(
-                os.path.join(mcim_config.curseforge_download_path, format(i, "02x")),
-            )
-    log.success("File CDN enabled, cache folder ready.")
-    log.info(f"File CDN redirect mode: {mcim_config.file_cdn_redirect_mode}")
-    return client, fs
 
 
 @asynccontextmanager
@@ -53,12 +32,6 @@ async def lifespan(app: FastAPI):
 
     if mcim_config.redis_cache:
         app.state.fastapi_cache = Cache.init(enabled=True)
-
-    if mcim_config.file_cdn and mcim_config.file_cdn_redirect_mode.value == "alist":
-        client, fs = init_file_cdn()
-        app.state.webdav_client = client
-        app.state.webdav_fs = fs
-        # app.state.file_cdn_redis_async_engine = init_file_cdn_redis_async_engine()
 
     yield
 

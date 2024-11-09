@@ -13,7 +13,6 @@ SYNC_REDIS_CONFIG_PATH = os.path.join(CONFIG_PATH, "sync_redis.json")
 class RedisDatabaseModel(BaseModel):
     tasks_queue: int = 0  # dramatiq tasks
     info_cache: int = 1  # response_cache and static info
-    file_cdn: int = 2  # file cdn
     rate_limit: int = 3  # rate limit
 
 

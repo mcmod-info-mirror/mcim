@@ -31,8 +31,6 @@ class ExpireSecond(BaseModel):
     modrinth: Modrinth = Modrinth()
 
 class FileCDNRedirectMode(str, Enum):
-    # 重定向到alist
-    ALIST = "alist"
     # 重定向到原始链接
     ORIGIN = "origin"
     # 重定向到 open93home
@@ -50,17 +48,13 @@ class MCIMConfigModel(BaseModel):
     proxies: Optional[str] = None
 
     file_cdn: bool = False
-    file_cdn_redirect_mode: FileCDNRedirectMode = FileCDNRedirectMode.ALIST
+    file_cdn_redirect_mode: FileCDNRedirectMode = FileCDNRedirectMode.ORIGIN
     file_cdn_secret: str = "secret"
     max_file_size: int = 1024 * 1024 * 20
-    aria2: bool = False
-    modrinth_download_path: str = "/modrinth"
-    curseforge_download_path: str = "/curseforge"
 
     prometheus: bool = False
 
     redis_cache: bool = True
-    alist_endpoint: str = "http://127.0.0.1:5244"
     open93home_endpoint: str = "http://open93home"
 
     expire_second: ExpireSecond = ExpireSecond()

@@ -12,8 +12,6 @@ from typing import Optional, Union
 from app.exceptions import ApiException, ResponseCodeException
 from app.config.mcim import MCIMConfig
 from app.utils.loger import log
-from app.utils.webdav import fs
-from app.utils.webdav import client as webdav_client
 
 mcim_config = MCIMConfig.load()
 
@@ -180,92 +178,3 @@ async def request(
                 msg=res.text,
             )
     return res
-
-
-@retry(
-    stop=stop_after_attempt(RETRY_TIMES),
-    reraise=True,
-)
-def download_file_sync(
-    url: str,
-    path: Optional[str] = None,
-    hash_: Optional[dict] = {},
-    algo: Optional[str] = None,
-    size: Optional[int] = None,
-    ignore_exist: bool = True,
-):
-    """
-    下载文件
-
-    path: /data/curseforge
-
-    hash_: {"sha1": "xxx", "md5": "xxx", "sha512": "xxx"}
-    """
-    sha1 = hashlib.sha1()
-    if not hash_:
-        sha512 = hashlib.sha512()
-        md5 = hashlib.md5()
-    if not ignore_exist and hash_:
-        raw_path = os.path.join(path, hash_["sha1"][:2], hash_["sha1"])
-        # 直接查看 info 减少一次 PROPFIND
-        # if fs.exists(raw_path):
-        #     # check size
-        #     if fs.info(raw_path)["size"] == size:
-        #         log.debug(f"File {path} exists {raw_path}")
-        #         return
-        try:
-            file_info = fs.info(raw_path)
-            # check size
-            if file_info["size"] == size:
-                log.debug(f"File {path} exists {raw_path}")
-                return
-        except FileNotFoundError:
-            pass
-        except Exception as e:
-            log.error(f"Error while checking file {raw_path}: {e}")
-    log.debug(f"Downloading file from {url}")
-    client = get_session()
-    # temfile 不能读？？？
-    # with tempfile.NamedTemporaryFile() as f:
-    tmp_file_name = f"/tmp/{uuid.uuid4()}"
-    log.trace(f"Temporary file {tmp_file_name} created")
-    try:
-        with open(tmp_file_name, "wb") as f:
-            with client.stream(
-                "GET", url, timeout=30, follow_redirects=True
-            ) as response:
-                for chunk in response.iter_bytes(1024):
-                    f.write(chunk)
-                    sha1.update(chunk)
-                    if not hash_:
-                        md5.update(chunk)
-                        sha512.update(chunk)
-        log.debug(f"Downloaded file from {url} to {f.name}")
-        if "sha1" in hash_:
-            if hash_["sha1"] != sha1.hexdigest():
-                raise Exception("Hash verification failed")
-            else:
-                log.debug(f"Hash verification passed, file {f.name} -> {hash_['sha1']}")
-        if not hash_:
-            hash_["md5"] = md5.hexdigest()
-            hash_["sha512"] = sha512.hexdigest()
-
-        raw_path = os.path.join(path, hash_["sha1"][:2], hash_["sha1"])
-        # shutil.move(tmp_file_path, raw_path)
-        # # verify hash
-        # if not verify_hash(f.name, hash_["sha1"], "sha1"):
-        #     raise Exception("Hash verification failed")
-        # else:
-        #     log.debug(f"Hash verification passed, file {f.name} -> {hash_['sha1']}")
-        log.debug(f"Uploading file {url} to {raw_path}")
-        # fs.upload_fileobj(f, raw_path, overwrite=True, size=size)
-        webdav_client.upload_file(tmp_file_name, raw_path, overwrite=True)
-        log.debug(f"Uploaded file from {url} to {raw_path}")
-        return hash_
-    except Exception as e:
-        log.error(f"Error while downloading file from {url}: {e}")
-        log.exception(e)
-        raise e
-    finally:
-        os.remove(tmp_file_name)
-        log.trace(f"Temporary file {tmp_file_name} removed")

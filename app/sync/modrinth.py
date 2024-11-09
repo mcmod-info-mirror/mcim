@@ -29,20 +29,15 @@ from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
 from app.sync import (
     MODRINTH_LIMITER,
-    # MODRINTH_FILE_CDN_LIMITER,
-    # file_cdn_redis_broker,
-)  # file_cdn_redis_sync_engine,
+)
 from app.models.database.modrinth import Project, File, Version
 from app.models.database.file_cdn import File as FileCDN
-from app.utils.network import request_sync, download_file_sync
+from app.utils.network import request_sync
 from app.exceptions import ResponseCodeException
-from app.config import MCIMConfig  # , Aria2Config
-
-# from app.utils.aria2 import add_http_task, ARIA2_API
+from app.config import MCIMConfig
 from app.utils.loger import log
 
 mcim_config = MCIMConfig.load()
-# aria2_config = Aria2Config.load()
 
 API = mcim_config.modrinth_api
 MAX_LENGTH = mcim_config.max_file_size
@@ -396,71 +391,3 @@ def sync_tags():
     redis_engine.hset("modrinth", "donation_platform", json.dumps(donation_platform))
     redis_engine.hset("modrinth", "project_type", json.dumps(project_type))
     redis_engine.hset("modrinth", "side_type", json.dumps(side_type))
-
-
-# # file cdn url cache
-# @actor(max_retries=3, retry_when=should_retry, throws=(ResponseCodeException,), min_backoff=1000*60, actor_name="mr_file_cdn_url_cache")
-# @limit
-# def file_cdn_url_cache(url: str, key: str):
-#     res = request_sync(method="HEAD", url=url, ignore_status_code=True)
-#     file_cdn_redis_sync_engine.set(key, res.headers["Location"], ex=int(3600 * 2.8))
-#     log.debug(f"URL cache set [{key}]:[{res.headers['Location']}]")
-
-
-# @actor(
-#     max_retries=3,
-#     retry_when=should_retry,
-#     throws=(ResponseCodeException,),
-#     min_backoff=1000 * 60,
-#     actor_name="mr_file_cdn_cache_add_task",
-# )
-# @limit
-# def file_cdn_cache_add_task(file: dict):
-#     file = File(**file)
-#     sha1 = file.hashes.sha1
-#     download = add_http_task(
-#         url=file.url,
-#         name=sha1,
-#         dir=os.path.join(mcim_config.modrinth_download_path, sha1[:2]),
-#     )
-#     gid = download.gid
-#     while True:
-#         download = ARIA2_API.get_download(gid)
-#         if download.is_waiting or download.is_active:
-#             time.sleep(0.5)
-#         elif download.is_complete:
-#             file.file_cdn_cached = True
-#             mongodb_engine.save(file)
-#             break
-#         elif download.has_failed:
-#             return download.error_message
-
-
-# # 默认 modrinth 提供 hashes 我累了
-# @actor(
-#     max_retries=3,
-#     retry_when=should_retry,
-#     throws=(ResponseCodeException,),
-#     min_backoff=1000 * 60,
-#     actor_name="mr_file_cdn_cache",
-#     queue_name="file_cdn_cache",
-#     broker=file_cdn_redis_broker,
-# )
-# @limit
-# def file_cdn_cache(file: dict, checked: bool = False):
-#     file: File = File(**file)
-#     if file.hashes:
-#         hash_ = {"sha1": file.hashes.sha1}
-#     try:
-#         download_file_sync(
-#             url=file.url,
-#             path=mcim_config.modrinth_download_path,
-#             hash_=hash_,
-#             size=file.size,
-#             ignore_exist=False if not checked else True,
-#         )
-#         file.file_cdn_cached = True
-#         mongodb_engine.save(file)
-#         log.debug(f"Cached file {file.hashes}")
-#     except Exception as e:
-#         log.debug(f"Failed to cache file {file.hashes} {e}")
