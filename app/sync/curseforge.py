@@ -10,7 +10,6 @@ from odmantic import query
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import rabbitmq_broker
 from app.sync import (
     CURSEFORGE_LIMITER,
     # CURSEFORGE_FILE_CDN_LIMITER,

@@ -4,14 +4,12 @@ from app.config.mcim import MCIMConfig
 from app.config.mongodb import MongodbConfig
 from app.config.redis import RedisdbConfig
 from app.config.webdav import WebDavConfig
-from app.config.rabbitmq import RabbitmqConfig
 
 __all__ = [
     "MCIMConfig",
     "MongodbConfig",
     "RedisdbConfig",
     "WebDavConfig",
-    "RabbitmqConfig",
 ]
 
 

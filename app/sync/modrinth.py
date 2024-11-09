@@ -27,7 +27,6 @@ from odmantic import query
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import rabbitmq_broker
 from app.sync import (
     MODRINTH_LIMITER,
     # MODRINTH_FILE_CDN_LIMITER,
@@ -50,40 +49,6 @@ MAX_LENGTH = mcim_config.max_file_size
 
 
 def submit_models(models: List[Union[Project, File, Version]]):
-    # 弃用 alist 同步任务
-    # if mcim_config.file_cdn:
-    #     for model in models:
-    #         if isinstance(model, File):
-    #             if (
-    #                 model.size <= MAX_LENGTH
-    #                 and model.filename
-    #                 and model.url
-    #                 and model.hashes.sha1
-    #             ):
-    #                 models.append(
-    #                     FileCDN(
-    #                         url=model.url,
-    #                         sha1=model.hashes.sha1,
-    #                         size=model.size,
-    #                         mtime=int(time.time()),
-    #                         path=model.hashes.sha1,
-    #                     )
-    #                 )
-    #             if not model.file_cdn_cached and model.size <= MAX_LENGTH:
-    #                 # if not fs.exists(
-    #                 #     os.path.join(
-    #                 #         mcim_config.modrinth_download_path,
-    #                 #         model.hashes.sha1[:2],
-    #                 #         model.hashes.sha1,
-    #                 #     )
-    #                 # ):
-    #                 if mcim_config.aria2:
-    #                     file_cdn_cache_add_task.send(model.model_dump())
-    #                 else:
-    #                     file_cdn_cache.send_with_options(
-    #                         kwargs={"file": model.model_dump(), "checked": False},
-    #                         queue_name="file_cdn_cache",
-    #                     )
     if len(models) != 0:
         log.debug(f"Submited: {len(models)}")
         mongodb_engine.save_all(models)
@@ -100,15 +65,8 @@ def should_retry(retries_so_far, exception):
 # limit decorator
 def limit(func):
     def wrapper(*args, **kwargs):
-        # if func.__name__ == "file_cdn_cache":
-        #     with MODRINTH_FILE_CDN_LIMITER.acquire():
-        #         return func(*args, **kwargs)
-        # else:
-        #     with MODRINTH_LIMITER.acquire():
-        #         return func(*args, **kwargs)
         with MODRINTH_LIMITER.acquire():
             return func(*args, **kwargs)
-
     return wrapper
 
 
