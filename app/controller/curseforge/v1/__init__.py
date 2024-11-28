@@ -255,7 +255,9 @@ async def curseforge_mods(item: modIds_item, request: Request):
             trustable=False,
         )
     elif mod_model_count != item_count:
-        sync_mutil_mods.send(modIds=item.modIds)
+        # 找到不存在的 modid
+        not_match_modids = list(set(item.modIds) - set([mod.id for mod in mod_models]))
+        sync_mutil_mods.send(modIds=not_match_modids)
         log.debug(
             f"modIds: {item.modIds} {mod_model_count}/{item_count} not found, send sync task."
         )
@@ -461,7 +463,9 @@ async def curseforge_files(item: fileIds_item, request: Request):
         sync_mutil_files.send(fileIds=item.fileIds)
         return UncachedResponse()
     elif len(file_models) != len(item.fileIds):
-        sync_mutil_files.send(fileIds=item.fileIds)
+        # 找到不存在的 fileid
+        not_match_fileids = list(set(item.fileIds) - set([file.id for file in file_models]))
+        sync_mutil_files.send(fileIds=not_match_fileids)
         trustable = False
     # content = []
     # expire_fileid: List[int] = []
@@ -566,7 +570,9 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
             Fingerprint, query.in_(Fingerprint.id, item.fingerprints)
         )
     )
-
+    not_match_fingerprints = list(
+            set(item.fingerprints) - set([fingerprint.id for fingerprint in fingerprints_models])
+        )
     if not fingerprints_models:
         sync_fingerprints.send(fingerprints=item.fingerprints)
         trustable = False
@@ -577,7 +583,8 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
             trustable=trustable,
         )
     elif len(fingerprints_models) != len(item.fingerprints):
-        sync_fingerprints.send(fingerprints=item.fingerprints)
+        # 找到不存在的 fingerprint
+        sync_fingerprints.send(fingerprints=not_match_fingerprints)
         trustable = False
     exactFingerprints = []
     result_fingerprints_models = []
@@ -589,18 +596,19 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
         result_fingerprints_models.append(fingerprint)
         exactFingerprints.append(fingerprint_model.id)
     # exactFingerprints = [fingerprint.id for fingerprint in fingerprints_models]
-    unmatchedFingerprints = [
-        fingerprint
-        for fingerprint in item.fingerprints
-        if fingerprint not in exactFingerprints
-    ]
+    # unmatchedFingerprints = [
+    #     fingerprint
+    #     for fingerprint in item.fingerprints
+    #     if fingerprint not in exactFingerprints
+    # ]
     return TrustableResponse(
         content=CurseforgeBaseResponse(
             data=FingerprintResponse(
                 isCacheBuilt=True,
                 exactFingerprints=exactFingerprints,
                 exactMatches=result_fingerprints_models,
-                unmatchedFingerprints=unmatchedFingerprints,
+                # unmatchedFingerprints=unmatchedFingerprints,
+                unmatchedFingerprints=not_match_fingerprints,
                 installedFingerprints=[],
             ).model_dump()
         ),
@@ -628,6 +636,9 @@ async def curseforge_fingerprints_432(item: fingerprints_item, request: Request)
             Fingerprint, query.in_(Fingerprint.id, item.fingerprints)
         )
     )
+    not_match_fingerprints = list(
+            set(item.fingerprints) - set([fingerprint.id for fingerprint in fingerprints_models])
+        )
     if not fingerprints_models:
         sync_fingerprints.send(fingerprints=item.fingerprints)
         trustable = False
@@ -638,7 +649,7 @@ async def curseforge_fingerprints_432(item: fingerprints_item, request: Request)
             trustable=trustable,
         )
     elif len(fingerprints_models) != len(item.fingerprints):
-        sync_fingerprints.send(fingerprints=item.fingerprints)
+        sync_fingerprints.send(fingerprints=not_match_fingerprints)
         trustable = False
     exactFingerprints = []
     result_fingerprints_models = []
@@ -649,18 +660,18 @@ async def curseforge_fingerprints_432(item: fingerprints_item, request: Request)
         fingerprint["id"] = fingerprint_model.file.id
         result_fingerprints_models.append(fingerprint)
         exactFingerprints.append(fingerprint_model.id)
-    unmatchedFingerprints = [
-        fingerprint
-        for fingerprint in item.fingerprints
-        if fingerprint not in exactFingerprints
-    ]
+    # unmatchedFingerprints = [
+    #     fingerprint
+    #     for fingerprint in item.fingerprints
+    #     if fingerprint not in exactFingerprints
+    # ]
     return TrustableResponse(
         content=CurseforgeBaseResponse(
             data=FingerprintResponse(
                 isCacheBuilt=True,
                 exactFingerprints=exactFingerprints,
                 exactMatches=result_fingerprints_models,
-                unmatchedFingerprints=unmatchedFingerprints,
+                unmatchedFingerprints=not_match_fingerprints,
                 installedFingerprints=[],
             ).model_dump()
         ),
