@@ -473,7 +473,11 @@ async def modrinth_files(items: HashesQuery, request: Request):
         log.debug("Files not found, send sync task.")
         return UncachedResponse()
     elif model_count != hashes_count:
-        sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm)
+        # 找出未找到的文件
+        not_found_hashes = list(set(items.hashes) - set(
+            [file.hashes.sha1 if items.algorithm == Algorithm.sha1 else file.hashes.sha512 for file in files_models]
+        ))
+        sync_multi_hashes.send(hashes=not_found_hashes, algorithm=items.algorithm)
         log.debug(
             f"Files {items.hashes} {model_count}/{hashes_count} not completely found, send sync task."
         )
@@ -492,7 +496,11 @@ async def modrinth_files(items: HashesQuery, request: Request):
         log.debug("Versions not found, send sync task.")
         return UncachedResponse()
     elif version_model_count != file_model_count:
-        sync_multi_versions.send(version_ids=version_ids)
+        # 找出未找到的版本
+        not_found_version_ids = list(set(version_ids) - set(
+            [version.id for version in version_models]
+        ))
+        sync_multi_versions.send(version_ids=not_found_version_ids)
         log.debug(
             f"Versions {version_ids} {version_model_count}/{file_model_count} not completely found, send sync task."
         )
@@ -643,10 +651,17 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
         sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm.value)
         log.debug(f"Hashes {items.hashes} not found, send sync task")
         return UncachedResponse()
+    elif len(versions_result) != len(items.hashes):
+        # 找出未找到的文件
+        not_found_hashes = list(set(items.hashes) - set(
+            [version["_id"] for version in versions_result]
+        ))
+        sync_multi_hashes.send(hashes=not_found_hashes, algorithm=items.algorithm.value)
+        log.debug(f"Hashes {items.hashes} not completely found, send sync task.")
+        trustable = False
     else:
         # check expire
         resp = {}
-        # project_ids_to_sync = set()
         for version_result in versions_result:
             original_hash = version_result["_id"]
             version_detail = version_result["detail"]
@@ -658,11 +673,7 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
                 + mcim_config.expire_second.modrinth.file
                 > time.time()
             ):
-                # project_ids_to_sync.add(version_detail["project_id"])
                 trustable = False
-        # if len(project_ids_to_sync) != 0:
-        #     sync_multi_projects.send(project_ids=list(project_ids_to_sync))
-        #     log.debug(f"Project {project_ids_to_sync} expired, send sync task.")
         return TrustableResponse(content=resp, trustable=trustable)
 
 
