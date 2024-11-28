@@ -101,7 +101,7 @@ def sync_project_all_version(
                 <= project.sync_at.timestamp()
                 + mcim_config.expire_second.modrinth.project
             ):
-                log.info(f"Project {project_id} is not expired, pass!")
+                log.debug(f"Project {project_id} is not expired, pass!")
                 return
             elif not slug:
                 slug = project.slug
@@ -169,7 +169,7 @@ def sync_multi_projects_all_version(
                 + mcim_config.expire_second.modrinth.project
             ):
                 project_ids.remove(model.id)
-                log.info(f"Project {model.id} is not expired, pass!")
+                log.debug(f"Project {model.id} is not expired, pass!")
 
     for project_id in project_ids:
         sync_project_all_version(
@@ -232,7 +232,7 @@ def sync_multi_projects(project_ids: List[str]):
         if project_res["id"] in temp_db_projects_updated:
             if temp_db_projects_updated[project_res["id"]] == project_res["updated"]:
                 project_ids.remove(project_res["id"])
-                log.info(f"Project {project_res['id']} is not out-of-date, pass!")
+                log.debug(f"Project {project_res['id']} is not out-of-date, pass!")
 
     models = []
     slugs = {}

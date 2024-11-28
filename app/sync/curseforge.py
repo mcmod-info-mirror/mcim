@@ -131,7 +131,7 @@ def sync_mod_all_files(
                 <= mod_model.sync_at.timestamp()
                 + mcim_config.expire_second.curseforge.mod
             ):
-                log.info(f"Mod {modId} is not expired, pass!")
+                log.debug(f"Mod {modId} is not expired, pass!")
                 return None
     models = []
     if not latestFiles:
@@ -182,7 +182,7 @@ def sync_multi_mods_all_files(modIds: List[int]):
             time.time()
             <= mod_model.sync_at.timestamp() + mcim_config.expire_second.curseforge.mod
         ):
-            log.info(f"Mod {mod_model.id} is not expired, pass!")
+            log.debug(f"Mod {mod_model.id} is not expired, pass!")
             modIds.remove(mod_model.id)
     for modId in modIds:
         sync_mod_all_files(modId, verify_expire=True)
@@ -201,13 +201,13 @@ def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
     res = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()["data"]
     if not res["gameId"] == 432:
-        log.info(f"Mod {modId} is not belong to Minecraft, pass!")
+        log.debug(f"Mod {modId} is not belong to Minecraft, pass!")
         return
     models.append(Mod(found=True, **res))
     mod = mongodb_engine.find_one(Mod, Mod.id == modId)
     if mod is not None:
         if mod.dateReleased == models[0].dateReleased:
-            log.info(f"Mod {modId} is not out-of-date, pass!")
+            log.debug(f"Mod {modId} is not out-of-date, pass!")
             return
     sync_mod_all_files(
         modId,
@@ -237,11 +237,11 @@ def sync_mutil_mods(modIds: List[int]):
     mods_dateReleased_index = {mod.id: mod.dateReleased for mod in mods}
     for mod in res:
         if mod["gameId"] != 432:
-            log.info(f"Mod {mod['id']} is not belong to Minecraft, pass!")
+            log.debug(f"Mod {mod['id']} is not belong to Minecraft, pass!")
         models.append(Mod(found=True, **mod))
         if mods_dateReleased_index.get(mod["id"]) is not None:
             if mods_dateReleased_index[mod["id"]] == mod["dateReleased"]:
-                log.info(f"Mod {mod['id']} is not updated, pass!")
+                log.debug(f"Mod {mod['id']} is not updated, pass!")
                 modIds.remove(mod["id"])
             
     sync_multi_mods_all_files([model.id for model in models])
