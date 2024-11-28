@@ -102,12 +102,12 @@ class ModLoaderType(int, Enum):
 async def check_search_result(request: Request, res: dict):
     modids = set()
     for mod in res["data"]:
-        modids.add(mod["id"])
+        if mod["id"] >= 30000:
+            modids.add(mod["id"])
 
     # check if modids in db
     if modids:
         # 排除小于 30000 的 modid
-        modids = set([modId for modId in modids if modId >= 30000])
         mod_models: List[Mod] = await request.app.state.aio_mongo_engine.find(
             Mod, query.in_(Mod.id, list(modids))
         )
