@@ -89,7 +89,7 @@ if mcim_config.file_cdn:
     ):
         def return_origin_response():
             url = f"https://cdn.modrinth.com/data/{project_id}/versions/{version_id}/{file_name}"
-            log.info(f"Redirect to {url}")
+            log.debug(f"Redirect to {url}")
             FILE_CDN_FORWARD_TO_ORIGIN_COUNT.labels("modrinth").inc()
             return RedirectResponse(
                 url=url,
@@ -156,7 +156,7 @@ if mcim_config.file_cdn:
     ):
         def return_origin_response():
             url = f"https://edge.forgecdn.net/files/{fileid1}/{fileid2}/{file_name}"
-            log.info(f"Redirect to {url}")
+            log.debug(f"Redirect to {url}")
             FILE_CDN_FORWARD_TO_ORIGIN_COUNT.labels("curseforge").inc()
             return RedirectResponse(
                 url=url,
@@ -210,8 +210,9 @@ if mcim_config.file_cdn:
                     f"File {fileid} is too large, {file.fileLength} > {MAX_LENGTH}"
                 )
         else:
-            sync_mutil_files.send([fileid])
-            log.debug(f"sync fileId {fileid} task send.")
+            if fileid >= 530000:
+                sync_mutil_files.send([fileid])
+                log.debug(f"sync fileId {fileid} task send.")
 
         return return_origin_response()
 
