@@ -200,6 +200,9 @@ def sync_multi_mods_all_files(modIds: List[int]):
 def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
     res = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()["data"]
+    if not res["gameId"] == 432:
+        log.info(f"Mod {modId} is not belong to Minecraft, pass!")
+        return
     models.append(Mod(found=True, **res))
     mod = mongodb_engine.find_one(Mod, Mod.id == modId)
     if mod is not None:
@@ -233,6 +236,8 @@ def sync_mutil_mods(modIds: List[int]):
     mods = mongodb_engine.find(Mod, query.in_(Mod.id, modIds))
     mods_dateReleased_index = {mod.id: mod.dateReleased for mod in mods}
     for mod in res:
+        if mod["gameId"] != 432:
+            log.info(f"Mod {mod['id']} is not belong to Minecraft, pass!")
         models.append(Mod(found=True, **mod))
         if mods_dateReleased_index.get(mod["id"]) is not None:
             if mods_dateReleased_index[mod["id"]] == mod["dateReleased"]:
@@ -279,7 +284,6 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     throws=(ResponseCodeException,),
     min_backoff=1000 * 60,
     actor_name="sync_mutil_files",
-
 )
 @limit
 def sync_mutil_files(fileIds: List[int]):
@@ -292,7 +296,7 @@ def sync_mutil_files(fileIds: List[int]):
     ).json()["data"]
     # for file in res:
     # models.append(File(found=True, **file))
-    modids = [file["modId"] for file in res]
+    modids = [file["modId"] for file in res if file["gameId"] == 432]
     sync_multi_mods_all_files(modids)
     # submit_models(models)
 
@@ -323,7 +327,7 @@ def sync_fingerprints(fingerprints: List[int]):
     #         found=True,
     #     )
     # )
-    modids = [file["file"]["modId"] for file in res["data"]["exactMatches"]]
+    modids = [file["file"]["modId"] for file in res["data"]["exactMatches"] if file["file"]["gameId"] == 432]
     sync_multi_mods_all_files(modids)
     # submit_models(models)
 

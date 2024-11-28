@@ -106,6 +106,8 @@ async def check_search_result(request: Request, res: dict):
 
     # check if modids in db
     if modids:
+        # 排除小于 30000 的 modid
+        modids = [modId for modId in modids if modId >= 30000]
         mod_models: List[Mod] = await request.app.state.aio_mongo_engine.find(
             Mod, query.in_(Mod.id, list(modids))
         )
@@ -190,6 +192,8 @@ async def curseforge_mod(modId: int, request: Request):
         sync_mod.send(modId=modId)
         log.debug(f"modId: {modId} force sync.")
         return UncachedResponse()
+    # 排除小于 30000 的 modid
+    if not modId >= 30000: return UncachedResponse()
     trustable: bool = True
     mod_model: Optional[Mod] = await request.app.state.aio_mongo_engine.find_one(
         Mod, Mod.id == modId
@@ -234,6 +238,8 @@ async def curseforge_mods(item: modIds_item, request: Request):
             content=CurseforgeBaseResponse(data=[]).model_dump(),
             trustable=False,
         )
+    # 排除小于 30000 的 modid
+    item.modIds = [modId for modId in item.modIds if modId >= 30000]
     trustable: bool = True
     mod_models: Optional[List[Mod]] = await request.app.state.aio_mongo_engine.find(
         Mod, query.in_(Mod.id, item.modIds)
@@ -364,7 +370,8 @@ async def curseforge_mod_files(
         sync_mod.send(modId=modId)
         log.debug(f"modId: {modId} force sync.")
         return UncachedResponse()
-
+    # 排除小于 30000 的 modid
+    if not modId >= 30000: return UncachedResponse()
     # 定义聚合管道
     match_conditions = {"modId": modId}
     gameVersionFilter = []
@@ -444,6 +451,8 @@ async def curseforge_files(item: fileIds_item, request: Request):
         sync_mutil_files.send(fileIds=item.fileIds)
         log.debug(f"fileIds: {item.fileIds} force sync.")
         return UncachedResponse()
+    # 排除小于 530000 的 fileid
+    item.fileIds = [fileId for fileId in item.fileIds if fileId >= 530000]
     trustable = True
     file_models: Optional[List[File]] = await request.app.state.aio_mongo_engine.find(
         File, query.in_(File.id, item.fileIds)
@@ -489,6 +498,8 @@ async def curseforge_mod_file(modId: int, fileId: int, request: Request):
         sync_file.send(modId=modId, fileId=fileId)
         log.debug(f"modId: {modId} fileId: {fileId} force sync.")
         return UncachedResponse()
+    # 排除小于 530000 的 fileid
+    if not fileId >= 530000 or not modId >= 30000: return UncachedResponse()
     trustable = True
     model: Optional[File] = await request.app.state.aio_mongo_engine.find_one(
         File, File.modId == modId, File.id == fileId
@@ -517,6 +528,8 @@ async def curseforge_mod_file(modId: int, fileId: int, request: Request):
 )
 # @cache(expire=mcim_config.expire_second.curseforge.file)
 async def curseforge_mod_file_download_url(modId: int, fileId: int, request: Request):
+    # 排除小于 530000 的 fileid
+    if not fileId >= 530000 or not modId >= 30000: return UncachedResponse()
     model: Optional[File] = await request.app.state.aio_mongo_engine.find_one(
         File, File.modId == modId, File.id == fileId
     )
