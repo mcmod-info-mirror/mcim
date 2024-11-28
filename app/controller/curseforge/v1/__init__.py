@@ -107,7 +107,7 @@ async def check_search_result(request: Request, res: dict):
     # check if modids in db
     if modids:
         # 排除小于 30000 的 modid
-        modids = [modId for modId in modids if modId >= 30000]
+        modids = set([modId for modId in modids if modId >= 30000])
         mod_models: List[Mod] = await request.app.state.aio_mongo_engine.find(
             Mod, query.in_(Mod.id, list(modids))
         )
