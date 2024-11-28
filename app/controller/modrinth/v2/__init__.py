@@ -488,11 +488,11 @@ async def modrinth_files(items: HashesQuery, request: Request):
     version_model_count = len(version_models)
     file_model_count = len(files_models)
     if not version_models:
-        sync_multi_versions.send(ids_list=version_ids)
+        sync_multi_versions.send(version_ids=version_ids)
         log.debug("Versions not found, send sync task.")
         return UncachedResponse()
     elif version_model_count != file_model_count:
-        sync_multi_versions.send(ids_list=version_ids)
+        sync_multi_versions.send(version_ids=version_ids)
         log.debug(
             f"Versions {version_ids} {version_model_count}/{file_model_count} not completely found, send sync task."
         )
