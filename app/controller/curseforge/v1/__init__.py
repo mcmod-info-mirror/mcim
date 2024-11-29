@@ -40,8 +40,6 @@ HEADERS = {"x-api-key": x_api_key}
 
 v1_router = APIRouter(prefix="/v1", tags=["curseforge"])
 
-EXPIRE_STATUS_CODE = mcim_config.expire_status_code
-UNCACHE_STATUS_CODE = mcim_config.uncache_status_code
 SEARCH_TIMEOUT = 3
 
 """

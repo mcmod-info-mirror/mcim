@@ -58,11 +58,6 @@ class MCIMConfigModel(BaseModel):
     open93home_endpoint: str = "http://open93home"
 
     expire_second: ExpireSecond = ExpireSecond()
-    expire_status_code: int = 404
-    uncache_status_code: int = 404
-
-    log_to_file: bool = False
-    log_path: str = "./logs"
 
     favicon_url: str = (
         "https://thirdqq.qlogo.cn/g?b=sdk&k=ABmaVOlfKKPceB5qfiajxqg&s=640"

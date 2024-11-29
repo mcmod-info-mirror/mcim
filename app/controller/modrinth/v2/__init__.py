@@ -40,8 +40,6 @@ mcim_config = MCIMConfig.load()
 API = mcim_config.modrinth_api
 v2_router = APIRouter(prefix="/v2", tags=["modrinth"])
 
-EXPIRE_STATUS_CODE = mcim_config.expire_status_code
-UNCACHE_STATUS_CODE = mcim_config.uncache_status_code
 SEARCH_TIMEOUT = 3
 
 
