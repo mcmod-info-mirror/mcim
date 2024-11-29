@@ -479,7 +479,7 @@ async def modrinth_files(items: HashesQuery, request: Request):
         ))
         sync_multi_hashes.send(hashes=not_found_hashes, algorithm=items.algorithm)
         log.debug(
-            f"Files {not_found_hashes} {not_found_hashes}/{hashes_count} not completely found, send sync task."
+            f"Files {not_found_hashes} {len(not_found_hashes)}/{hashes_count} not completely found, send sync task."
         )
         trustable = False
     # Don't need to check version expire
@@ -502,7 +502,7 @@ async def modrinth_files(items: HashesQuery, request: Request):
         ))
         sync_multi_versions.send(version_ids=not_found_version_ids)
         log.debug(
-            f"Versions {not_found_version_ids} {not_found_version_ids}/{file_model_count} not completely found, send sync task."
+            f"Versions {not_found_version_ids} {len(not_found_version_ids)}/{file_model_count} not completely found, send sync task."
         )
         trustable = False
     result = {}
