@@ -136,9 +136,11 @@ async def modrinth_projects(ids: str, request: Request):
         log.debug(f"Projects {ids_list} not found, send sync task.")
         return UncachedResponse()
     elif models_count != ids_count:
-        sync_multi_projects.send(project_ids=ids_list)
+        # 找出没找到的 project_id
+        not_match_ids = list(set(ids_list) - set([model.id for model in models]))
+        sync_multi_projects.send(project_ids=not_match_ids)
         log.debug(
-            f"Projects {ids_list} {models_count}/{ids_count} not completely found, send sync task."
+            f"Projects {not_match_ids} {not_match_ids}/{ids_count} not found, send sync task."
         )
         trustable = False
     # check expire
@@ -479,7 +481,7 @@ async def modrinth_files(items: HashesQuery, request: Request):
         ))
         sync_multi_hashes.send(hashes=not_found_hashes, algorithm=items.algorithm)
         log.debug(
-            f"Files {items.hashes} {model_count}/{hashes_count} not completely found, send sync task."
+            f"Files {not_found_hashes} {not_found_hashes}/{hashes_count} not completely found, send sync task."
         )
         trustable = False
     # Don't need to check version expire
@@ -502,7 +504,7 @@ async def modrinth_files(items: HashesQuery, request: Request):
         ))
         sync_multi_versions.send(version_ids=not_found_version_ids)
         log.debug(
-            f"Versions {version_ids} {version_model_count}/{file_model_count} not completely found, send sync task."
+            f"Versions {not_found_version_ids} {not_found_version_ids}/{file_model_count} not completely found, send sync task."
         )
         trustable = False
     result = {}
@@ -657,7 +659,7 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
             [version["_id"] for version in versions_result]
         ))
         sync_multi_hashes.send(hashes=not_found_hashes, algorithm=items.algorithm.value)
-        log.debug(f"Hashes {items.hashes} not completely found, send sync task.")
+        log.debug(f"Hashes {not_found_hashes} not completely found, send sync task.")
         trustable = False
     else:
         # check expire
