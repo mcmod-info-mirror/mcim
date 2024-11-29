@@ -89,7 +89,7 @@ if mcim_config.file_cdn:
     ):
         def return_origin_response():
             url = f"https://cdn.modrinth.com/data/{project_id}/versions/{version_id}/{file_name}"
-            log.debug(f"Redirect to {url}")
+            # log.debug(f"Redirect to {url}")
             FILE_CDN_FORWARD_TO_ORIGIN_COUNT.labels("modrinth").inc()
             return RedirectResponse(
                 url=url,
@@ -127,7 +127,7 @@ if mcim_config.file_cdn:
                         sha1, request
                     )
                     if open93home_response:
-                        log.debug(f"Redirect to open93home {sha1}")
+                        # log.debug(f"Redirect to open93home {sha1}")
                         FILE_CDN_FORWARD_TO_OPEN93HOME_COUNT.labels("modrinth").inc()
                         return open93home_response
                     else:
@@ -156,7 +156,7 @@ if mcim_config.file_cdn:
     ):
         def return_origin_response():
             url = f"https://edge.forgecdn.net/files/{fileid1}/{fileid2}/{file_name}"
-            log.debug(f"Redirect to {url}")
+            # log.debug(f"Redirect to {url}")
             FILE_CDN_FORWARD_TO_ORIGIN_COUNT.labels("curseforge").inc()
             return RedirectResponse(
                 url=url,
@@ -197,7 +197,7 @@ if mcim_config.file_cdn:
                         sha1, request
                     )
                     if open93home_response:
-                        log.debug(f"Redirect to open93home {sha1}")
+                        # log.debug(f"Redirect to open93home {sha1}")
                         FILE_CDN_FORWARD_TO_OPEN93HOME_COUNT.labels("curseforge").inc()
                         return open93home_response
                     else:

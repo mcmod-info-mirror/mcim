@@ -19,6 +19,9 @@ class TimingMiddleware(BaseHTTPMiddleware):
             route_name = route.name
             if process_time >= 10:
                 log.warning(f"{route_name} - {request.method} {request.url} {process_time:.2f}s")
+            elif process_time < 0.01: # 这应该是 redis 缓存，直接忽略
+                # log.debug(f"{route_name} - {request.method} {request.url} {process_time:.2f}s")
+                pass
             else:
                 log.debug(f"{route_name} - {request.method} {request.url} {process_time:.2f}s")
         return response

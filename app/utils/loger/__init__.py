@@ -1,8 +1,9 @@
 
+from loguru import logger
 import os
 import sys
+import re
 import logging
-from loguru import logger
 import time
 
 from app.config import MCIMConfig
@@ -45,14 +46,18 @@ logger.add(
 logging.basicConfig(handlers=[InterceptHandler()], level=0)
 
 # 要忽略的路由列表
-routes_to_ignore = ["/ignore_this_route", "/and_this_route"]
+routes_to_ignore = [r"/metrics", r"^/data/.*", r"^/files/.*"]
 
 # 定义过滤器
 def filter_uvicorn_access(record: logging.LogRecord) -> bool:
     message = record.getMessage()
-    for route in routes_to_ignore:
-        if route in message:
-            return False  # 过滤该日志
+    # 使用正则表达式提取请求路径
+    match = re.search(r'"[A-Z]+ (.+?) HTTP/.*"', message)
+    if match:
+        path = match.group(1)
+        for route_pattern in routes_to_ignore:
+            if re.match(route_pattern, path):
+                return False  # 过滤该日志
     return True  # 保留该日志
 
 # 为 uvicorn.access 日志器添加过滤器
