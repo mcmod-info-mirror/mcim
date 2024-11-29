@@ -170,6 +170,7 @@ def sync_mod_all_files(
         log.info(
             f'Finished modid:{modId} i:ps:t {params["index"]}:{params["pageSize"]}:{page.totalCount}'
         )
+    log.info(f"Finished modid:{modId} with {res["pagination"]["totalCount"]} files")
 
 def sync_multi_mods_all_files(modIds: List[int]):
     # 去重

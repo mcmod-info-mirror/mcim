@@ -125,6 +125,7 @@ def sync_project_all_version(
         if e.status_code == 404:
             models.append(Project(found=False, id=project_id, slug=project_id))
             return
+    version_count = len(res)
     for version in res:
         for file in version["files"]:
             file["version_id"] = version["id"]
@@ -151,6 +152,7 @@ def sync_project_all_version(
                 models = []
         models.append(Version(found=True, slug=slug, **version))
     submit_models(models)
+    log.info(f'Synced project {project_id} {slug} with {version_count} versions')
 
 
 def sync_multi_projects_all_version(
