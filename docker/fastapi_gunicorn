@@ -1,14 +1,33 @@
-# For more information, please refer to https://aka.ms/vscode-docker-python
-FROM python:3-slim
+# 第一阶段：构建阶段
+FROM python:python:3.11-slim-buster AS builder
+
+WORKDIR /app
+
+COPY requirements.txt ./
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --user --no-cache-dir -r requirements.txt \
+    && pip install --user --no-cache-dir gunicorn==22.0.0 uvicorn-worker==0.2.0
+
+# 复制应用代码
+COPY ./app ./app
+COPY scripts/gunicorn_config.py ./
+
+# 第二阶段：运行阶段
+FROM python:3.11-slim-buster
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH=/root/.local/bin:$PATH
+
+WORKDIR /app
+
+# 从构建阶段复制已安装的依赖
+COPY --from=builder /root/.local /root/.local
+
+# 复制应用代码
+COPY ./app ./app
+COPY scripts/gunicorn_config.py ./
 
 EXPOSE 8000
 
-# Install pip requirements
-COPY requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/pip pip install -r requirements.txt
-RUN --mount=type=cache,target=/root/.cache/pip pip install gunicorn==22.0.0 uvicorn-worker==0.2.0
-
-COPY ./app ./app
-COPY ./scripts/gunicorn_config.py ./gunicorn_config.py
-
-# ENTRYPOINT ["gunicorn", "app:APP", "-k", "uvicorn_worker.UvicornWorker", "-n", "mcim_api", "-c", "gunicorn_config.py"]
+ENTRYPOINT ["gunicorn", "app:APP", "-k", "uvicorn_worker.UvicornWorker", "-n", "mcim_api", "-c", "gunicorn_config.py"]
