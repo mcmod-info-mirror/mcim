@@ -1,5 +1,5 @@
 # 第一阶段：构建阶段
-FROM python:python:3.11-slim-buster AS builder
+FROM python:3.11-slim-buster AS builder
 
 WORKDIR /app
 
