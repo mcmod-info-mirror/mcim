@@ -32,7 +32,7 @@ from app.sync import (
 )
 from app.models.database.modrinth import Project, File, Version
 from app.models.database.file_cdn import File as FileCDN
-from app.utils.network import request_sync
+from app.utils.network import request_sync, request
 from app.exceptions import ResponseCodeException
 from app.config import MCIMConfig
 from app.utils.loger import log
@@ -386,6 +386,23 @@ def sync_tags():
     donation_platform = request_sync(f"{API}/tag/donation_platform").json()
     project_type = request_sync(f"{API}/tag/project_type").json()
     side_type = request_sync(f"{API}/tag/side_type").json()
+
+    redis_engine.hset("modrinth", "categories", json.dumps(categories))
+    redis_engine.hset("modrinth", "loaders", json.dumps(loaders))
+    redis_engine.hset("modrinth", "game_versions", json.dumps(game_versions))
+    redis_engine.hset("modrinth", "donation_platform", json.dumps(donation_platform))
+    redis_engine.hset("modrinth", "project_type", json.dumps(project_type))
+    redis_engine.hset("modrinth", "side_type", json.dumps(side_type))
+
+async def async_tags():
+    # db 1
+    categories = (await request(f"{API}/tag/category")).json()
+    loaders = (await request(f"{API}/tag/loader")).json()
+    game_versions = (await request(f"{API}/tag/game_version")).json()
+    donation_platform = (await request(f"{API}/tag/donation_platform")).json()
+    project_type = (await request(f"{API}/tag/project_type")).json()
+    side_type = (await request(f"{API}/tag/side_type")).json()
+    
 
     redis_engine.hset("modrinth", "categories", json.dumps(categories))
     redis_engine.hset("modrinth", "loaders", json.dumps(loaders))

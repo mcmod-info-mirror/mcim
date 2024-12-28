@@ -18,6 +18,8 @@ from app.utils.network import request as request_async
 
 from app.sync.modrinth import sync_project
 from app.sync.curseforge import sync_mutil_files
+from app.sync_queue.curseforge import add_curseforge_fileIds_to_queue
+from app.sync_queue.modrinth import add_modrinth_project_ids_to_queue
 from app.utils.metric import (
     FILE_CDN_FORWARD_TO_ORIGIN_COUNT,
     FILE_CDN_FORWARD_TO_OPEN93HOME_COUNT,
@@ -137,7 +139,8 @@ if mcim_config.file_cdn:
                     return return_origin_response()
         else:
             # 文件信息不存在
-            sync_project.send(project_id)
+            # sync_project.send(project_id)
+            await add_modrinth_project_ids_to_queue(project_ids=[project_id])
             log.debug(f"sync project {project_id} task send.")
 
         return return_origin_response()
@@ -211,7 +214,8 @@ if mcim_config.file_cdn:
                 )
         else:
             if fileid >= 530000:
-                sync_mutil_files.send([fileid])
+                # sync_mutil_files.send([fileid])
+                await add_curseforge_fileIds_to_queue(fileIds=[fileid])
                 log.debug(f"sync fileId {fileid} task send.")
 
         return return_origin_response()

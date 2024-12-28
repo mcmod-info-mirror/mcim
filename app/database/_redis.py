@@ -8,7 +8,7 @@ _redis_config = RedisdbConfig.load()
 
 aio_redis_engine: AioRedis = None
 sync_redis_engine: Redis = None
-
+sync_queuq_redis_engine: AioRedis = None
 
 def init_redis_aioengine() -> AioRedis:
     global aio_redis_engine
@@ -31,6 +31,16 @@ def init_sync_redis_engine() -> Redis:
     )
     return sync_redis_engine
 
+def init_sync_queue_redis_engine() -> AioRedis:
+    global sync_queuq_redis_engine
+    sync_queuq_redis_engine = AioRedis(
+        host=_redis_config.host,
+        port=_redis_config.port,
+        password=_redis_config.password,
+        db=_redis_config.database.sync_queue,
+    )
+    return sync_queuq_redis_engine
+
 
 async def close_aio_redis_engine():
     """
@@ -45,7 +55,7 @@ async def close_aio_redis_engine():
     aio_redis_engine = None
 
 
-def close_redis_engine():
+def close_sync_redis_engine():
     """
     Close redis when process stopped.
     """
@@ -57,8 +67,20 @@ def close_redis_engine():
         log.warning("no redis connection to close")
     sync_redis_engine = None
 
+async def close_sync_queue_redis_engine():
+    """
+    Close redis when process stopped.
+    """
+    global sync_queuq_redis_engine
+    if sync_queuq_redis_engine is not None:
+        await sync_queuq_redis_engine.close()
+        log.success("closed redis connection")
+    else:
+        log.warning("no redis connection to close")
+    sync_queuq_redis_engine = None
 
 aio_redis_engine: AioRedis = init_redis_aioengine()
 sync_redis_engine: Redis = init_sync_redis_engine()
+sync_queuq_redis_engine: AioRedis = init_sync_queue_redis_engine()
 
 log.success("Redis connection established")  # noqa

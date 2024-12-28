@@ -5,7 +5,6 @@ from fastapi.responses import RedirectResponse, ORJSONResponse, Response
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
-
 from app.controller import controller_router
 from app.utils.loger import log
 from app.config import MCIMConfig
@@ -13,6 +12,8 @@ from app.database.mongodb import setup_async_mongodb, init_mongodb_aioengine
 from app.database._redis import (
     init_redis_aioengine,
     close_aio_redis_engine,
+    init_sync_queue_redis_engine,
+    close_sync_queue_redis_engine,
 )
 from app.utils.response_cache import Cache
 from app.utils.response_cache import cache
@@ -26,6 +27,7 @@ mcim_config = MCIMConfig.load()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.aio_redis_engine = init_redis_aioengine()
+    init_sync_queue_redis_engine()
     await app.state.aio_redis_engine.flushall()
     app.state.aio_mongo_engine = init_mongodb_aioengine()
     await setup_async_mongodb(app.state.aio_mongo_engine)
@@ -36,6 +38,7 @@ async def lifespan(app: FastAPI):
     yield
 
     await close_aio_redis_engine()
+    await close_sync_queue_redis_engine()
 
 
 APP = FastAPI(
@@ -58,8 +61,8 @@ APP.add_middleware(TimingMiddleware)
 # 强制同步中间件 force=True
 APP.add_middleware(ForceSyncMiddleware)
 
-# Etag 中间件
-APP.add_middleware(EtagMiddleware)
+# # Etag 中间件
+# APP.add_middleware(EtagMiddleware)
 
 # 统计 Trustable 请求
 APP.add_middleware(CountTrustableMiddleware)
