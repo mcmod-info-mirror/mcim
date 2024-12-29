@@ -37,9 +37,9 @@ logger.add(
     sys.stdout,
     level="DEBUG" if mcim_config.debug else "INFO",
     format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{module}</cyan>.<cyan>{function}</cyan>.<cyan>{line}</cyan> | <cyan>{message}</cyan>",
-    colorize=True,
-    backtrace=True,
-    diagnose=True,
+    # colorize=True,
+    # backtrace=True,
+    # diagnose=True,
 )
 
 # 拦截标准日志并重定向到 Loguru

@@ -14,12 +14,11 @@ class RedisDatabaseModel(BaseModel):
     tasks_queue: int = 0  # dramatiq tasks
     info_cache: int = 1  # response_cache and static info
     rate_limit: int = 3  # rate limit
-
+    sync_queue: int = 4  # sync queue
 
 class RedisdbConfigModel(BaseModel):
     host: str = "redis"
     port: int = 6379
-    auth: bool = True
     user: Optional[str] = None
     password: Optional[str] = None
     database: RedisDatabaseModel = RedisDatabaseModel()
@@ -27,7 +26,6 @@ class RedisdbConfigModel(BaseModel):
 class SyncRedisdbConfigModel(BaseModel):
     host: str = "sync_redis"
     port: int = 6379
-    auth: bool = True
     user: Optional[str] = None
     password: Optional[str] = None
 
