@@ -83,8 +83,7 @@ services:
       - mongodb
       - redis
     volumes:
-      - /opt/mcim/config:/config
-      - /opt/mcim/logs:/logs
+      - /opt/mcim/config:/app/config
     command: >
       sh -c "rm -rf /tmp/prometheus &&
             mkdir -p /tmp/prometheus &&
@@ -116,8 +115,7 @@ services:
       - mongodb
       - redis
     volumes:
-      - /opt/mcim/config:/config
-      - /opt/mcim/logs:/logs
+      - /opt/mcim/config:/app/config
     command: >
       sh -c "rm -rf /tmp/dramatiq-prometheus/ &&
             mkdir -p /tmp/dramatiq-prometheus &&
