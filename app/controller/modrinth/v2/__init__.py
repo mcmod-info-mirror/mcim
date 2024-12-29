@@ -501,12 +501,13 @@ async def modrinth_files(items: HashesQuery, request: Request):
         not_found_hashes = list(set(items.hashes) - set(
             [file.hashes.sha1 if items.algorithm == Algorithm.sha1 else file.hashes.sha512 for file in files_models]
         ))
-        # sync_multi_hashes.send(hashes=not_found_hashes, algorithm=items.algorithm)
-        await add_modrinth_hashes_to_queue(not_found_hashes, algorithm=items.algorithm.value)
-        log.debug(
-            f"Files {not_found_hashes} {len(not_found_hashes)}/{hashes_count} not completely found, send sync task."
-        )
-        trustable = False
+        if not_found_hashes:
+            # sync_multi_hashes.send(hashes=not_found_hashes, algorithm=items.algorithm)
+            await add_modrinth_hashes_to_queue(not_found_hashes, algorithm=items.algorithm.value)
+            log.debug(
+                f"Files {not_found_hashes} {len(not_found_hashes)}/{hashes_count} not completely found, send sync task."
+            )
+            trustable = False
     # Don't need to check version expire
 
     version_ids = [file.version_id for file in files_models]
@@ -518,7 +519,7 @@ async def modrinth_files(items: HashesQuery, request: Request):
     file_model_count = len(files_models)
     if not version_models:
         # sync_multi_versions.send(version_ids=version_ids)
-        # TODO: 优化，只拉取未找到的版本
+        # 一个版本都没找到，直接重新同步
         await add_modrinth_version_ids_to_queue(version_ids=version_ids)
         log.debug("Versions not found, send sync task.")
         return UncachedResponse()
@@ -527,12 +528,13 @@ async def modrinth_files(items: HashesQuery, request: Request):
         not_found_version_ids = list(set(version_ids) - set(
             [version.id for version in version_models]
         ))
-        # sync_multi_versions.send(version_ids=not_found_version_ids)
-        await add_modrinth_version_ids_to_queue(version_ids=not_found_version_ids)
-        log.debug(
-            f"Versions {not_found_version_ids} {len(not_found_version_ids)}/{file_model_count} not completely found, send sync task."
-        )
-        trustable = False
+        if not_found_version_ids:
+            # sync_multi_versions.send(version_ids=not_found_version_ids)
+            await add_modrinth_version_ids_to_queue(version_ids=not_found_version_ids)
+            log.debug(
+                f"Versions {not_found_version_ids} {len(not_found_version_ids)}/{file_model_count} not completely found, send sync task."
+            )
+            trustable = False
     result = {}
     for version in version_models:
         result[
@@ -688,10 +690,11 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
         not_found_hashes = list(set(items.hashes) - set(
             [version["_id"] for version in versions_result]
         ))
-        # sync_multi_hashes.send(hashes=not_found_hashes, algorithm=items.algorithm.value)
-        await add_modrinth_hashes_to_queue(not_found_hashes, algorithm=items.algorithm.value)
-        log.debug(f"Hashes {not_found_hashes} not completely found, send sync task.")
-        trustable = False
+        if not_found_hashes:
+            # sync_multi_hashes.send(hashes=not_found_hashes, algorithm=items.algorithm.value)
+            await add_modrinth_hashes_to_queue(not_found_hashes, algorithm=items.algorithm.value)
+            log.debug(f"Hashes {not_found_hashes} not completely found, send sync task.")
+            trustable = False
     else:
         # check expire
         resp = {}
