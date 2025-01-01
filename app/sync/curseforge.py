@@ -10,9 +10,9 @@ from odmantic import query
 
 from app.sync import sync_mongo_engine as mongodb_engine
 from app.sync import sync_redis_engine as redis_engine
-from app.sync import (
-    CURSEFORGE_LIMITER,
-)
+# from app.sync import (
+#     CURSEFORGE_LIMITER,
+# )
 from app.models.database.curseforge import File, Mod, Pagination, Fingerprint
 from app.models.database.file_cdn import File as FileCDN
 from app.utils.network import request_sync
@@ -47,12 +47,12 @@ def submit_models(models: List[Union[File, Mod, Fingerprint]]):
 
 
 # limit decorator
-def limit(func):
-    def wrapper(*args, **kwargs):
-        with CURSEFORGE_LIMITER.acquire():
-            return func(*args, **kwargs)
+# def limit(func):
+#     def wrapper(*args, **kwargs):
+#         with CURSEFORGE_LIMITER.acquire():
+#             return func(*args, **kwargs)
 
-    return wrapper
+#     return wrapper
 
 
 # @actor(
