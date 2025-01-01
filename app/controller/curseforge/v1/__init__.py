@@ -92,7 +92,7 @@ class ModLoaderType(int, Enum):
     NeoForge = 6
 
 
-class SearchResponse(BaseResponse):
+class SearchResponse(BaseModel):
     data: List[Mod]
     pagination: Pagination
 
