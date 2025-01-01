@@ -59,7 +59,7 @@ APP.add_middleware(GZipMiddleware, minimum_size=1000)
 APP.add_middleware(TimingMiddleware)
 
 # 强制同步中间件 force=True
-APP.add_middleware(ForceSyncMiddleware)
+# APP.add_middleware(ForceSyncMiddleware)
 
 # # Etag 中间件
 # APP.add_middleware(EtagMiddleware)

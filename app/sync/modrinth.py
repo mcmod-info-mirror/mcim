@@ -16,8 +16,8 @@ sync_project 只刷新 project 信息，不刷新 project 下的 version 信息
 """
 
 from typing import List, Optional, Union
-from dramatiq import actor
-import dramatiq
+# from dramatiq import actor
+# import dramatiq
 import json
 import os
 import time
@@ -49,12 +49,12 @@ def submit_models(models: List[Union[Project, File, Version]]):
         mongodb_engine.save_all(models)
 
 
-def should_retry(retries_so_far, exception):
-    return retries_so_far < 3 and (
-        isinstance(exception, httpx.TransportError)
-        or isinstance(exception, dramatiq.RateLimitExceeded)
-        or isinstance(exception, dramatiq.middleware.time_limit.TimeLimitExceeded)
-    )
+# def should_retry(retries_so_far, exception):
+#     return retries_so_far < 3 and (
+#         isinstance(exception, httpx.TransportError)
+#         or isinstance(exception, dramatiq.RateLimitExceeded)
+#         or isinstance(exception, dramatiq.middleware.time_limit.TimeLimitExceeded)
+#     )
 
 
 # limit decorator
@@ -65,27 +65,27 @@ def limit(func):
     return wrapper
 
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="check_alive",
-)
-@limit
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="check_alive",
+# )
+# @limit
 def check_alive():
     res = request_sync("https://api.modrinth.com")
     return res.json()
 
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="sync_project_all_version",
-)
-@limit
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="sync_project_all_version",
+# )
+# @limit
 def sync_project_all_version(
     project_id: str,
     slug: Optional[str] = None,
@@ -179,14 +179,14 @@ def sync_multi_projects_all_version(
         )
 
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="sync_project",
-)
-@limit
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="sync_project",
+# )
+# @limit
 def sync_project(project_id: str):
     models = []
     try:
@@ -206,14 +206,14 @@ def sync_project(project_id: str):
     submit_models(models)
 
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="sync_multi_projects",
-)
-@limit
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="sync_multi_projects",
+# )
+# @limit
 def sync_multi_projects(project_ids: List[str]):
     try:
         res = request_sync(
@@ -255,14 +255,14 @@ def process_version_resp(res: dict) -> List[Union[Project, File, Version]]:
     return models
 
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="sync_version",
-)
-@limit
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="sync_version",
+# )
+# @limit
 def sync_version(version_id: str):
     try:
         res = request_sync(f"{API}/version/{version_id}").json()
@@ -285,14 +285,14 @@ def process_multi_versions(res: List[dict]):
     return models
 
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="sync_multi_versions",
-)
-@limit
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="sync_multi_versions",
+# )
+# @limit
 def sync_multi_versions(version_ids: List[str]):
     try:
         res = request_sync(
@@ -309,14 +309,14 @@ def sync_multi_versions(version_ids: List[str]):
     sync_multi_projects_all_version(project_ids)
 
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="sync_hash",
-)
-@limit
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="sync_hash",
+# )
+# @limit
 def sync_hash(hash: str, algorithm: str):
     try:
         res = request_sync(
@@ -342,14 +342,14 @@ def process_multi_hashes(res: dict):
     return models
 
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="sync_multi_hashes",
-)
-@limit
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="sync_multi_hashes",
+# )
+# @limit
 def sync_multi_hashes(hashes: List[str], algorithm: str):
     try:
         res = request_sync(
@@ -370,14 +370,14 @@ def sync_multi_hashes(hashes: List[str], algorithm: str):
     # submit_models(models)
 
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="sync_tags",
-)
-@limit
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="sync_tags",
+# )
+# @limit
 def sync_tags():
     # db 1
     categories = request_sync(f"{API}/tag/category").json()

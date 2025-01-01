@@ -1,27 +1,16 @@
 from fastapi import APIRouter, Query, Path, Request, BackgroundTasks
-from fastapi.responses import Response
-from typing_extensions import Annotated
-from typing import List, Optional, Union, Dict
+from typing import List, Optional, Union, Dict, Annotated
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from odmantic import query
 import json
 import time
+import re
 from datetime import datetime
 
 from app.sync import *
 from app.models.database.modrinth import Project, Version, File
-from app.sync.modrinth import (
-    sync_project,
-    sync_version,
-    sync_multi_projects,
-    sync_multi_projects,
-    sync_multi_versions,
-    sync_hash,
-    sync_multi_hashes,
-    sync_tags,
-    async_tags
-)
+from app.sync.modrinth import async_tags
 from app.sync_queue.modrinth import (
     add_modrinth_project_ids_to_queue,
     add_modrinth_version_ids_to_queue,
@@ -34,12 +23,9 @@ from app.utils.response import (
     ForceSyncResponse,
     BaseResponse,
 )
-from app.utils.network import request_sync
 from app.utils.network import request as request_async
 from app.utils.loger import log
 from app.utils.response_cache import cache
-
-from app.database.mongodb import aio_mongo_engine
 
 mcim_config = MCIMConfig.load()
 
@@ -83,32 +69,17 @@ async def modrinth_statistics(request: Request):
     response_model=Project,
 )
 @cache(expire=mcim_config.expire_second.modrinth.project)
-async def modrinth_project(idslug: str, request: Request):
-    if request.state.force_sync:
-        # sync_project.send(idslug)
-        await add_modrinth_project_ids_to_queue(project_ids=[idslug])
-        log.debug(f"Project {idslug} force sync.")
-        return ForceSyncResponse()
+async def modrinth_project(request: Request, idslug: str):
     trustable = True
     model: Optional[Project] = await request.app.state.aio_mongo_engine.find_one(
         Project, query.or_(Project.id == idslug, Project.slug == idslug)
     )
     if model is None:
-        # sync_project.send(idslug)
         await add_modrinth_project_ids_to_queue(project_ids=[idslug])
-        log.debug(f"Project {idslug} not found, send sync task.")
+        log.debug(f"Project {idslug} not found, add to queue.")
         return UncachedResponse()
     elif model.found == False:
         return UncachedResponse()
-    # elif (
-    #     model.sync_at.timestamp() + mcim_config.expire_second.modrinth.project
-    #     < time.time()
-    # ):
-        # sync_project.send(idslug)
-        # log.debug(
-        #     f"Project {idslug} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
-        # )
-        # trustable = False
     return TrustableResponse(content=model.model_dump(), trustable=trustable)
 
 
@@ -119,12 +90,7 @@ async def modrinth_project(idslug: str, request: Request):
 )
 @cache(expire=mcim_config.expire_second.modrinth.project)
 async def modrinth_projects(ids: str, request: Request):
-    ids_list = json.loads(ids)
-    if request.state.force_sync:
-        # sync_multi_projects.send(project_ids=ids_list)
-        await add_modrinth_project_ids_to_queue(project_ids=ids_list)
-        log.debug(f"Projects {ids_list} force sync.")
-        return ForceSyncResponse()
+    ids_list: List[str] = json.loads(ids)
     trustable = True
     # id or slug
     models: Optional[List[Project]] = await request.app.state.aio_mongo_engine.find(
@@ -139,37 +105,17 @@ async def modrinth_projects(ids: str, request: Request):
     models_count = len(models)
     ids_count = len(ids_list)
     if not models:
-        # sync_multi_projects.send(project_ids=ids_list)
         await add_modrinth_project_ids_to_queue(project_ids=ids_list)
-        log.debug(f"Projects {ids_list} not found, send sync task.")
+        log.debug(f"Projects {ids_list} not found, add to queue.")
         return UncachedResponse()
     elif models_count != ids_count:
         # 找出没找到的 project_id
         not_match_ids = list(set(ids_list) - set([model.id for model in models]))
-        # sync_multi_projects.send(project_ids=not_match_ids)
         await add_modrinth_project_ids_to_queue(project_ids=not_match_ids)
         log.debug(
-            f"Projects {not_match_ids} {not_match_ids}/{ids_count} not found, send sync task."
+            f"Projects {not_match_ids} {not_match_ids}/{ids_count} not found, add to queue."
         )
         trustable = False
-    # check expire
-    # TODO: 直接根据日期查询，不在后端对比
-    expire_project_ids = []
-    # for model in models:
-    #     if (
-    #         model.sync_at.timestamp() + mcim_config.expire_second.modrinth.project
-    #         < time.time()
-    #     ):
-    #         trustable = False
-    #         break
-            # expire_project_ids.append(model.id)
-            # log.debug(
-            #     f"Project {model.id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
-            # )
-    # if expire_project_ids:
-        # sync_multi_projects.send(project_ids=expire_project_ids)
-        # log.debug(f"Projects {expire_project_ids} expire, send sync task.")
-        # trustable = False
     return TrustableResponse(
         content=[model.model_dump() for model in models], trustable=trustable
     )
@@ -185,11 +131,6 @@ async def modrinth_project_versions(idslug: str, request: Request):
     """
     先查 Project 的 Version 列表再拉取...避免遍历整个 Version 表
     """
-    if request.state.force_sync:
-        # sync_project.send(idslug)
-        await add_modrinth_project_ids_to_queue(project_ids=[idslug])
-        log.debug(f"Project {idslug} force sync.")
-        return ForceSyncResponse()
     trustable = True
     project_model: Optional[Project] = (
         await request.app.state.aio_mongo_engine.find_one(
@@ -197,22 +138,10 @@ async def modrinth_project_versions(idslug: str, request: Request):
         )
     )
     if not project_model:
-        # sync_project.send(idslug)
         await add_modrinth_project_ids_to_queue(project_ids=[idslug])
-        log.debug(f"Project {idslug} not found, send sync task.")
+        log.debug(f"Project {idslug} not found, add to queue.")
         return UncachedResponse()
     else:
-        # if (
-        #     project_model.sync_at.timestamp()
-        #     + mcim_config.expire_second.modrinth.project
-        #     < time.time()
-        # ):
-        #     # sync_project.send(idslug)
-        #     # log.debug(
-        #     #     f"Project {idslug} expire, send sync task, sync_at: {project_model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
-        #     # )
-        #     trustable = False
-
         version_list = project_model.versions
         version_model_list: Optional[List[Version]] = (
             await request.app.state.aio_mongo_engine.find(
@@ -220,23 +149,16 @@ async def modrinth_project_versions(idslug: str, request: Request):
             )
         )
 
-        # for version in version_model_list:
-        #     if (
-        #         version.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
-        #         < time.time()
-        #     ):
-        #         sync_project.send(idslug)
-        #         log.debug(f"Project {idslug} expire, send sync task.")
-        #         trustable = False
-        #         break
-
         return TrustableResponse(
-            content=[version.model_dump() for version in version_model_list],
+            content=(
+                [version.model_dump() for version in version_model_list]
+                if version_model_list
+                else []
+            ),
             trustable=trustable,
         )
 
 
-# background task
 async def check_search_result(request: Request, search_result: dict):
     project_ids = set([project["project_id"] for project in search_result["hits"]])
 
@@ -251,9 +173,10 @@ async def check_search_result(request: Request, search_result: dict):
         )
 
         if not_found_project_ids:
-            # sync_multi_projects.send(project_ids=list(not_found_project_ids))
-            await add_modrinth_project_ids_to_queue(project_ids=list(not_found_project_ids))
-            log.debug(f"Projects {not_found_project_ids} not found, send sync task.")
+            await add_modrinth_project_ids_to_queue(
+                project_ids=list(not_found_project_ids)
+            )
+            log.debug(f"Projects {not_found_project_ids} not found, add to queue.")
         else:
             log.debug(f"All Projects {not_found_project_ids} found.")
     else:
@@ -271,11 +194,10 @@ class SearchIndex(str, Enum):
 @v2_router.get(
     "/search",
     description="Modrinth Projects 搜索",
-    # response_model=List[Project],
+    # TODO: response_model
 )
 @cache(expire=mcim_config.expire_second.modrinth.search)
 async def modrinth_search_projects(
-    # background_tasks: BackgroundTasks,
     request: Request,
     query: Optional[str] = None,
     facets: Optional[str] = None,
@@ -307,36 +229,20 @@ async def modrinth_search_projects(
 )
 @cache(expire=mcim_config.expire_second.modrinth.version)
 async def modrinth_version(
-    version_id: Annotated[str, Path(alias="id")], request: Request
+    version_id: Annotated[str, Path(alias="id", pattern=r"[a-zA-Z0-9]{8}")],
+    request: Request,
 ):
-    if request.state.force_sync:
-        # sync_version.send(version_id=version_id)
-        await add_modrinth_version_ids_to_queue(version_ids=[version_id])
-        log.debug(f"Version {version_id} force sync.")
-        return ForceSyncResponse()
     trustable = True
     model: Optional[Version] = await request.app.state.aio_mongo_engine.find_one(
-        # Version, query.or_(Version.id == version_id, Version.slug == version_id)
         Version,
         Version.id == version_id,
     )
     if model is None:
-        # sync_version.send(version_id=version_id)
         await add_modrinth_version_ids_to_queue(version_ids=[version_id])
-        log.debug(f"Version {version_id} not found, send sync task.")
+        log.debug(f"Version {version_id} not found, add to queue.")
         return UncachedResponse()
     elif model.found == False:
         return UncachedResponse()
-    # elif (
-    #     model.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
-    #     < time.time()
-    # ):
-    #     # sync_version.send(version_id=version_id)
-    #     # log.debug(
-    #     #     f"Version {version_id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
-    #     # )
-    #     # return Response(status_code=EXPIRE_STATUS_CODE)
-    #     trustable = False
     return TrustableResponse(content=model.model_dump(), trustable=trustable)
 
 
@@ -349,44 +255,21 @@ async def modrinth_version(
 async def modrinth_versions(ids: str, request: Request):
     trustable = True
     ids_list = json.loads(ids)
-    if request.state.force_sync:
-        # sync_multi_versions.send(version_ids=ids_list)
-        await add_modrinth_version_ids_to_queue(version_ids=ids_list)
-        log.debug(f"Versions {ids} force sync.")
-        return ForceSyncResponse()
     models: List[Version] = await request.app.state.aio_mongo_engine.find(
         Version, query.and_(query.in_(Version.id, ids_list), Version.found == True)
     )
     models_count = len(models)
     ids_count = len(ids_list)
     if not models:
-        # sync_multi_versions.send(version_ids=ids_list)
         await add_modrinth_version_ids_to_queue(version_ids=ids_list)
-        log.debug(f"Versions {ids_list} not found, send sync task.")
+        log.debug(f"Versions {ids_list} not found, add to queue.")
         return UncachedResponse()
     elif models_count != ids_count:
-        # sync_multi_versions.send(version_ids=ids_list)
         await add_modrinth_version_ids_to_queue(version_ids=ids_list)
         log.debug(
-            f"Versions {ids_list} {models_count}/{ids_count} not completely found, send sync task."
+            f"Versions {ids_list} {models_count}/{ids_count} not completely found, add to queue."
         )
         trustable = False
-    # expire_version_ids = []
-    # for model in models:
-    #     if (
-    #         model.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
-    #         < time.time()
-    #     ):
-    #         trustable = False
-    #         break
-            # expire_version_ids.append(model.id)
-            # log.debug(
-            #     f"Version {model.id} expire, send sync task, sync_at: {model.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
-            # )
-    # if expire_version_ids:
-    #     sync_multi_versions.send(version_ids=expire_version_ids)
-    #     log.debug(f"Versions {expire_version_ids} expire, send sync task.")
-    #     trustable = False
     return TrustableResponse(
         content=[model.model_dump() for model in models], trustable=trustable
     )
@@ -405,14 +288,9 @@ class Algorithm(str, Enum):
 @cache(expire=mcim_config.expire_second.modrinth.file)
 async def modrinth_file(
     request: Request,
-    hash_: Annotated[str, Path(alias="hash")],
+    hash_: Annotated[str, Path(alias="hash", pattern=r"[a-zA-Z0-9]{40}|[a-zA-Z0-9]{128}")],
     algorithm: Optional[Algorithm] = Algorithm.sha1,
 ):
-    if request.state.force_sync:
-        # sync_hash.send(hash=hash_, algorithm=algorithm)
-        await add_modrinth_hashes_to_queue([hash_], algorithm=algorithm.value)
-        log.debug(f"File {hash_} force sync.")
-        return ForceSyncResponse()
     trustable = True
     # ignore algo
     file: Optional[File] = await request.app.state.aio_mongo_engine.find_one(
@@ -424,43 +302,26 @@ async def modrinth_file(
         ),
     )
     if file is None:
-        # sync_hash.send(hash=hash_, algorithm=algorithm)
         await add_modrinth_hashes_to_queue([hash_], algorithm=algorithm.value)
-        log.debug(f"File {hash_} not found, send sync task.")
+        log.debug(f"File {hash_} not found, add to queue.")
         return UncachedResponse()
     elif file.found == False:
         return UncachedResponse()
-    # Don't need to check file expire
-    # elif file.sync_at.timestamp() + mcim_config.expire_second.modrinth.file < time.time():
-    #     sync_hash.send(hash=hash_, algorithm=algorithm)
-    #     log.debug(f"File {hash_} expire, send sync task.")
-    #     trustable = False
 
-    # TODO: Add Version reference directly but not query File again
     # get version object
     version: Optional[Version] = await request.app.state.aio_mongo_engine.find_one(
         Version, query.and_(Version.id == file.version_id, Version.found == True)
     )
     if version is None:
-        # sync_version.send(version_id=file.version_id)
         await add_modrinth_version_ids_to_queue(version_ids=[file.version_id])
-        log.debug(f"Version {file.version_id} not found, send sync task.")
+        log.debug(f"Version {file.version_id} not found, add to queue.")
         return UncachedResponse()
-    # elif (
-    #     version.sync_at.timestamp() + mcim_config.expire_second.modrinth.version
-    #     < time.time()
-    # ):
-    #     # sync_version.send(version_id=file.version_id)
-    #     # log.debug(
-    #     #     f"Version {file.version_id} expire, send sync task, sync_at: {version.sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
-    #     # )
-    #     trustable = False
 
     return TrustableResponse(content=version, trustable=trustable)
 
 
 class HashesQuery(BaseModel):
-    hashes: List[str]
+    hashes: List[Annotated[str, Field(pattern=r"[a-zA-Z0-9]{40}|[a-zA-Z0-9]{128}")]]
     algorithm: Algorithm
 
 
@@ -471,11 +332,6 @@ class HashesQuery(BaseModel):
 )
 # @cache(expire=mcim_config.expire_second.modrinth.file)
 async def modrinth_files(items: HashesQuery, request: Request):
-    if request.state.force_sync:
-        # sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm)
-        await add_modrinth_hashes_to_queue(items.hashes, algorithm=items.algorithm.value)
-        log.debug(f"Files {items.hashes} force sync.")
-        return ForceSyncResponse()
     trustable = True
     # ignore algo
     files_models: List[File] = await request.app.state.aio_mongo_engine.find(
@@ -492,47 +348,56 @@ async def modrinth_files(items: HashesQuery, request: Request):
     model_count = len(files_models)
     hashes_count = len(items.hashes)
     if not files_models:
-        # sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm)
-        await add_modrinth_hashes_to_queue(items.hashes, algorithm=items.algorithm.value)
-        log.debug("Files not found, send sync task.")
+        await add_modrinth_hashes_to_queue(
+            items.hashes, algorithm=items.algorithm.value
+        )
+        log.debug("Files not found, add to queue.")
         return UncachedResponse()
     elif model_count != hashes_count:
         # 找出未找到的文件
-        not_found_hashes = list(set(items.hashes) - set(
-            [file.hashes.sha1 if items.algorithm == Algorithm.sha1 else file.hashes.sha512 for file in files_models]
-        ))
+        not_found_hashes = list(
+            set(items.hashes)
+            - set(
+                [
+                    (
+                        file.hashes.sha1
+                        if items.algorithm == Algorithm.sha1
+                        else file.hashes.sha512
+                    )
+                    for file in files_models
+                ]
+            )
+        )
         if not_found_hashes:
-            # sync_multi_hashes.send(hashes=not_found_hashes, algorithm=items.algorithm)
-            await add_modrinth_hashes_to_queue(not_found_hashes, algorithm=items.algorithm.value)
+            await add_modrinth_hashes_to_queue(
+                not_found_hashes, algorithm=items.algorithm.value
+            )
             log.debug(
-                f"Files {not_found_hashes} {len(not_found_hashes)}/{hashes_count} not completely found, send sync task."
+                f"Files {not_found_hashes} {len(not_found_hashes)}/{hashes_count} not completely found, add to queue."
             )
             trustable = False
-    # Don't need to check version expire
 
     version_ids = [file.version_id for file in files_models]
     version_models: List[Version] = await request.app.state.aio_mongo_engine.find(
         Version, query.in_(Version.id, version_ids)
     )
-    # len(version_models) != len(files_models)
+
     version_model_count = len(version_models)
     file_model_count = len(files_models)
     if not version_models:
-        # sync_multi_versions.send(version_ids=version_ids)
         # 一个版本都没找到，直接重新同步
         await add_modrinth_version_ids_to_queue(version_ids=version_ids)
-        log.debug("Versions not found, send sync task.")
+        log.debug("Versions not found, add to queue.")
         return UncachedResponse()
     elif version_model_count != file_model_count:
         # 找出未找到的版本
-        not_found_version_ids = list(set(version_ids) - set(
-            [version.id for version in version_models]
-        ))
+        not_found_version_ids = list(
+            set(version_ids) - set([version.id for version in version_models])
+        )
         if not_found_version_ids:
-            # sync_multi_versions.send(version_ids=not_found_version_ids)
             await add_modrinth_version_ids_to_queue(version_ids=not_found_version_ids)
             log.debug(
-                f"Versions {not_found_version_ids} {len(not_found_version_ids)}/{file_model_count} not completely found, send sync task."
+                f"Versions {not_found_version_ids} {len(not_found_version_ids)}/{file_model_count} not completely found, add to queue."
             )
             trustable = False
     result = {}
@@ -558,14 +423,9 @@ class UpdateItems(BaseModel):
 async def modrinth_file_update(
     request: Request,
     items: UpdateItems,
-    hash_: Annotated[str, Path(alias="hash")],
+    hash_: Annotated[str, Path(alias="hash", pattern=r"[a-zA-Z0-9]{40}|[a-zA-Z0-9]{128}")],
     algorithm: Optional[Algorithm] = Algorithm.sha1,
 ):
-    if request.state.force_sync:
-        # sync_hash.send(hash=hash_, algorithm=algorithm)
-        await add_modrinth_hashes_to_queue([hash_], algorithm=algorithm.value)
-        log.debug(f"Hash {hash_} force sync.")
-        return ForceSyncResponse()
     trustable = True
     files_collection = request.app.state.aio_mongo_engine.get_collection(File)
     pipeline = [
@@ -609,13 +469,8 @@ async def modrinth_file_update(
             + mcim_config.expire_second.modrinth.file
             > time.time()
         ):
-            # sync_project.send(project_id=version_result["project_id"])
-            # log.debug(
-            #     f"Project {version_result['project_id']} expired, send sync task."
-            # )
             trustable = False
     else:
-        # sync_hash.send(hash=hash_, algorithm=algorithm.value)
         await add_modrinth_hashes_to_queue([hash_], algorithm=algorithm.value)
         log.debug(f"Hash {hash_} not found, send sync task")
         return UncachedResponse()
@@ -623,7 +478,7 @@ async def modrinth_file_update(
 
 
 class MultiUpdateItems(BaseModel):
-    hashes: List[str]
+    hashes: List[Annotated[str, Field(pattern=r"[a-zA-Z0-9]{40}|[a-zA-Z0-9]{128}")]]
     algorithm: Algorithm
     loaders: Optional[List[str]]
     game_versions: Optional[List[str]]
@@ -632,11 +487,6 @@ class MultiUpdateItems(BaseModel):
 @v2_router.post("/version_files/update")
 # @cache(expire=mcim_config.expire_second.modrinth.file)
 async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
-    if request.state.force_sync:
-        # sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm)
-        await add_modrinth_hashes_to_queue(items.hashes, algorithm=items.algorithm.value)
-        log.debug(f"Hashes {items.hashes} force sync.")
-        return ForceSyncResponse()
     trustable = True
     files_collection = request.app.state.aio_mongo_engine.get_collection(File)
     pipeline = [
@@ -675,25 +525,26 @@ async def modrinth_mutil_file_update(request: Request, items: MultiUpdateItems):
                 ),
                 "latest_date": {"$first": "$versions_fields.date_published"},
                 "detail": {"$first": "$versions_fields"},  # 只保留第一个匹配版本
-                # "original_hash": { "$first": "$_id.sha1" if items.algorithm is Algorithm.sha1 else "$_id.sha512" }
             }
         },
     ]
     versions_result = await files_collection.aggregate(pipeline).to_list(length=None)
     if len(versions_result) == 0:
-        # sync_multi_hashes.send(hashes=items.hashes, algorithm=items.algorithm.value)
-        await add_modrinth_hashes_to_queue(items.hashes, algorithm=items.algorithm.value)
+        await add_modrinth_hashes_to_queue(
+            items.hashes, algorithm=items.algorithm.value
+        )
         log.debug(f"Hashes {items.hashes} not found, send sync task")
         return UncachedResponse()
     elif len(versions_result) != len(items.hashes):
         # 找出未找到的文件
-        not_found_hashes = list(set(items.hashes) - set(
-            [version["_id"] for version in versions_result]
-        ))
+        not_found_hashes = list(
+            set(items.hashes) - set([version["_id"] for version in versions_result])
+        )
         if not_found_hashes:
-            # sync_multi_hashes.send(hashes=not_found_hashes, algorithm=items.algorithm.value)
-            await add_modrinth_hashes_to_queue(not_found_hashes, algorithm=items.algorithm.value)
-            log.debug(f"Hashes {not_found_hashes} not completely found, send sync task.")
+            await add_modrinth_hashes_to_queue(
+                not_found_hashes, algorithm=items.algorithm.value
+            )
+            log.debug(f"Hashes {not_found_hashes} not completely found, add to queue.")
             trustable = False
     else:
         # check expire
@@ -724,7 +575,9 @@ async def modrinth_tag_categories(request: Request):
     if category is None:
         await async_tags()
         log.debug("Category not found, sync.")
-        category = await request.app.state.aio_redis_engine.hget("modrinth", "categories")
+        category = await request.app.state.aio_redis_engine.hget(
+            "modrinth", "categories"
+        )
     return TrustableResponse(content=json.loads(category))
 
 
@@ -811,6 +664,7 @@ async def modrinth_tag_side_types(request: Request):
     if side_type is None:
         await async_tags()
         log.debug("Side Type not found, sync.")
-        side_type = await request.app.state.aio_redis_engine.hget("modrinth", "side_type")
+        side_type = await request.app.state.aio_redis_engine.hget(
+            "modrinth", "side_type"
+        )
     return TrustableResponse(content=json.loads(side_type))
-
