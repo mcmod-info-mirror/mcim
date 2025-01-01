@@ -30,4 +30,4 @@ COPY scripts/gunicorn_config.py ./
 
 EXPOSE 8000
 
-ENTRYPOINT ["gunicorn", "app:APP", "-k", "uvicorn_worker.UvicornWorker", "-n", "mcim_api", "-c", "gunicorn_config.py"]
+# ENTRYPOINT ["gunicorn", "app:APP", "-k", "uvicorn_worker.UvicornWorker", "-n", "mcim_api", "-c", "gunicorn_config.py"]
