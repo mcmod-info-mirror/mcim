@@ -1,6 +1,6 @@
 from typing import List, Optional, Union
-from dramatiq import actor
-import dramatiq
+# from dramatiq import actor
+# import dramatiq
 import httpx
 import json
 import os
@@ -38,12 +38,12 @@ def submit_models(models: List[Union[File, Mod, Fingerprint]]):
         log.debug(f"Submited: {len(models)}")
 
 
-def should_retry(retries_so_far, exception):
-    return retries_so_far < 3 and (
-        isinstance(exception, httpx.TransportError)
-        or isinstance(exception, dramatiq.RateLimitExceeded)
-        or isinstance(exception, dramatiq.middleware.time_limit.TimeLimitExceeded)
-    )
+# def should_retry(retries_so_far, exception):
+#     return retries_so_far < 3 and (
+#         isinstance(exception, httpx.TransportError)
+#         or isinstance(exception, dramatiq.RateLimitExceeded)
+#         or isinstance(exception, dramatiq.middleware.time_limit.TimeLimitExceeded)
+#     )
 
 
 # limit decorator
@@ -55,15 +55,15 @@ def limit(func):
     return wrapper
 
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="cf_check_alive",
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="cf_check_alive",
 
-)
-@limit
+# )
+# @limit
 def check_alive():
     return request_sync(API, headers=HEADERS).text
 
@@ -189,15 +189,15 @@ def sync_multi_mods_all_files(modIds: List[int]):
         sync_mod_all_files(modId, verify_expire=True)
 
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="sync_mod",
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="sync_mod",
 
-)
-@limit
+# )
+# @limit
 def sync_mod(modId: int):
     models: List[Union[File, Mod]] = []
     res = request_sync(f"{API}/v1/mods/{modId}", headers=HEADERS).json()["data"]
@@ -218,15 +218,15 @@ def sync_mod(modId: int):
     submit_models(models)
 
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="sync_mutil_mods",
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="sync_mutil_mods",
 
-)
-@limit
+# )
+# @limit
 def sync_mutil_mods(modIds: List[int]):
     modIds = list(set(modIds))
     data = {"modIds": modIds}
@@ -248,15 +248,15 @@ def sync_mutil_mods(modIds: List[int]):
     sync_multi_mods_all_files([model.id for model in models])
     submit_models(models)
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="sync_file",
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="sync_file",
 
-)
-@limit
+# )
+# @limit
 def sync_file(modId: int, fileId: int, expire: bool = False):
     # res = request_sync(f"{API}/v1/mods/{modId}/files/{fileId}", headers=headers).json()[
     #     "data"
@@ -279,14 +279,14 @@ def sync_file(modId: int, fileId: int, expire: bool = False):
     sync_mod(modId)
 
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="sync_mutil_files",
-)
-@limit
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="sync_mutil_files",
+# )
+# @limit
 def sync_mutil_files(fileIds: List[int]):
     # models: List[Union[File, Mod]] = []
     res = request_sync(
@@ -302,15 +302,15 @@ def sync_mutil_files(fileIds: List[int]):
     # submit_models(models)
 
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="sync_fingerprints",
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="sync_fingerprints",
 
-)
-@limit
+# )
+# @limit
 def sync_fingerprints(fingerprints: List[int]):
     res = request_sync(
         method="POST",
@@ -333,15 +333,15 @@ def sync_fingerprints(fingerprints: List[int]):
     # submit_models(models)
 
 
-@actor(
-    max_retries=3,
-    retry_when=should_retry,
-    throws=(ResponseCodeException,),
-    min_backoff=1000 * 60,
-    actor_name="sync_categories",
+# @actor(
+#     max_retries=3,
+#     retry_when=should_retry,
+#     throws=(ResponseCodeException,),
+#     min_backoff=1000 * 60,
+#     actor_name="sync_categories",
 
-)
-@limit
+# )
+# @limit
 def sync_categories():
     res = request_sync(
         f"{API}/v1/categories", headers=HEADERS, params={"gameId": "432"}

@@ -3,15 +3,9 @@ from typing import List, Optional, Union, Annotated
 from pydantic import BaseModel, Field
 from odmantic import query
 from enum import Enum
-import time
 import json
 
 from app.sync.curseforge import (
-    sync_mod,
-    sync_mutil_mods,
-    sync_mutil_files,
-    sync_file,
-    sync_fingerprints,
     sync_categories,
 )
 from app.sync_queue.curseforge import (
@@ -29,12 +23,9 @@ from app.models.response.curseforge import (
 )
 from app.config.mcim import MCIMConfig
 from app.utils.response import TrustableResponse, UncachedResponse, BaseResponse
-from app.utils.network import request_sync
 from app.utils.network import request as request_async
 from app.utils.loger import log
 from app.utils.response_cache import cache
-
-from app.database import aio_mongo_engine, aio_redis_engine
 
 mcim_config = MCIMConfig.load()
 
@@ -101,16 +92,19 @@ class ModLoaderType(int, Enum):
     NeoForge = 6
 
 
-# background task
+class SearchResponse(BaseResponse):
+    data: List[Mod]
+    pagination: Pagination
+
 async def check_search_result(request: Request, res: dict):
     modids = set()
     for mod in res["data"]:
+        # 排除小于 30000 的 modid
         if mod["id"] >= 30000:
             modids.add(mod["id"])
 
     # check if modids in db
     if modids:
-        # 排除小于 30000 的 modid
         mod_models: List[Mod] = await request.app.state.aio_mongo_engine.find(
             Mod, query.in_(Mod.id, list(modids))
         )
@@ -118,9 +112,8 @@ async def check_search_result(request: Request, res: dict):
         not_found_modids = modids - set([mod.id for mod in mod_models])
 
         if not_found_modids:
-            # sync_mutil_mods.send(modIds=list(not_found_modids))
             await add_curseforge_modIds_to_queue(modIds=list(not_found_modids))
-            log.debug(f"modIds: {not_found_modids} not found, send sync task.")
+            log.debug(f"modIds: {not_found_modids} not found, add to queue.")
         else:
             log.debug(f"All Mod: {not_found_modids} found.")
     else:
@@ -130,11 +123,10 @@ async def check_search_result(request: Request, res: dict):
 @v1_router.get(
     "/mods/search",
     description="Curseforge Category 信息",
-    # response_model TODO
+    response_model=SearchResponse,
 )
 @cache(expire=mcim_config.expire_second.curseforge.search)
 async def curseforge_search(
-    # background_tasks: BackgroundTasks,
     request: Request,
     gameId: int = 432,
     classId: Optional[int] = None,
@@ -194,33 +186,15 @@ async def curseforge_search(
 async def curseforge_mod(
     modId: Annotated[int, Field(ge=30000, lt=9999999)], request: Request
 ):
-    if request.state.force_sync:
-        # sync_mod.send(modId=modId)
-        await add_curseforge_modIds_to_queue(modIds=[modId])
-        log.debug(f"modId: {modId} force sync.")
-        return UncachedResponse()
-    # # 排除小于 30000 的 modid
-    # if not modId >= 30000: return UncachedResponse()
     trustable: bool = True
     mod_model: Optional[Mod] = await request.app.state.aio_mongo_engine.find_one(
         Mod, Mod.id == modId
     )
     if mod_model is None:
-        # sync_mod.send(modId=modId)
         await add_curseforge_modIds_to_queue(modIds=[modId])
-        log.debug(f"modId: {modId} not found, send sync task.")
+        log.debug(f"modId: {modId} not found, add to queue.")
         return UncachedResponse()
-    # elif (
-    #     mod_model.sync_at.timestamp() + mcim_config.expire_second.curseforge.mod
-    #     < time.time()
-    # ):
-    #     # sync_mod.send(modId=modId)
-    #     # log.debug(
-    #     #     f'modId: {modId} expired, send sync task, sync_at {mod_model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
-    #     # )
-    #     trustable = False
     return TrustableResponse(
-        # content=CurseforgeBaseResponse(data=mod_model).model_dump(), trustable=trustable
         content=CurseforgeBaseResponse(data=mod_model),
         trustable=trustable,
     )
@@ -231,7 +205,6 @@ class modIds_item(BaseModel):
     filterPcOnly: Optional[bool] = True
 
 
-# get mods
 @v1_router.post(
     "/mods",
     description="Curseforge Mods 信息",
@@ -239,17 +212,6 @@ class modIds_item(BaseModel):
 )
 # @cache(expire=mcim_config.expire_second.curseforge.mod)
 async def curseforge_mods(item: modIds_item, request: Request):
-    if request.state.force_sync:
-        # sync_mutil_mods.send(modIds=item.modIds)
-        await add_curseforge_modIds_to_queue(modIds=item.modIds)
-        log.debug(f"modIds: {item.modIds} force sync.")
-        # return UncachedResponse()
-        return TrustableResponse(
-            content=CurseforgeBaseResponse(data=[]).model_dump(),
-            trustable=False,
-        )
-    # 排除小于 30000 的 modid
-    # item.modIds = [modId for modId in item.modIds if modId >= 30000]
     trustable: bool = True
     mod_models: Optional[List[Mod]] = await request.app.state.aio_mongo_engine.find(
         Mod, query.in_(Mod.id, item.modIds)
@@ -257,10 +219,8 @@ async def curseforge_mods(item: modIds_item, request: Request):
     mod_model_count = len(mod_models)
     item_count = len(item.modIds)
     if not mod_models:
-        # sync_mutil_mods.send(modIds=item.modIds)
         await add_curseforge_modIds_to_queue(modIds=item.modIds)
-        log.debug(f"modIds: {item.modIds} not found, send sync task.")
-        # return UncachedResponse()
+        log.debug(f"modIds: {item.modIds} not found, add to queue.")
         return TrustableResponse(
             content=CurseforgeBaseResponse(data=[]).model_dump(),
             trustable=False,
@@ -268,31 +228,12 @@ async def curseforge_mods(item: modIds_item, request: Request):
     elif mod_model_count != item_count:
         # 找到不存在的 modid
         not_match_modids = list(set(item.modIds) - set([mod.id for mod in mod_models]))
-        # sync_mutil_mods.send(modIds=not_match_modids)
         await add_curseforge_modIds_to_queue(modIds=not_match_modids)
         log.debug(
-            f"modIds: {item.modIds} {mod_model_count}/{item_count} not found, send sync task."
+            f"modIds: {item.modIds} {mod_model_count}/{item_count} not found, add to queue."
         )
         trustable = False
-    # content = []
-    # expire_modid: List[int] = []
-    # for model in mod_models:
-    # expire
-    # if (
-    #     model.sync_at.timestamp() + mcim_config.expire_second.curseforge.mod
-    #     < time.time()
-    # ):
-    #     expire_modid.append(model.id)
-    # log.debug(
-    #     f'modId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
-    # )
-    # content.append(model.model_dump())
-    # if expire_modid:
-    #     trustable = False
-    # sync_mutil_mods.send(modIds=expire_modid)
-    # log.debug(f"modIds: {expire_modid} expired, send sync task.")
     return TrustableResponse(
-        # content=CurseforgeBaseResponse(data=content).model_dump(),
         content=CurseforgeBaseResponse(data=mod_models),
         trustable=trustable,
     )
@@ -345,48 +286,14 @@ def convert_modloadertype(type_id: int) -> Optional[str]:
     response_model=List[File],
 )
 @cache(expire=mcim_config.expire_second.curseforge.file)
-# async def curseforge_mod_files(
-#     request: Request,
-#     modId: int,
-#     gameVersion: Optional[str] = None,
-#     modLoaderType: Optional[ModLoaderType] = None,
-#     gameVersionTypeId: Optional[int] = None,
-#     index: Optional[int] = None,
-#     pageSize: Optional[int] = 50,
-# ):
-#     if request.state.force_sync:
-#         sync_mod.send(modId=modId)
-#         log.debug(f"modId: {modId} force sync.")
-#         return UncachedResponse()
-#     mod_models: Optional[List[File]] = await request.app.state.aio_mongo_engine.find(
-#         File, File.modId == modId, limit=pageSize, skip=index
-#     )
-#     if not mod_models:
-#         sync_mod.send(modId=modId)
-#         log.debug(f"modId: {modId} not found, send sync task.")
-#         return UncachedResponse()
-#     return TrustableResponse(
-#         content=CurseforgePageBaseResponse(
-#             data=[model for model in mod_models],
-#             pagination=Pagination(index=index, pageSize=pageSize, resultCount=len(mod_models)),
-#         ).model_dump()
-#     )
 async def curseforge_mod_files(
     request: Request,
     modId: Annotated[int, Field(gt=30000, lt=9999999)],
     gameVersion: Optional[str] = None,
     modLoaderType: Optional[int] = None,
-    # gameVersionTypeId: Optional[int] = None,
     index: Optional[int] = 0,
     pageSize: Optional[int] = 50,
 ):
-    if request.state.force_sync:
-        # sync_mod.send(modId=modId)
-        await add_curseforge_modIds_to_queue(modIds=[modId])
-        log.debug(f"modId: {modId} force sync.")
-        return UncachedResponse()
-    # 排除小于 30000 的 modid
-    # if not modId >= 30000: return UncachedResponse()
     # 定义聚合管道
     match_conditions = {"modId": modId}
     gameVersionFilter = []
@@ -423,9 +330,8 @@ async def curseforge_mod_files(
     result = await files_collection.aggregate(pipeline).to_list(length=None)
 
     if not result or not result[0]["documents"]:
-        # sync_mod.send(modId=modId)
         await add_curseforge_modIds_to_queue(modIds=[modId])
-        log.debug(f"modId: {modId} not found, send sync task.")
+        log.debug(f"modId: {modId} not found, add to queue.")
         return UncachedResponse()
 
     total_count = result[0]["totalCount"][0]["count"]
@@ -463,13 +369,6 @@ class fileIds_item(BaseModel):
 )
 # @cache(expire=mcim_config.expire_second.curseforge.file)
 async def curseforge_files(item: fileIds_item, request: Request):
-    if request.state.force_sync:
-        await add_curseforge_fileIds_to_queue(fileIds=item.fileIds)
-
-        log.debug(f"fileIds: {item.fileIds} force sync.")
-        return UncachedResponse()
-    # 排除小于 530000 的 fileid
-    # item.fileIds = [fileId for fileId in item.fileIds if fileId >= 530000]
     trustable = True
     file_models: Optional[List[File]] = await request.app.state.aio_mongo_engine.find(
         File, query.in_(File.id, item.fileIds)
@@ -484,24 +383,6 @@ async def curseforge_files(item: fileIds_item, request: Request):
         )
         await add_curseforge_fileIds_to_queue(fileIds=not_match_fileids)
         trustable = False
-    # content = []
-    # expire_fileid: List[int] = []
-    # for model in file_models:
-    #     # expire
-    #     if (
-    #         model.sync_at.timestamp() + mcim_config.expire_second.curseforge.file
-    #         < time.time()
-    #     ):
-    #         trustable = False
-
-    # expire_fileid.append(model.id)
-    # log.debug(
-    #     f'fileId: {model.id} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
-    # )
-    # content.append(model.model_dump())
-    # if expire_fileid:
-    # await add_curseforge_fileids_to_queue(fileIds=expire_fileid)
-    # trustable = False
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=file_models),
         trustable=trustable,
@@ -519,30 +400,13 @@ async def curseforge_mod_file(
     fileId: Annotated[int, Field(ge=530000, lt=99999999)],
     request: Request,
 ):
-    if request.state.force_sync:
-        # sync_file.send(modId=modId, fileId=fileId)
-        await add_curseforge_fileIds_to_queue(fileIds=[fileId])
-        log.debug(f"modId: {modId} fileId: {fileId} force sync.")
-        return UncachedResponse()
-    # 排除小于 530000 的 fileid
-    # if not fileId >= 530000 or not modId >= 30000: return UncachedResponse()
     trustable = True
     model: Optional[File] = await request.app.state.aio_mongo_engine.find_one(
         File, File.modId == modId, File.id == fileId
     )
     if model is None:
-        # sync_file.send(modId=modId, fileId=fileId)
         await add_curseforge_fileIds_to_queue(fileIds=[fileId])
         return UncachedResponse()
-    # elif (
-    #     model.sync_at.timestamp() + mcim_config.expire_second.curseforge.file
-    #     < time.time()
-    # ):
-    #     # sync_file.send(modId=modId, fileId=fileId)
-    #     # log.debug(
-    #     #     f'modId: {modId} fileId: {fileId} expired, send sync task, sync_at {model.sync_at.strftime("%Y-%m-%dT%H:%M:%SZ")}.'
-    #     # )
-    #     trustable = False
     return TrustableResponse(
         content=CurseforgeBaseResponse(data=model),
         trustable=trustable,
@@ -559,13 +423,10 @@ async def curseforge_mod_file_download_url(
     fileId: Annotated[int, Field(ge=530000, lt=99999999)],
     request: Request,
 ):
-    # 排除小于 530000 的 fileid
-    # if not fileId >= 530000 or not modId >= 30000: return UncachedResponse()
     model: Optional[File] = await request.app.state.aio_mongo_engine.find_one(
         File, File.modId == modId, File.id == fileId
     )
     if model is None:
-        # sync_file.send(modId=modId, fileId=fileId)
         await add_curseforge_fileIds_to_queue(fileIds=[fileId])
         return UncachedResponse()
     return TrustableResponse(
@@ -585,13 +446,6 @@ class fingerprints_item(BaseModel):
 )
 # @cache(expire=mcim_config.expire_second.curseforge.fingerprint)
 async def curseforge_fingerprints(item: fingerprints_item, request: Request):
-    """
-    未找到所有 fingerprint 会视为不可信，因为不存在的 fingerprint 会被记录
-    """
-    if request.state.force_sync:
-        await add_curseforge_fingerprints_to_queue(fingerprints=item.fingerprints)
-        log.debug(f"fingerprints: {item.fingerprints} force sync.")
-        return UncachedResponse()
     trustable = True
     fingerprints_models: List[Fingerprint] = (
         await request.app.state.aio_mongo_engine.find(
@@ -624,19 +478,12 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
         fingerprint["id"] = fingerprint_model.file.id
         result_fingerprints_models.append(fingerprint)
         exactFingerprints.append(fingerprint_model.id)
-    # exactFingerprints = [fingerprint.id for fingerprint in fingerprints_models]
-    # unmatchedFingerprints = [
-    #     fingerprint
-    #     for fingerprint in item.fingerprints
-    #     if fingerprint not in exactFingerprints
-    # ]
     return TrustableResponse(
         content=CurseforgeBaseResponse(
             data=FingerprintResponse(
                 isCacheBuilt=True,
                 exactFingerprints=exactFingerprints,
                 exactMatches=result_fingerprints_models,
-                # unmatchedFingerprints=unmatchedFingerprints,
                 unmatchedFingerprints=not_match_fingerprints,
                 installedFingerprints=[],
             ).model_dump()
@@ -652,13 +499,6 @@ async def curseforge_fingerprints(item: fingerprints_item, request: Request):
 )
 # @cache(expire=mcim_config.expire_second.curseforge.fingerprint)
 async def curseforge_fingerprints_432(item: fingerprints_item, request: Request):
-    """
-    未找到所有 fingerprint 会视为不可信，因为不存在的 fingerprint 会被记录
-    """
-    if request.state.force_sync:
-        await add_curseforge_fingerprints_to_queue(fingerprints=item.fingerprints)
-        log.debug(f"fingerprints: {item.fingerprints} force sync.")
-        return UncachedResponse()
     trustable = True
     fingerprints_models: List[Fingerprint] = (
         await request.app.state.aio_mongo_engine.find(
@@ -690,11 +530,6 @@ async def curseforge_fingerprints_432(item: fingerprints_item, request: Request)
         fingerprint["id"] = fingerprint_model.file.id
         result_fingerprints_models.append(fingerprint)
         exactFingerprints.append(fingerprint_model.id)
-    # unmatchedFingerprints = [
-    #     fingerprint
-    #     for fingerprint in item.fingerprints
-    #     if fingerprint not in exactFingerprints
-    # ]
     return TrustableResponse(
         content=CurseforgeBaseResponse(
             data=FingerprintResponse(

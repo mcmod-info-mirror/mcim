@@ -16,8 +16,6 @@ from app.utils.response import BaseResponse
 from app.utils.network import ResponseCodeException
 from app.utils.network import request as request_async
 
-from app.sync.modrinth import sync_project
-from app.sync.curseforge import sync_mutil_files
 from app.sync_queue.curseforge import add_curseforge_fileIds_to_queue
 from app.sync_queue.modrinth import add_modrinth_project_ids_to_queue
 from app.utils.metric import (
@@ -48,7 +46,9 @@ TIMEOUT = 2.5
 
 
 def get_http_date(delay: int = CDN_MAX_AGE):
-    # Get the current timestamp
+    """
+    Get the current timestamp
+    """
     timestamp = time.time()
     timestamp += delay
 
@@ -91,7 +91,6 @@ if mcim_config.file_cdn:
     ):
         def return_origin_response():
             url = f"https://cdn.modrinth.com/data/{project_id}/versions/{version_id}/{file_name}"
-            # log.debug(f"Redirect to {url}")
             FILE_CDN_FORWARD_TO_ORIGIN_COUNT.labels("modrinth").inc()
             return RedirectResponse(
                 url=url,
@@ -129,7 +128,6 @@ if mcim_config.file_cdn:
                         sha1, request
                     )
                     if open93home_response:
-                        # log.debug(f"Redirect to open93home {sha1}")
                         FILE_CDN_FORWARD_TO_OPEN93HOME_COUNT.labels("modrinth").inc()
                         return open93home_response
                     else:
@@ -139,7 +137,6 @@ if mcim_config.file_cdn:
                     return return_origin_response()
         else:
             # 文件信息不存在
-            # sync_project.send(project_id)
             await add_modrinth_project_ids_to_queue(project_ids=[project_id])
             log.debug(f"sync project {project_id} task send.")
 
@@ -159,7 +156,6 @@ if mcim_config.file_cdn:
     ):
         def return_origin_response():
             url = f"https://edge.forgecdn.net/files/{fileid1}/{fileid2}/{file_name}"
-            # log.debug(f"Redirect to {url}")
             FILE_CDN_FORWARD_TO_ORIGIN_COUNT.labels("curseforge").inc()
             return RedirectResponse(
                 url=url,
@@ -200,7 +196,6 @@ if mcim_config.file_cdn:
                         sha1, request
                     )
                     if open93home_response:
-                        # log.debug(f"Redirect to open93home {sha1}")
                         FILE_CDN_FORWARD_TO_OPEN93HOME_COUNT.labels("curseforge").inc()
                         return open93home_response
                     else:
@@ -214,7 +209,6 @@ if mcim_config.file_cdn:
                 )
         else:
             if fileid >= 530000:
-                # sync_mutil_files.send([fileid])
                 await add_curseforge_fileIds_to_queue(fileIds=[fileid])
                 log.debug(f"sync fileId {fileid} task send.")
 
@@ -237,6 +231,7 @@ async def list_file_cdn(
             status_code=403, content="Forbidden", headers={"Cache-Control": "no-cache"}
         )
     files_collection = request.app.state.aio_mongo_engine.get_collection(cdnFile)
+    
     # 动态构建 $match 阶段
     match_stage = {}
     if last_modified:
@@ -248,11 +243,6 @@ async def list_file_cdn(
     # 聚合管道
     pipeline = [{"$match": match_stage}, {"$sort": {"_id": 1}}, {"$limit": page_size}]
 
-    # pipeline = [
-    #     {"$match": {"_id": {"$gt": last_id}} if last_id else {}},
-    #     {"$sort": {"_id": 1}},
-    #     {"$limit": page_size},
-    # ]
     results = await files_collection.aggregate(pipeline).to_list(length=None)
     return BaseResponse(content=results)
 
